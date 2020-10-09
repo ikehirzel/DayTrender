@@ -1,0 +1,11 @@
+#vscode files and such
+.vs/
+.vscode/
+daytrender.code-workspace
+
+#ignoring build files
+build/
+
+#ignoring the csv files that are filled with credentials and such
+res/keys.json
+res/serverinfo.json

@@ -1,0 +1,27 @@
+$label "SMA"
+
+double sum = 0.0;
+unsigned int dataIndex = 0;
+
+for(unsigned int i = startIndex; i < startIndex + range; i++)
+{
+	sum += candles[i].close;
+	data[dataIndex] = sum / (double)(dataIndex + 1);
+	dataIndex++;
+}
+		
+for(unsigned int i = startIndex + range; i <= index; i++)
+{
+	sum = 0.0;
+	unsigned int si = (i + 1) - range;
+	int count  = 0;
+	for(unsigned int j = si; j <= i; j++)
+	{
+		sum += candles[j].close;
+		count++;
+	}
+			
+	data[dataIndex] = sum / (double)range;
+	dataIndex++;
+}
+

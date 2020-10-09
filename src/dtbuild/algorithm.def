@@ -1,0 +1,51 @@
+#include <map>
+#include <string>
+#include <vector>
+#include <iostream>
+
+#define ALGO_NAME "%ALGORITHM_NAME%"
+
+%ACTION_DEFINE%
+%CANDLE_DEFINE%
+
+using namespace daytrender;
+
+typedef std::pair<std::string, std::vector<double>> indicator_data;
+typedef std::map<std::string, indicator_data> indicator_dataset;
+typedef std::pair<indicator_dataset, unsigned int> algorithm_data;
+
+struct Indicator
+{
+	double ratio = 1.0;
+	std::string name;
+	Indicator(double ratio)
+	{
+		this->ratio = ratio;
+	}
+	virtual indicator_data calculate(const candleset& candles, unsigned int index, unsigned int window) = 0;
+	virtual std::string getName() = 0;
+};
+
+%INDICATOR_DEFINE%
+
+%INDICATOR_DECLARE%
+
+unsigned int getAction(const indicator_dataset& dataset, const candleset& candles, unsigned int index)
+{
+	%INDICATOR_DATA%
+	%ALGORITHM_SCRIPT%
+}
+
+extern "C" algorithm_data process(const candleset& candles, unsigned int index, unsigned int window)
+{
+	indicator_dataset dataset;
+	%DATASET_INIT%
+	unsigned int action = getAction(dataset, candles, index);
+	return { dataset, action };
+}
+
+extern "C" std::string getName()
+{
+	return ALGO_NAME;
+}
+

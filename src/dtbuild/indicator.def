@@ -1,0 +1,26 @@
+struct %INDICATOR_CLASS% : public Indicator
+{
+	%INDICATOR_CLASS%(double ratio): Indicator(ratio) {}
+
+	std::string getName()
+	{
+		return "%INDICATOR_LABEL%";
+	}
+
+	indicator_data calculate(const candleset& candles, unsigned int index, unsigned int window)
+	{
+		unsigned int range = window * ratio;
+		unsigned int startIndex = (index + 1) - window;
+		std::vector<double> data(window);
+		if(index >= candles.size() || startIndex >= candles.size())
+		{
+			std::cout << getName() << ": index out of bounds\n";
+			return { getName(), data };
+		}
+		
+		%CALCULATE_SCRIPT%
+		
+		return { getName(), data };
+	}
+};
+

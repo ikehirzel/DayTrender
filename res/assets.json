@@ -1,0 +1,20 @@
+{
+	"Forex":
+	[
+		{
+			"ticker": "EUR_USD",
+			"algorithm": "simplema.so",
+			"interval": 300,
+			"window": 100
+		}
+	],
+	"Stocks":
+	[
+		{
+			"ticker": "MSFT",
+			"algorithm": "simplesr.so",
+			"interval": 900,
+			"window": 50
+		}
+	]
+}
