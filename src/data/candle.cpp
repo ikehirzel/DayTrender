@@ -1,38 +1,25 @@
 #include "candle.h"
-
+#include <iostream>
 #include <cmath>
 
 namespace daytrender
 {
-	candle::candle(const std::string& time, double open, double high, double low, double close, unsigned int volume)
+	void printCandle(const candle& c)
 	{
-		this->time = time;
-		this->open = open;
-		this->high = high;
-		this->low = low;
-		this->close = close;
-		this->volume = volume;
-		
-		change = close - open;
-		volatility = high - low / (abs(open - close) + 1);
-		
-		if(change > 0)
-		{
-			movement = BULLISH;
-		}
-		else if(change == 0)
-		{
-			movement = SIDEWAYS;
-		}
-		else if(change < 0)
-		{
-			movement = BEARISH;
-		}
+		std::cout << "candle:\n{\n\tOpen   :\t" << c[0] << "\n\tHigh   :\t" << c[1] << "\n\tLow    :\t" << c[2] << "\n\tClose  :\t" << c[3] << "\n\tVolume :\t" << c[4] << "\n}";
 	}
-	
-	std::ostream& operator<<(std::ostream& out, const candle& c)
+
+	void calculateCandle(candle& c)
 	{
-		out << "candle:\n{\n\tTime   :\t" << c.time << "\n\tOpen   :\t" << c.open << "\n\tHigh   :\t" << c.high << "\n\tLow    :\t" << c.low << "\n\tClose  :\t" << c.close << "\n\tVolume :\t" << c.volume << "\n}";
-		return out;
+		if (c.size() < 4)
+		{
+			std::cout << "Cannot calculate candle!" << std::endl;
+			return;
+		}
+
+		c.resize(8);
+		c[5] = c[3] - c[0];
+		c[6] = c[5] / abs(c[5]);
+		c[7] = (c[1] - c[2]) / (abs(c[0] - c[3]) + 1);
 	}
 }

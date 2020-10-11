@@ -1,4 +1,5 @@
 $label "EMA"
+$identifier EMA
 
 double multiplier = 2.0 / (double)(range + 1);
 
@@ -7,7 +8,7 @@ unsigned int initLength = 5;
 
 for(unsigned int i = 0; i < startIndex + initLength; i++)
 {
-	sum += candles[i].close;
+	sum += candles[i][3];
 }
 
 data[0] = sum / (double)initLength;
@@ -16,7 +17,7 @@ unsigned int dataIndex = 1;
 
 for(unsigned int i = startIndex + 1; i <= index; i++)
 {
-	double a = candles[i].close * multiplier;
+	double a = candles[i][3] * multiplier;
 	double b = data[dataIndex - 1] * (1.0 - multiplier);
 	data[dataIndex] = a + b;
 	dataIndex++;

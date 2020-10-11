@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../data/candle.h"
+
 #include <vector>
 #include <nlohmann/json.hpp>
 #include <hlog.h>

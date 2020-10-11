@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include "../data/candle.h"
 #include "../data/interval.h"
 
 namespace daytrender
@@ -47,16 +46,15 @@ namespace daytrender
 
 		for (json val : arr)
 		{
-			std::string time;
-			int volume;
-			double open, high, low, close;
-			time = std::to_string(val["t"].get<int>());
+			double open, high, low, close, volume;
 			open = val["o"].get<double>();
 			high = val["h"].get<double>();
 			low = val["l"].get<double>();
 			close = val["c"].get<double>();
-			volume = val["v"].get<int>();
-			candles.push_back(candle(time, open, high, low, close, volume));
+			volume = val["v"].get<double>();
+			candle c = { open, high, low, close, volume };
+			calculateCandle(c);
+			candles.push_back(c);
 		}
 
 		return candles;

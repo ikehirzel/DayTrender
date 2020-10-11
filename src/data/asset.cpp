@@ -97,13 +97,13 @@ namespace daytrender
 		PaperAccount account(basePaperAccount, inter, win);
 		//pre staging the price so that it doesn't tade preemptively
 		unsigned int index = window - 1;
-		account.setPrice(candles[index].close);
+		account.setPrice(candles[index][3]);
 
 		//loop for moving window
 		for (index = window; index < candles.size(); index++)
 		{
 			//updating the data we have to work with
-			account.setPrice(candles[index].close);
+			account.setPrice(candles[index][3]);
 			//std::cout << "\t\t\tPRICE: " << account.getPrice() << std::endl;
 
 			//calculating move to make

@@ -1,7 +1,6 @@
 #include "oandaclient.h"
 
 #include "../data/interval.h"
-#include "../data/candle.h"
 
 namespace daytrender
 {
@@ -157,14 +156,14 @@ namespace daytrender
 		{
 			json mid = val["mid"];
 			std::string time, open, high, low, close;
-			int volume;
-			time = val["time"].get<std::string>();
-			volume = val["volume"].get<int>();
+			double volume;
+			volume = val["volume"].get<double>();
 			open = mid["o"].get<std::string>();
 			high = mid["h"].get<std::string>();
 			low = mid["l"].get<std::string>();
 			close = mid["c"].get<std::string>();
-			candle c(time, std::stold(open), std::stold(high), std::stold(low), std::stold(close), volume);
+			candle c = { std::stod(open), std::stod(high), std::stod(low), std::stod(close), volume };
+			calculateCandle(c);
 			candles[i] = c;
 			i++;
 		}

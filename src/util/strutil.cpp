@@ -91,4 +91,74 @@ namespace hirzel
 
 		}
 	}
+
+	std::string get_folder(const std::string& filepath)
+	{
+		unsigned int slashIndex = -1;
+		for (unsigned int i = 0; i < filepath.size(); i++)
+		{
+			if(filepath[i] == '/')
+			{
+				slashIndex = i;
+			}
+		}
+		if(slashIndex < filepath.size())
+		{
+			return filepath.substr(0, slashIndex);
+		}
+
+		return ".";
+	}
+
+	std::string get_filename(const std::string& filepath)
+	{
+		int slashIndex = -1;
+		for (unsigned int i = 0; i < filepath.size(); i++)
+		{
+			if (filepath[i] == '/')
+			{
+				slashIndex = i;
+			}
+		}
+
+		return filepath.substr(slashIndex + 1);
+	}
+
+	std::string get_extension(const std::string& filepath)
+	{
+		int slashIndex = -1, dotIndex = -1;
+		for (unsigned int i = 0; i < filepath.size(); i++)
+		{
+			if (filepath[i] == '/')
+			{
+				slashIndex = i;
+				dotIndex = slashIndex;
+			}
+			if (filepath[i] == '.' && dotIndex == slashIndex)
+			{
+				dotIndex = i;
+			}
+		}
+
+		return filepath.substr(dotIndex + 1);
+	}
+
+	std::string get_basename(const std::string& filepath)
+	{
+		int slashIndex = -1, dotIndex = -1;
+		for (unsigned int i = 0; i < filepath.size(); i++)
+		{
+			if (filepath[i] == '/')
+			{
+				slashIndex = i;
+				dotIndex = slashIndex;
+			}
+			if (filepath[i] == '.' && dotIndex == slashIndex)
+			{
+				dotIndex = i;
+			}
+		}
+
+		return filepath.substr(slashIndex + 1, dotIndex - slashIndex - 1);
+	}
 }

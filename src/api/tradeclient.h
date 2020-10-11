@@ -7,9 +7,6 @@
 
 namespace daytrender
 {
-	struct candle;
-	typedef std::vector<candle> candleset;
-
 	class TradeClient
 	{
 	protected:

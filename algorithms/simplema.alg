@@ -1,6 +1,5 @@
 $label "Simple MA"
-
-$require "indicators/ema.ind" as EMA
+$require "indicators/ema.ind"
 
 EMA longma(1.0);
 EMA shortma(0.25);
@@ -11,13 +10,13 @@ double lastLong = longma[index - 1];
 //bullish crossover
 if(shortma[index] > longma[index] && lastShort < lastLong)
 {
-	return ACTION_BUY;
+	buy();
 }
 //bearish crossover
 else if (shortma[index] < longma[index] && lastShort > lastLong)
 {
-	return ACTION_SELL;
+	sell();
 }
 
-return ACTION_NOTHING;
+null();
 
