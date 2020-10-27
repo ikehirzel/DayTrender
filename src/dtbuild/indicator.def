@@ -1,3 +1,5 @@
+%INCLUDES%
+
 struct %INDICATOR_CLASS% : public Indicator
 {
 	%INDICATOR_CLASS%(double ratio): Indicator(ratio) {}

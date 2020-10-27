@@ -6,6 +6,7 @@
 #include "paperaccount.h"
 #include "../api/oandaclient.h"
 #include "../api/alpacaclient.h"
+#include <hirzel/fountain.h>
 
 #include <future>
 
@@ -13,11 +14,11 @@
 
 namespace daytrender
 {
+	const char* asset_labels[] = ASSET_LABELS;
+
 	Asset::Asset(unsigned int assetIndex, TradeClient *client, TradeAlgorithm* algo,
 		const std::string &ticker, unsigned int interval, unsigned int window)
 	{
-		l = hirzel::Logger(ASSET_NAME);
-
 		actions[ACTION_NOTHING] = &Asset::nothing;
 		actions[ACTION_SELL] = &Asset::sell;
 		actions[ACTION_BUY] = &Asset::buy;
@@ -52,7 +53,7 @@ namespace daytrender
 		}
 		else
 		{
-			l.error("Live buying is not implemented yet!");
+			errorf("Live buying is not implemented yet!");
 		}
 	}
 
@@ -68,7 +69,7 @@ namespace daytrender
 		}
 		else
 		{
-			l.error("Live selling is not implemented yet!");
+			errorf("Live selling is not implemented yet!");
 		}
 	}
 	
@@ -81,7 +82,7 @@ namespace daytrender
 			candleset candles = client->getCandles(ticker, interval, window);
 			if(!algo)
 			{
-				l.warning("Algorithm is not defined!");
+				warningf("Algorithm is not defined!");
 				return;
 			}
 			algorithm_data algodata = algo->process(candles, candles.size() - 1, window);

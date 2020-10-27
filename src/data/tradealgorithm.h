@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <hlog.h>
 
 #include "../data/candle.h"
 
@@ -22,7 +21,6 @@ namespace daytrender
 	class TradeAlgorithm
 	{
 	protected:
-		hirzel::Logger l;
 		std::string name, filename;
 		tinyplug::Plugin* handle;
 		

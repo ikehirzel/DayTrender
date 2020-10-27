@@ -1,7 +1,6 @@
 #include "alpacaclient.h"
 
 #include <iostream>
-
 #include "../data/interval.h"
 
 namespace daytrender

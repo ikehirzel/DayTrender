@@ -5,14 +5,16 @@
 
 #define ALGO_NAME "%ALGORITHM_NAME%"
 
-%ACTION_DEFINE%
-%CANDLE_DEFINE%
+%INCLUDES%
 
 using namespace daytrender;
 
 typedef std::pair<std::string, std::vector<double>> indicator_data;
 typedef std::map<std::string, indicator_data> indicator_dataset;
 typedef std::pair<indicator_dataset, unsigned int> algorithm_data;
+typedef std::vector<double> candle;
+typedef std::vector<candle> candleset;
+
 
 struct Indicator
 {

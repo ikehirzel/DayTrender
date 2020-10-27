@@ -1,6 +1,5 @@
 #pragma once
 
-#include <hlog.h>
 #include <thread>
 #include <vector>
 #include <string>
@@ -25,15 +24,14 @@ namespace daytrender
 	{
 	private:
 		bool running = false, shouldrun = true;
-		hirzel::Logger l;
 		// rest clients
-		OandaClient* forex;
-		AlpacaClient* stocks;
+		OandaClient* forex = nullptr;
+		AlpacaClient* stocks = nullptr;
 
 		// server and server info
 		std::string ip, username, password;
 		unsigned short port = 0;
-		httplib::Server* server;
+		httplib::Server* server = nullptr;
 
 		// threads
 		std::thread serverThread, conioThread;

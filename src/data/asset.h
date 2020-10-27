@@ -66,6 +66,8 @@ namespace daytrender
 	
 	typedef std::pair<candle_data, algorithm_data> asset_data;
 
+	extern const char* asset_labels[];
+
 	class Asset
 	{
 		//function pointer to things like nothing, sell, buy, etc...
@@ -74,7 +76,6 @@ namespace daytrender
 		bool paper = PAPER_TRADING;
 		unsigned int tick = 0, interval = 0, window = 0, index = 0;
 		double maxRisk = 1.0;
-		hirzel::Logger l;
 		std::string ticker;
 		std::vector<unsigned int> backtestIntervals;
 		asset_data data;

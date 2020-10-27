@@ -1,36 +1,47 @@
 cmake_minimum_required(VERSION 3.9)
 project(DayTrender)
 
-file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp ./src/util/*.cpp)
+file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp)
 
 add_executable(daytrender ${DAYTRENDER_SRCS})
-add_executable(dtbuild ./src/dtbuild/dtbuild.cpp ./src/util/fileutil.cpp ./src/util/strutil.cpp)
+add_executable(dtbuild ./src/dtbuild/dtbuild.cpp)
 
+# setting properties
 set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)
 set_target_properties(dtbuild PROPERTIES CXX_STANDARD 17)
 
-set(HLOG_LIB_DIR "lib/hlog/lib")
-file(COPY res DESTINATION .)
-
 if(UNIX)
 	target_link_libraries(daytrender PRIVATE pthread dl)
-	file(COPY ${HLOG_LIB_DIR}/libhlog.so DESTINATION .)
-	target_link_options(daytrender PRIVATE "-Wl,-rpath=.")
+	target_link_options(daytrender PRIVATE "-Wl,-rpath='$ORIGIN'")
 endif()
 
-# Finding libraries
+# setting up nlohmann json
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 
-# Setting includes
+# setting up fountain
+add_library(fountain SHARED IMPORTED)
+set_target_properties(fountain PROPERTIES IMPORTED_LOCATION ../lib/fountain/build/libfountain.so)
+target_include_directories(daytrender PRIVATE lib/fountain/build/include)
+
+# setting up hxutils
+add_library(hxutils SHARED IMPORTED)
+set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION ../lib/hxutils/build/libhxutils.so)
+target_include_directories(daytrender PRIVATE lib/hxutils/build/include)
+target_include_directories(dtbuild PRIVATE lib/hxutils/build/include)
+
+# setting up cpphttplib
 target_include_directories(daytrender PRIVATE lib/cpp-httplib/include)
+
+# setting up tinyplug
 target_include_directories(daytrender PRIVATE lib/tinyplug/include)
-target_include_directories(daytrender PRIVATE lib/hlog/include)
 
-# Setting link directories
-target_link_directories(daytrender PRIVATE lib/hlog/lib)
+# linking daytrender libraries
+target_link_libraries(daytrender PRIVATE fountain hxutils nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
 
-# Linking libraries
-target_link_libraries(daytrender PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-target_link_libraries(daytrender PRIVATE nlohmann_json)
-target_link_libraries(daytrender PRIVATE hlog)
+# linking dtbuild libraries
+target_link_libraries(dtbuild PRIVATE hxutils)
+
+# copying res folder
+file(COPY res DESTINATION .)
+

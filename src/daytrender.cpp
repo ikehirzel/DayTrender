@@ -1,7 +1,8 @@
 #include "daytrender.h"
 
-#include "util/fileutil.h"
-#include "util/sysutil.h"
+#include <hirzel/fileutil.h>
+#include <hirzel/sysutil.h>
+#include <hirzel/fountain.h>
 
 #include "data/candle.h"
 #include "data/asset.h"
@@ -18,13 +19,10 @@
 using namespace hirzel;
 using namespace httplib;
 
-#define DAYTRENDER_NAME "DayTrender"
-
 namespace daytrender
 {
 	DayTrender::DayTrender()
 	{
-		l = hirzel::Logger(DAYTRENDER_NAME);
 		// NOTE: functions must be called in this order
 
 		// loads the credentials of the clients and creates them
@@ -40,34 +38,40 @@ namespace daytrender
 	// destroys clients and assets
 	DayTrender::~DayTrender()
 	{
-		delete forex;
-		delete stocks;
-		delete server;
+		(forex) ? delete forex : warningf("Forex was never initialized!");
+		(stocks) ? delete stocks : warningf("Forex was never initialized!");
+		(server) ? delete server : warningf("Server was never initialized!");
 
-		for (std::vector<Asset *> v : assets)
+		int count = 0;
+		for (unsigned int i = 0; i < assets.size(); i++)
 		{
-			for (Asset *asset : v)
+			count = 0;
+			for (Asset *asset : assets[i])
 			{
+				count++;
 				delete asset;
 			}
+			if (!count) warningf("No %s assets were initialized!", asset_labels[i]);
 		}
-
+		count = 0;
 		for (std::pair<std::string, TradeAlgorithm *> p : algorithms)
 		{
 			delete p.second;
+			count++;
 		}
+		if(!count) warningf("No algorithms were initialized!");
 	}
 
 	// loads clients credentials and creates clients
 	void DayTrender::initClients()
 	{
-		l.info("Initializing clients...");
+		infof("Initializing clients...");
 		// loading credentials for apis
 		std::string credentialStr = read_string("res/keys.json");
 		if (credentialStr.empty())
 		{
 			//std::cout << "DayTrender::initAssets() : credentialStr is empty!\n";
-			l.error("credentialStr is empty!");
+			errorf("credentialStr is empty!");
 			shouldrun = false;
 			return;
 		}
@@ -81,6 +85,7 @@ namespace daytrender
 
 		// Setting oanda credentials
 		json oandaCredentials = credentials["Oanda"];
+		
 		forex = new OandaClient({oandaCredentials["username"].get<std::string>(),
 								 oandaCredentials["accountid"].get<std::string>(),
 								 oandaCredentials["token"].get<std::string>()});
@@ -88,7 +93,7 @@ namespace daytrender
 
 	void DayTrender::initAlgorithms()
 	{
-		l.info("Initializing algorithms...");
+		infof("Initializing algorithms...");
 		std::string algo_dir = "./res/algorithms";
 
 		for (auto &file : std::filesystem::directory_iterator(algo_dir))
@@ -109,12 +114,12 @@ namespace daytrender
 	// loads asset info, creates assets, and loads algorithm names
 	void DayTrender::initAssets()
 	{
-		l.info("Initializing assets...");
+		infof("Initializing assets...");
 		// Loading asset info
 		std::string assetStr = read_string("res/assets.json");
 		if (assetStr.empty())
 		{
-			l.error("assetStr is empty!");
+			errorf("assetStr is empty!");
 			shouldrun = false;
 			return;
 		}
@@ -145,8 +150,14 @@ namespace daytrender
 
 	void DayTrender::initServer()
 	{
-		l.info("Loading server data...");
+		infof("Loading server data...");
 		std::string data = read_string("./res/serverinfo.json");
+		if(data.empty())
+		{
+			errorf("Failed to read serverinfo.json!");
+			shouldrun = false;
+			return;
+		}
 		json serverInfo = json::parse(data);
 
 		this->ip = serverInfo["ip"].get<std::string>();
@@ -155,153 +166,24 @@ namespace daytrender
 		this->password = serverInfo["password"].get<std::string>();
 		this->server = new httplib::Server();
 
-		l.info("Initializing server...");
-		/*
-		server->set_mount_point("/", "res/http/");
-		
-		server->Get("/", [&](const httplib::Request &req, httplib::Response &res)
-		{
-			std::cout << "GET @ " << req.path << std::endl;
-			std::string html = read_file_as_string("res/http/index.html");
-			res.set_content(html, "text/html");
-		});
-		
-		server->Get("/data", [&](const Request &req, Response &res) 
-		{
-			std::cout << "GET @ " << req.path << std::endl;
-			
-			json response;
-			
-			//getting all of the assets and sending their tickers
-			for(unsigned int j = 0; j < ASSET_TYPE_COUNT; j++)
-			{
-				std::cout << "label: " << assetLabels[j] << std::endl;
-				response["assets"][j]["label"] = assetLabels[j];
-				for(unsigned int i = 0; i < assets[j].size(); i++)
-				{
-					std::cout << assets[j][i]->getTicker() << std::endl;
-					response[s("assets")][j][s("list")][i] = value(s(assets[j][i]->getTicker()));
-					std::cout << "done" << std::endl;
-				}
-			}
-			std::cout << "Getting algorithms..." << std::endl;
-			//getting all of the algorithms in the array and sending
-			//their names in their respective indexes 
-			for(unsigned int i = 0; i < algorithms.size(); i++)
-			{
-				response[s("algorithms")][i] = value(s(algorithms[i]->getName()));
-			}
-			
-			res.set_content(u(response.serialize()), "application/json");
-		});
-		server->Get("/shutdown", [&](const Request &req, Response &res)
-		{
-			std::cout << "GET @ " << req.path << std::endl;
-			
-			res.set_content("Shutting down...", "text/plain");
-			stop();
-		});
-		server->Get("/watch", [&](const Request &req, Response &res)
-		{
-			std::cout << "GET @ " << req.path << std::endl;
-			
-			unsigned int assetType, interval;
-			std::string ticker, responseStr;
-			candleset candles;
-
-			assetType = std::stoul(req.get_param_value("assetType"));
-			ticker = req.get_param_value("ticker");
-
-			std::cout << "Ticker: " << ticker << ", assetType: " << assetType << std::endl;
-			
-			Asset* asset;
-			
-			for(Asset* a : assets[assetType])
-			{
-				if(a->getTicker() == ticker)
-				{
-					asset = a;
-					break;
-				}
-			}
-			
-			if(!asset)
-			{
-				std::cout << "Asset is nullptr!" << std::endl;
-				return;
-			}
-			asset_data data = asset->getData();
-			candles = data.first.second;
-			interval = data.first.first;
-			
-			algorithm_data algodata = data.second;
-			
-			//the reponse to the server that will be serialized
-			value response;
-			//the individual variable arrays that will be sent
-			value x, open, high, low, close, volume, indicators;
-			
-			unsigned int index = 0;
-			for(indicator_data i : algodata.first)
-			{
-				//std::cout << "data[" << i << "]: " << indicatorData[i].second.back() << std::endl;
-				indicators[index][s("name")] = value(s(i.first));
-				for(unsigned int j = 0; j < i.second.size(); j++)
-				{
-					indicators[index][s("data")][j] = i.second[j];
-				}
-				index++;
-			}
-			
-			std::cout << "c size: " << candles.size() << std::endl;
-			
-			for (unsigned int i = 0; i < candles.size(); i++)
-			{
-				x[i] = i;
-				open[i] = candles[i].open;
-				high[i] = candles[i].high;
-				low[i] = candles[i].low;
-				close[i] = candles[i].close;
-				volume[i] = candles[i].volume;
-			}
-			
-			response[s("x")] = x;
-			response[s("open")] = open;
-			response[s("high")] = high;
-			response[s("low")] = low;
-			response[s("close")] = close;
-			response[s("volume")] = volume;
-			response[s("indicators")] = indicators;
-			response[s("interval")] = interval;
-			
-			responseStr = u(response.serialize());
-			
-			res.set_content(responseStr, "application/json");
-		});
-		server->Get("/backtest", [&](const Request &req, Response &res) 
-		{
-			std::cout << "GET @ " << req.path << std::endl;
-			std::cout << res.body << std::endl;
-			//TODO: Implement remote testing
-		});
-		*/
+		infof("Initializing server...");
 	}
 
 	void DayTrender::start()
 	{
 		if (running)
 		{
-			l.warning("DayTrender has already started!");
+			warningf("DayTrender has already started!");
 			return;
 		}
 
 		if (!shouldrun)
 		{
-			l.fatal("Execution cannot continue!");
+			fatalf("Execution of DayTrender cannot continue!");
 			return;
 		}
 
-		l.info("Starting DayTrender...");
+		infof("Starting DayTrender...");
 		running = true;
 
 		serverThread = std::thread(&httplib::Server::listen, server, ip.c_str(), port, 0);
@@ -318,11 +200,11 @@ namespace daytrender
 		if (timeout < 10000)
 		{
 			msg += ": Resting...";
-			l.info(msg);
+			infof(msg.c_str());
 		}
 		else
 		{
-			l.info(msg);
+			infof(msg.c_str());
 			update();
 		}
 
@@ -347,7 +229,7 @@ namespace daytrender
 
 	void DayTrender::update()
 	{
-		l.info("Updating assets...");
+		infof("Updating assets...");
 
 		for (std::vector<Asset *> vec : assets)
 		{

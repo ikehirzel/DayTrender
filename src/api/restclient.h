@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <nlohmann/json.hpp>
-#include <hlog.h>
 
 namespace httplib
 {
@@ -34,7 +33,6 @@ namespace daytrender
 		httplib::SSLClient* client;
 		std::string base_url;
 		arglist headers;
-		hirzel::Logger l;
 	public:
 		void set_bearer_token(const std::string& bearer);
 		json jsonbody_request(unsigned int method, const std::string& endpoint,

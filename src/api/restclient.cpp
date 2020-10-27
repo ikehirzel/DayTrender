@@ -4,6 +4,8 @@
 #include <httplib.h>
 #include <iostream>
 
+#include <hirzel/fountain.h>
+
 using namespace httplib;
 
 #define RESTCLIENT_NAME "RestClient"
@@ -18,7 +20,6 @@ namespace daytrender
 
 	RestClient::RestClient(const std::string& base_url, const arglist& headers)
 	{
-		l = hirzel::Logger(RESTCLIENT_NAME);
 		this->base_url = base_url;
 		client = new SSLClient(base_url);
 		this->headers = headers;
@@ -53,7 +54,7 @@ namespace daytrender
 		switch(method)
 		{
 			case METHOD_GET:
-					l.error(m + " is not allowed for this operation!");
+					errorf("%s is not allowed for this operation", m.c_str());
 					return 0;
 				break;
 
@@ -70,21 +71,21 @@ namespace daytrender
 
 		if(!res)
 		{
-			l.error(m + " failed to get reponse!");
+			errorf("%s failed to get reponse!", m.c_str());
 			std::cout << "RestClient::jsonbody_request(" << METHOD_NAMES[method] << ") : Failed to get reponse!\n";
 			return data;
 		}
 
 		if(res->status != 200)
 		{
-			l.warning(m + " status was not OK: " + std::to_string(res->status));
+			warningf("%s status was not OK: %d", m.c_str(), res->status);
 			std::cout << "RestClient::jsonbody_request(" << METHOD_NAMES[method] << ") : Status was not OK : STATUS_CODE "
 				<< res->status << std::endl;
 		}
 
 		if(res->body.empty())
 		{
-			l.error(m + " body was empty!");
+			errorf("%s body was empty!", m.c_str());
 			std::cout << "RestClient::jsonbody_request(" << METHOD_NAMES[method] << ") : Response body was empty!\n";
 			return data;
 		}
@@ -111,7 +112,7 @@ namespace daytrender
 			url += ("?" + query);
 		}
 
-		l.info(m + " @ " + base_url + url);
+		infof("%s @ %s%s", m.c_str(), base_url.c_str(), url.c_str());
 		Result res{nullptr, Success};
 
 		switch(method)
@@ -128,18 +129,18 @@ namespace daytrender
 		json data;
 		if(!res)
 		{
-			l.error(m + " failed to get reponse!");
+			errorf("%s failed to get response!", m.c_str());
 			return data;
 		}
 
 		if(res->status != 200)
 		{
-			l.warning(m + " status was not OK: " + std::to_string(res->status));
+			warningf("%s status was not OK: %d", m.c_str(), res->status);
 		}
 
 		if(res->body.empty())
 		{
-			l.error(m + " body was empty!");
+			errorf("%s body was empty!", m.c_str());
 			return data;
 		}
 

@@ -6,8 +6,8 @@
 #include <filesystem>
 #include <map>
 
-#include "../util/fileutil.h"
-#include "../util/strutil.h"
+#include <hirzel/fileutil.h>
+#include <hirzel/strutil.h>
 #include "../data/action.h"
 
 #define TEMP_OUTPUT_EXTENSION	".cpp"
@@ -30,10 +30,9 @@
 #define ALGORITHM_SCRIPT_HOOK	"%ALGORITHM_SCRIPT%"
 #define INDICATOR_DEFINE_HOOK	"%INDICATOR_DEFINE%"
 #define INDICATOR_DECLARE_HOOK	"%INDICATOR_DECLARE%"
-#define CANDLE_DEFINE_HOOK		"%CANDLE_DEFINE%"
 #define DATASET_INIT_HOOK		"%DATASET_INIT%"
 #define INDICATOR_DATA_HOOK		"%INDICATOR_DATA%"
-#define ACTION_DEFINE_HOOK		"%ACTION_DEFINE%"
+#define INCLUDES_HOOK			"%INCLUDES%"
 
 // These occur in indicator.def
 #define INDICATOR_CLASS_HOOK	"%INDICATOR_CLASS%"
