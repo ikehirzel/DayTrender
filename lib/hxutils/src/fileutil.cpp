@@ -27,7 +27,9 @@ namespace hirzel
 		}
 		else
 		{
+			#ifdef HXUTILS_DEBUG
 			std::cout << "FileUtil::read_file() : Failed to open '" + filename + "'" << std::endl;
+			#endif
 		}
 		return lines;
 	}
@@ -51,7 +53,9 @@ namespace hirzel
 		}
 		else
 		{
+			#ifdef HXUTILS_DEBUG
 			std::cout << "FileUtil::read_file_as_string() : Failed to open '" + filename + "'" << std::endl;
+			#endif
 		}
 		return text;
 	}
@@ -75,7 +79,9 @@ namespace hirzel
 		}
 		else
 		{
+			#ifdef HXUTILS_DEBUG
 			std::cout << "FileUtil::read_file_as_string() : Failed to open '" + filename + "'" << std::endl;
+			#endif
 		}
 		return text;
 	}

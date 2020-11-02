@@ -1,15 +1,16 @@
 $label "SMA"
-
+$identifier SMA
+#require "goobo.ind"
 double sum = 0.0;
 unsigned int dataIndex = 0;
 
 for(unsigned int i = startIndex; i < startIndex + range; i++)
 {
-	sum += candles[i].close;
+	sum += candles[i][3];
 	data[dataIndex] = sum / (double)(dataIndex + 1);
 	dataIndex++;
 }
-		
+
 for(unsigned int i = startIndex + range; i <= index; i++)
 {
 	sum = 0.0;
@@ -17,11 +18,10 @@ for(unsigned int i = startIndex + range; i <= index; i++)
 	int count  = 0;
 	for(unsigned int j = si; j <= i; j++)
 	{
-		sum += candles[j].close;
+		sum += candles[j][3];
 		count++;
 	}
-			
+
 	data[dataIndex] = sum / (double)range;
 	dataIndex++;
 }
-

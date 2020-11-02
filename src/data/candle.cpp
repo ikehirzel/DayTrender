@@ -11,12 +11,6 @@ namespace daytrender
 
 	void calculateCandle(candle& c)
 	{
-		if (c.size() < 4)
-		{
-			std::cout << "Cannot calculate candle!" << std::endl;
-			return;
-		}
-
 		c.resize(8);
 		c[5] = c[3] - c[0];
 		c[6] = c[5] / abs(c[5]);

@@ -1,8 +1,13 @@
+R"(
 %INCLUDES%
 
-struct %INDICATOR_CLASS% : public Indicator
+struct %INDICATOR_CLASS%
 {
-	%INDICATOR_CLASS%(double ratio): Indicator(ratio) {}
+	double ratio = 0.0;
+	%INDICATOR_CLASS%(double _ratio)
+	{
+		ratio = _ratio;
+	}
 
 	std::string getName()
 	{
@@ -25,4 +30,4 @@ struct %INDICATOR_CLASS% : public Indicator
 		return { getName(), data };
 	}
 };
-
+)"

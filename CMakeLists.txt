@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
 project(DayTrender)
-
+set(CMAKE_INSTALL_RPATH "\$ORIGIN")
+set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp)
 
 add_executable(daytrender ${DAYTRENDER_SRCS})
@@ -12,7 +13,6 @@ set_target_properties(dtbuild PROPERTIES CXX_STANDARD 17)
 
 if(UNIX)
 	target_link_libraries(daytrender PRIVATE pthread dl)
-	target_link_options(daytrender PRIVATE "-Wl,-rpath='$ORIGIN'")
 endif()
 
 # setting up nlohmann json
@@ -27,6 +27,7 @@ target_include_directories(daytrender PRIVATE lib/fountain/build/include)
 # setting up hxutils
 add_library(hxutils SHARED IMPORTED)
 set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION ../lib/hxutils/build/libhxutils.so)
+file(COPY lib/hxutils/build/libhxutils.so DESTINATION .)
 target_include_directories(daytrender PRIVATE lib/hxutils/build/include)
 target_include_directories(dtbuild PRIVATE lib/hxutils/build/include)
 

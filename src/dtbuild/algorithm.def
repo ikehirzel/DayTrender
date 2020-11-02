@@ -1,46 +1,63 @@
-#include <map>
+R"(
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <iostream>
-
-#define ALGO_NAME "%ALGORITHM_NAME%"
-
 %INCLUDES%
+
+namespace daytrender
+{
+	struct candle
+	{
+		double open = 0.0,
+		high = 0.0,
+		low = 0.0,
+		close = 0.0,
+		volume = 0.0,
+		interval = 0.0,
+		change = 0.0,
+		volatility = 0.0;
+
+		candle() = default;
+
+		candle(const std::vector<double>& data)
+		{
+			open = data[0];
+			high = data[1];
+			low = data[2];
+			close = data[3];
+			volume = data[4];
+			interval = data[5];
+			change = data[6];
+			volatility = data[7];
+		}
+	};
+}
 
 using namespace daytrender;
 
 typedef std::pair<std::string, std::vector<double>> indicator_data;
-typedef std::map<std::string, indicator_data> indicator_dataset;
+typedef std::unordered_map<std::string, indicator_data> indicator_dataset;
 typedef std::pair<indicator_dataset, unsigned int> algorithm_data;
-typedef std::vector<double> candle;
 typedef std::vector<candle> candleset;
-
-
-struct Indicator
-{
-	double ratio = 1.0;
-	std::string name;
-	Indicator(double ratio)
-	{
-		this->ratio = ratio;
-	}
-	virtual indicator_data calculate(const candleset& candles, unsigned int index, unsigned int window) = 0;
-	virtual std::string getName() = 0;
-};
-
 %INDICATOR_DEFINE%
-
 %INDICATOR_DECLARE%
-
 unsigned int getAction(const indicator_dataset& dataset, const candleset& candles, unsigned int index)
 {
 	%INDICATOR_DATA%
 	%ALGORITHM_SCRIPT%
+	return 0;
 }
 
-extern "C" algorithm_data process(const candleset& candles, unsigned int index, unsigned int window)
+extern "C" algorithm_data process(const std::vector<std::vector<double>>& candle_data, unsigned int index, unsigned int window)
 {
 	indicator_dataset dataset;
+	candleset candles;
+	candles.resize(candle_data.size());
+	for (unsigned int i = 0; i < candles.size(); i++)
+	{
+		//candles[i] = candle_data[i];
+	}
 	%DATASET_INIT%
 	unsigned int action = getAction(dataset, candles, index);
 	return { dataset, action };
@@ -48,6 +65,6 @@ extern "C" algorithm_data process(const candleset& candles, unsigned int index, 
 
 extern "C" std::string getName()
 {
-	return ALGO_NAME;
+	return "%ALGORITHM_NAME%";
 }
-
+)"

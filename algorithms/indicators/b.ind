@@ -1,0 +1,3 @@
+$label "B"
+$identifier B
+#require "c.ind"

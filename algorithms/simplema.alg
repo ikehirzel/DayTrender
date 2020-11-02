@@ -1,5 +1,6 @@
 $label "Simple MA"
-$require "indicators/ema.ind"
+
+#require "ema.ind"
 
 EMA longma(1.0);
 EMA shortma(0.25);
@@ -18,5 +19,4 @@ else if (shortma[index] < longma[index] && lastShort > lastLong)
 	sell();
 }
 
-null();
-
+do_nothing();
