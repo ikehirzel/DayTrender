@@ -111,7 +111,9 @@ namespace daytrender
 
 		assets.resize(ASSET_TYPE_COUNT);
 
-
+		std::vector<TradeClient*> clients;
+		clients.resize(ASSET_TYPE_COUNT);
+		clients[FOREX_INDEX] = forex;
 
 		// creating assets
 		for (unsigned int i = 0; i < ASSET_TYPE_COUNT; i++)
@@ -119,29 +121,41 @@ namespace daytrender
 			for (json asset : assetInfo[asset_labels[i]])
 			{
 				unsigned int interval, window;
-				std::string ticker, algorithm;
+				std::string ticker, algo_filename;
 
 				ticker = asset["ticker"].get<std::string>();
-				algorithm = asset["algorithm"].get<std::string>();
+				algo_filename = asset["algorithm"].get<std::string>();
 
 				// initializing algorithm
-				if(!algorithms[algorithm])
+				// if an algo failed to load and another one uses it,it will try to load it again
+				// maybe this needs to be optimized with some kind of flag
+				if(!algorithms[algo_filename])
 				{
-					TradeAlgorithm* algo = new TradeAlgorithm(algorithm);
-					if(!algo->isBound())
-					{
-						delete algo;
-						algo = nullptr;
-					}
-					algorithms[algorithm] = algo;
+					algorithms[algo_filename] = new TradeAlgorithm(algo_filename);
 				}
-				
+
 				interval = asset["interval"].get<int>();
 				window = asset["window"].get<int>();
+				
+				if(!algorithms[algo_filename]->isBound())
+				{
+					assets[i].push_back(new Asset(i, clients[i], ticker, nullptr, interval, window));
+				}
+				else
+				{
+					assets[i].push_back(new Asset(i, clients[i], ticker, algorithms[algo_filename], interval, window));
+				}
+			}
+		}
 
-				hirzel::printf("Ticker: %s\n", {ticker});
 
-				assets[i].push_back(new Asset(i, forex, algorithms[algorithm], ticker, interval, window));
+		// if the algorithm plugin failed to load, it will clear the memory to avoid assets attempting to use it
+		for (std::pair<std::string, TradeAlgorithm*> p : algorithms)
+		{
+			if (!p.second->isBound())
+			{
+				delete p.second;
+				p.second = nullptr;
 			}
 		}
 	}

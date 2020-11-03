@@ -100,8 +100,8 @@ namespace daytrender
 		
 	public:
 
-		Asset(unsigned int assetIndex, TradeClient* client, TradeAlgorithm* algo,
-			const std::string& ticker, unsigned int interval, unsigned int window);
+		Asset(unsigned int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
+			unsigned int interval, unsigned int window);
 
 		void update();
 		

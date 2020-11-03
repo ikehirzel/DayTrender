@@ -16,8 +16,8 @@ namespace daytrender
 {
 	const char* asset_labels[] = ASSET_LABELS;
 
-	Asset::Asset(unsigned int assetIndex, TradeClient *client, TradeAlgorithm* algo,
-		const std::string &ticker, unsigned int interval, unsigned int window)
+	Asset::Asset(unsigned int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
+		unsigned int interval, unsigned int window)
 	{
 		actions[ACTION_NOTHING] = &Asset::nothing;
 		actions[ACTION_SELL] = &Asset::sell;
@@ -82,7 +82,7 @@ namespace daytrender
 			candleset candles = client->getCandles(ticker, interval, window);
 			if(!algo)
 			{
-				warningf("Algorithm is not defined!");
+				warningf("%s: Algorithm has not been initialized!", ticker);
 				return;
 			}
 			algorithm_data algodata = algo->process(candles, candles.size() - 1, window);
