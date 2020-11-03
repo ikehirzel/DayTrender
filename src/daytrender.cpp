@@ -27,9 +27,7 @@ namespace daytrender
 
 		// loads the credentials of the clients and creates them
 		initClients();
-		// binds to the algorithms plugins using the names found in assets.json
-		initAlgorithms();
-		// loads the asset data and creates assets
+		// loads the asset data and creates assets and their respective algorithms
 		initAssets();
 		// sets the callbacks for the server
 		initServer();
@@ -91,24 +89,9 @@ namespace daytrender
 								 oandaCredentials["token"].get<std::string>()});
 	}
 
-	void DayTrender::initAlgorithms()
+	void DayTrender::loadAlgorithm(const std::string& filename)
 	{
-		infof("Initializing algorithms...");
-		std::string algo_dir = "./res/algorithms";
-
-		for (auto &file : std::filesystem::directory_iterator(algo_dir))
-		{
-			std::string filepath = file.path().string();
-			std::string filename = file.path().filename().string();
-
-			TradeAlgorithm *ptr = algorithms[filename];
-			if (ptr)
-			{
-
-				delete ptr;
-			}
-			algorithms[filename] = new TradeAlgorithm(filepath);
-		}
+		
 	}
 
 	// loads asset info, creates assets, and loads algorithm names
@@ -119,29 +102,44 @@ namespace daytrender
 		std::string assetStr = read_string("res/assets.json");
 		if (assetStr.empty())
 		{
-			errorf("assetStr is empty!");
+			errorf("Failed to load res/assets.json!");
 			shouldrun = false;
 			return;
 		}
+		successf("Loaded res/assets.json");
 		json assetInfo = json::parse(assetStr);
 
-		const char *labels[] = ASSET_LABELS;
 		assets.resize(ASSET_TYPE_COUNT);
+
+
 
 		// creating assets
 		for (unsigned int i = 0; i < ASSET_TYPE_COUNT; i++)
 		{
-			//std::cout << "Asset[" << i << "] : " <<  assetInfo[labels[i]].dump() << std::endl;
-
-			for (json asset : assetInfo[labels[i]])
+			for (json asset : assetInfo[asset_labels[i]])
 			{
 				unsigned int interval, window;
 				std::string ticker, algorithm;
 
 				ticker = asset["ticker"].get<std::string>();
 				algorithm = asset["algorithm"].get<std::string>();
+
+				// initializing algorithm
+				if(!algorithms[algorithm])
+				{
+					TradeAlgorithm* algo = new TradeAlgorithm(algorithm);
+					if(!algo->isBound())
+					{
+						delete algo;
+						algo = nullptr;
+					}
+					algorithms[algorithm] = algo;
+				}
+				
 				interval = asset["interval"].get<int>();
 				window = asset["window"].get<int>();
+
+				hirzel::printf("Ticker: %s\n", {ticker});
 
 				assets[i].push_back(new Asset(i, forex, algorithms[algorithm], ticker, interval, window));
 			}
@@ -268,11 +266,15 @@ namespace daytrender
 			// for testing response time of console
 			else if (input == "hello")
 			{
-				std::cout << "Hello, Ike!" << std::endl;
+				hirzel::printf("Hello, Ike~\n");
+			}
+			else if (input == "time")
+			{
+				hirzel::printf("unixtime: %d\n", { hirzel::getSeconds() });
 			}
 			else
 			{
-				std::cout << "Command not found!" << std::endl;
+				hirzel::printf("Command not found!\n");
 			}
 		}
 	}

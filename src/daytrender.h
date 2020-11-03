@@ -3,11 +3,11 @@
 #include <thread>
 #include <vector>
 #include <string>
-#include <map>
+#include <unordered_map>
 
 #define PAPER_BY_DEFAULT
 #define BACKTESTING
-
+#define JIT_COMPILE_ALGORITHMS
 namespace httplib
 {
 	class Server;
@@ -24,7 +24,8 @@ namespace daytrender
 	{
 	private:
 		bool running = false, shouldrun = true;
-		// rest clients
+
+		// REST clients
 		OandaClient* forex = nullptr;
 		AlpacaClient* stocks = nullptr;
 
@@ -38,12 +39,12 @@ namespace daytrender
 
 		// data containers
 		std::vector<std::vector<Asset*>> assets;
-		std::map<std::string, TradeAlgorithm*> algorithms;
+		std::unordered_map<std::string, TradeAlgorithm*> algorithms;
 
 		void initClients();
 		void initAssets();
-		void initAlgorithms();
 		void initServer();
+		void loadAlgorithm(const std::string &filename);
 
 		void update();
 		void scanInput();

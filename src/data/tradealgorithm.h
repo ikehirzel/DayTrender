@@ -7,7 +7,7 @@
 
 #include "../data/candle.h"
 
-namespace tinyplug
+namespace hirzel
 {
 	class Plugin;
 }
@@ -21,8 +21,9 @@ namespace daytrender
 	class TradeAlgorithm
 	{
 	protected:
+		bool bound = false;
+		hirzel::Plugin* handle = nullptr;
 		std::string name, filename;
-		tinyplug::Plugin* handle;
 		
 	public:
 		TradeAlgorithm(const std::string& filename);
@@ -31,5 +32,9 @@ namespace daytrender
 		algorithm_data process(const candleset& candles, unsigned int index,
 			unsigned int window);
 		inline std::string getName() const { return name; }
+		inline bool isBound()
+		{
+			return bound;
+		}
 	};
 }

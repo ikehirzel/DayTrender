@@ -1,6 +1,7 @@
 #include "oandaclient.h"
 
 #include "../data/interval.h"
+#include <hirzel/fountain.h>
 
 namespace daytrender
 {
@@ -142,11 +143,11 @@ namespace daytrender
 
 		if(arr.size() == 0)
 		{
-			std::cout << "OandaClient: Failed to get candles!" << std::endl;
+			errorf("Failed to get candles!");
 		}
-		if(arr.size() < max)
+		else if(arr.size() < max)
 		{
-			std::cout << "OandaClient: Failed to get all requested candles!" << std::endl;
+			errorf("Failed to get all requested candles!");
 		}
 
 		candles.resize(arr.size());
@@ -155,15 +156,14 @@ namespace daytrender
 		for (json val : arr)
 		{
 			json mid = val["mid"];
-			std::string time, open, high, low, close;
+			std::string open, high, low, close;
 			double volume;
 			volume = val["volume"].get<double>();
 			open = mid["o"].get<std::string>();
 			high = mid["h"].get<std::string>();
 			low = mid["l"].get<std::string>();
 			close = mid["c"].get<std::string>();
-			candle c = { std::stod(open), std::stod(high), std::stod(low), std::stod(close), volume };
-			calculateCandle(c);
+			candle c = { interval, std::stod(open), std::stod(high), std::stod(low), std::stod(close), volume };
 			candles[i] = c;
 			i++;
 		}

@@ -51,8 +51,7 @@ namespace daytrender
 			low = val["l"].get<double>();
 			close = val["c"].get<double>();
 			volume = val["v"].get<double>();
-			candle c = { open, high, low, close, volume };
-			calculateCandle(c);
+			candle c = { interval, open, high, low, close, volume };
 			candles.push_back(c);
 		}
 

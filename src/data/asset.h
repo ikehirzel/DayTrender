@@ -4,6 +4,8 @@
 #include <vector>
 #include <unordered_map>
 
+#include "candle.h"
+
 #include "paperaccount.h"
 #include "tradealgorithm.h"
 
@@ -64,7 +66,7 @@ namespace daytrender
 	class PaperAccount;
 	class AlpacaClient;
 	
-	typedef std::pair<candle_data, algorithm_data> asset_data;
+	typedef std::pair<candleset, algorithm_data> asset_data;
 
 	extern const char* asset_labels[];
 
