@@ -8,10 +8,10 @@
 #define PAPER_BY_DEFAULT
 #define BACKTESTING
 #define JIT_COMPILE_ALGORITHMS
-namespace httplib
-{
-	class Server;
-}
+//namespace httplib
+//{
+//	class Server;
+//}
 
 namespace daytrender
 {
@@ -24,18 +24,19 @@ namespace daytrender
 	{
 	private:
 		bool running = false, shouldrun = true;
-
+		std::string dtdir;
 		// REST clients
 		OandaClient* forex = nullptr;
 		AlpacaClient* stocks = nullptr;
 
 		// server and server info
-		std::string ip, username, password;
-		unsigned short port = 0;
-		httplib::Server* server = nullptr;
+		//std::string ip, username, password;
+		//unsigned short port = 0;
+		//httplib::Server* server = nullptr;
 
 		// threads
-		std::thread serverThread, conioThread;
+		//std::thread serverThread;
+		std::thread conioThread;
 
 		// data containers
 		std::vector<std::vector<Asset*>> assets;
@@ -44,12 +45,13 @@ namespace daytrender
 		void initClients();
 		void initAssets();
 		void initServer();
-		void loadAlgorithm(const std::string &filename);
+		bool buildAlgorithm(const std::string& filename);
+		bool loadAlgorithm(const std::string &filename);
 
 		void update();
 		void scanInput();
 	public:
-		DayTrender();
+		DayTrender(const std::string& execpath);
 		~DayTrender();
 
 		void start();

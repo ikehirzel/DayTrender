@@ -3,9 +3,16 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 #include "../data/candle.h"
+
+#if defined(_WIN32) || defined(_WIN64)
+#define ALGORITHM_EXTENSION ".dll"
+#elif defined(linux) || defined(__unix__)
+#define ALGORITHM_EXTENSION ".so"
+#endif
+
 
 namespace hirzel
 {
@@ -15,7 +22,7 @@ namespace hirzel
 namespace daytrender
 {
 	typedef std::pair<std::string, std::vector<double>> indicator_data;
-	typedef std::map<std::string, indicator_data> indicator_dataset;
+	typedef std::unordered_map<std::string, indicator_data> indicator_dataset;
 	typedef std::pair<indicator_dataset, unsigned int> algorithm_data;
 
 	class TradeAlgorithm

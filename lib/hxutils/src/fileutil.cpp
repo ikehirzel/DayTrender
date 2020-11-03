@@ -105,4 +105,10 @@ namespace hirzel
 		file << buf;
 		file.close();
 	}
+
+	bool file_exists(const std::string& filepath)
+	{
+		std::ifstream file(filepath);
+		return file.good();
+	}
 }

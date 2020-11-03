@@ -19,10 +19,10 @@ struct %INDICATOR_CLASS%
 	{
 		unsigned int range = window * ratio;
 		unsigned int startIndex = (index + 1) - window;
-		std::vector<double> data(window);
+		std::vector<double> data(window, 0.0);
 		if(index >= candles.size() || startIndex >= candles.size())
 		{
-			std::cout << getName() << ": index out of bounds\n";
+			std::cout << getName() << "(" << ratio << ") : Index out of bounds! index: " << index << " candles size: " << candles.size() << "\n";
 			return { getName(), data };
 		}
 		

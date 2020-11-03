@@ -11,6 +11,12 @@ typedef std::unordered_map<std::string, indicator_data> indicator_dataset;
 typedef std::pair<indicator_dataset, unsigned int> algorithm_data;
 %INDICATOR_DEFINE%
 %INDICATOR_DECLARE%
+
+extern "C" std::string getName()
+{
+	return "%ALGORITHM_NAME%";
+}
+
 unsigned int getAction(const indicator_dataset& dataset, const candleset& candles,
 	unsigned int index)
 {
@@ -22,15 +28,25 @@ unsigned int getAction(const indicator_dataset& dataset, const candleset& candle
 extern "C" algorithm_data process(const candleset& candles,
 	unsigned int index, unsigned int window)
 {
+	unsigned int action = 0;
 	indicator_dataset dataset;
-	%DATASET_INIT%
+	
+	if(candles.empty())
+	{
+		std::cout << getName() << ": Candles is empty!\n";
+		return { dataset, action };
+	}
+	else if (index >= candles.size())
+	{
+		std::cout << getName() << ": Index is out of bounds! index: " << index << ", size: " << candles.size() << "\n";
+		return { dataset, action };
+	}
+	else
+	{
+		%DATASET_INIT%
+		action = getAction(dataset, candles, index);
+	}
 
-	unsigned int action = getAction(dataset, candles, index);
 	return { dataset, action };
-}
-
-extern "C" std::string getName()
-{
-	return "%ALGORITHM_NAME%";
 }
 )"

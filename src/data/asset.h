@@ -39,7 +39,7 @@ namespace daytrender
 	#define CRYPTO_MINIMUM			0.001
 	#define CRYPTO_INITIALS			{ CRYPTO_FEE, CRYPTO_MINIMUM }
 
-	#define PAPER_INITIALS			{ FOREX_INITIALS, STOCK_INITIALS, CRYPTO_INITIALS }
+	#define PAPER_INITIALS			{ FOREX_INITIALS }
 
 	// Asset constants
 
@@ -59,7 +59,7 @@ namespace daytrender
 	#define FOREX_INTERVALS		{ MIN5, MIN15, HOUR1 }
 	#define STOCK_INTERVALS		{ MIN5, MIN15, HOUR1 }
 	#define CRYPTO_INTERVALS		{ MIN5, MIN15, HOUR1 }
-	#define BACKTEST_INTERVALS	{ FOREX_INTERVALS, STOCK_INTERVALS, CRYPTO_INTERVALS }
+	#define BACKTEST_INTERVALS	{ FOREX_INTERVALS }
 
 	class TradeClient;
 	class OandaClient;
@@ -69,13 +69,14 @@ namespace daytrender
 	typedef std::pair<candleset, algorithm_data> asset_data;
 
 	extern const char* asset_labels[];
-
+	extern double paper_initials[ASSET_TYPE_COUNT][2];
+	extern unsigned int backtest_intervals[ASSET_TYPE_COUNT][3];
 	class Asset
 	{
 		//function pointer to things like nothing, sell, buy, etc...
 		typedef void (Asset::*actionFunc)(PaperAccount*);
 	protected:
-		bool paper = PAPER_TRADING;
+		bool paper = PAPER_TRADING, live = false;
 		unsigned int tick = 0, interval = 0, window = 0, index = 0;
 		double maxRisk = 1.0;
 		std::string ticker;
@@ -124,5 +125,6 @@ namespace daytrender
 		inline TradeAlgorithm* getAlgorithm() const { return algo; }
 		inline std::string getTicker() const { return ticker; }
 		inline unsigned int getInterval() const { return interval; }
+		inline bool isLive() const { return live; }
 	};
 }

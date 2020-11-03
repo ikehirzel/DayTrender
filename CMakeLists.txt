@@ -48,5 +48,7 @@ target_link_libraries(daytrender PRIVATE fountain hxutils nlohmann_json OpenSSL:
 target_link_libraries(dtbuild PRIVATE hxutils)
 
 # copying res folder
-file(COPY res DESTINATION .)
+file(COPY resources DESTINATION .)
+file(COPY config DESTINATION .)
+file(COPY algorithms DESTINATION .)
 

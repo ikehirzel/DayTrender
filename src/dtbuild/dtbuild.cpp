@@ -19,7 +19,7 @@
 #define OUTPUT_EXTENSION ".so"
 #endif
 
-#define CONFIG_FILENAME "dtbuild.config"
+#define CONFIG_FILENAME "config/dtbuild.config"
 #define ALGODEF_FILENAME "algorithm.def"
 #define INDIDEF_FILENAME "indicator.def"
 #define INDICATOR_FOOTER "_INDICATOR"
@@ -392,8 +392,16 @@ int main(int argc, char *argv[])
 	std::string cxx, cxxflags, lflags;
 	std::string filepath;
 
-	cwd = std::filesystem::current_path().string();
-	execdir = hirzel::get_folder(cwd + "/" + std::string(argv[0]));
+	cwd = std::filesystem::current_path().string() + "/.";
+	std::string rdir = hirzel::get_folder(std::string(argv[0]));
+	if(cwd == rdir)
+	{
+		execdir = rdir;
+	}
+	else
+	{
+		execdir = cwd + rdir;
+	}
 	configpath = execdir + "/" + std::string(CONFIG_FILENAME);
 
 	bool setodir = false;
@@ -519,7 +527,6 @@ int main(int argc, char *argv[])
 	if (system(cmd.c_str()))
 	{
 		failed = true;
-		std::cout << "Failed to compile " + output_name + "!\n";
 	}
 	if (std::remove(temp_output_filename.c_str()))
 	{
@@ -528,7 +535,7 @@ int main(int argc, char *argv[])
 	}
 	if(failed)
 	{
-		std::cout << "dtbuild: compilation has failed!\n";
+		std::cout << "dtbuild: failed to compile '" + output_name + "'!\n";
 	}
 
 	return failed;

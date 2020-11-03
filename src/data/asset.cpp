@@ -15,10 +15,15 @@
 namespace daytrender
 {
 	const char* asset_labels[] = ASSET_LABELS;
-
+	double paper_initials[ASSET_TYPE_COUNT][2] = PAPER_INITIALS;
+	unsigned int backtest_intervals[ASSET_TYPE_COUNT][3] = BACKTEST_INTERVALS;
 	Asset::Asset(unsigned int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
 		unsigned int interval, unsigned int window)
 	{
+		if(client && algo)
+		{
+			live = true;
+		}
 		actions[ACTION_NOTHING] = &Asset::nothing;
 		actions[ACTION_SELL] = &Asset::sell;
 		actions[ACTION_BUY] = &Asset::buy;
@@ -38,6 +43,7 @@ namespace daytrender
 			initials[assetIndex][1], interval, window);
 
 		paperAccount = PaperAccount(basePaperAccount);
+
 	}
 
 	void Asset::buy(PaperAccount* account)

@@ -12,7 +12,7 @@ namespace daytrender
 	TradeAlgorithm::TradeAlgorithm(const std::string& filename)
 	{
 		this->filename = filename;
-		handle = new hirzel::Plugin(DAYTRENDER_ALGO_DIR + filename, { PROCESS_FUNCTION, GETNAME_FUNCTION });
+		handle = new hirzel::Plugin(filename, { PROCESS_FUNCTION, GETNAME_FUNCTION });
 		name = handle->execute<std::string>(GETNAME_FUNCTION);
 		if(name.empty())
 		{
@@ -20,7 +20,7 @@ namespace daytrender
 			return;
 		}
 		bound = true;
-		successf("Loaded algorithm: %s", name);
+		successf("Successfully loaded algorithm: %s", name);
 	}
 
 	TradeAlgorithm::~TradeAlgorithm()

@@ -1,6 +1,7 @@
 #include "daytrender.h"
 
 #include <hirzel/fileutil.h>
+#include <hirzel/strutil.h>
 #include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
 
@@ -19,10 +20,17 @@
 using namespace hirzel;
 using namespace httplib;
 
+#define CONFIG_FOLDER			"/config/"
+#define RESOURCES_FOLDER		"/resources/"
+#define SCRIPT_FOLDER			"/algorithms/"
+#define ALGORITHM_BIN_FOLDER	RESOURCES_FOLDER"bin/"
+#define HTML_FOLDER				RESOURCES_FOLDER"html/"
+
 namespace daytrender
 {
-	DayTrender::DayTrender()
+	DayTrender::DayTrender(const std::string& execpath)
 	{
+		dtdir = std::filesystem::current_path().string() + "/" + execpath;
 		// NOTE: functions must be called in this order
 
 		// loads the credentials of the clients and creates them
@@ -38,9 +46,9 @@ namespace daytrender
 	{
 		(forex) ? delete forex : warningf("Forex was never initialized!");
 		(stocks) ? delete stocks : warningf("Forex was never initialized!");
-		(server) ? delete server : warningf("Server was never initialized!");
+		//(server) ? delete server : warningf("Server was never initialized!");
 
-		int count = 0;
+		unsigned int count = 0;
 		for (unsigned int i = 0; i < assets.size(); i++)
 		{
 			count = 0;
@@ -51,11 +59,15 @@ namespace daytrender
 			}
 			if (!count) warningf("No %s assets were initialized!", asset_labels[i]);
 		}
+
 		count = 0;
 		for (std::pair<std::string, TradeAlgorithm *> p : algorithms)
 		{
-			delete p.second;
-			count++;
+			if(p.second)
+			{
+				delete p.second;
+				count++;
+			}
 		}
 		if(!count) warningf("No algorithms were initialized!");
 	}
@@ -65,14 +77,14 @@ namespace daytrender
 	{
 		infof("Initializing clients...");
 		// loading credentials for apis
-		std::string credentialStr = read_string("res/keys.json");
+		std::string credentialStr = read_string(dtdir + CONFIG_FOLDER "keys.json");
 		if (credentialStr.empty())
 		{
-			//std::cout << "DayTrender::initAssets() : credentialStr is empty!\n";
-			errorf("credentialStr is empty!");
+			fatalf("Failed to load '." CONFIG_FOLDER "'!");
 			shouldrun = false;
 			return;
 		}
+		successf("Successfully loaded ." CONFIG_FOLDER "keys.json");
 		json credentials = json::parse(credentialStr);
 
 		// Setting Alpaca credentials
@@ -89,9 +101,41 @@ namespace daytrender
 								 oandaCredentials["token"].get<std::string>()});
 	}
 
-	void DayTrender::loadAlgorithm(const std::string& filename)
+	bool DayTrender::buildAlgorithm(const std::string& filename)
 	{
-		
+		infof("Compiling %s...", filename);
+		std::string cmd = dtdir + "/dtbuild " + dtdir + SCRIPT_FOLDER + filename + ".alg -o " + dtdir + ALGORITHM_BIN_FOLDER ".";
+		return !std::system(cmd.c_str());
+	}
+
+	bool DayTrender::loadAlgorithm(const std::string& filename)
+	{
+		infof("Loading %s...", filename);
+		// initializing algorithm
+		// if an algo failed to load and another one uses it,it will try to load it again
+		// maybe this needs to be optimized with some kind of flag
+		if(!algorithms[filename])
+		{
+			//compile algorithm
+			bool success = false;
+			#ifdef JIT_COMPILE_ALGORITHMS
+			success = buildAlgorithm(filename);
+			#else
+			std::string binpath = dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION;
+			hirzel::printf("binpath: %s\n", binpath);
+			if(!hirzel::file_exists(binpath))
+			{
+				success = buildAlgorithm(filename);
+			}
+			#endif
+			// load algorithm into memory
+			algorithms[filename] = new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION);
+			if(!success || !algorithms[filename]->isBound())
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	// loads asset info, creates assets, and loads algorithm names
@@ -99,14 +143,15 @@ namespace daytrender
 	{
 		infof("Initializing assets...");
 		// Loading asset info
-		std::string assetStr = read_string("res/assets.json");
+		std::string assetStr = read_string(dtdir + CONFIG_FOLDER "assets.json");
 		if (assetStr.empty())
 		{
-			errorf("Failed to load res/assets.json!");
+			fatalf("Failed to load ." CONFIG_FOLDER "assets.json!");
 			shouldrun = false;
 			return;
 		}
-		successf("Loaded res/assets.json");
+		successf("Successfully loaded ." CONFIG_FOLDER "assets.json");
+
 		json assetInfo = json::parse(assetStr);
 
 		assets.resize(ASSET_TYPE_COUNT);
@@ -125,19 +170,10 @@ namespace daytrender
 
 				ticker = asset["ticker"].get<std::string>();
 				algo_filename = asset["algorithm"].get<std::string>();
-
-				// initializing algorithm
-				// if an algo failed to load and another one uses it,it will try to load it again
-				// maybe this needs to be optimized with some kind of flag
-				if(!algorithms[algo_filename])
-				{
-					algorithms[algo_filename] = new TradeAlgorithm(algo_filename);
-				}
-
 				interval = asset["interval"].get<int>();
 				window = asset["window"].get<int>();
-				
-				if(!algorithms[algo_filename]->isBound())
+
+				if(!loadAlgorithm(algo_filename))
 				{
 					assets[i].push_back(new Asset(i, clients[i], ticker, nullptr, interval, window));
 				}
@@ -154,8 +190,9 @@ namespace daytrender
 		{
 			if (!p.second->isBound())
 			{
+				warningf("Disposing of uninitialized algorithm '%s'", p.first);
 				delete p.second;
-				p.second = nullptr;
+				algorithms[p.first] = nullptr;
 			}
 		}
 	}
@@ -163,20 +200,21 @@ namespace daytrender
 	void DayTrender::initServer()
 	{
 		infof("Loading server data...");
-		std::string data = read_string("./res/serverinfo.json");
+		std::string data = read_string(dtdir + CONFIG_FOLDER "serverinfo.json");
 		if(data.empty())
 		{
-			errorf("Failed to read serverinfo.json!");
+			fatalf("Failed to read ." CONFIG_FOLDER "serverinfo.json!");
 			shouldrun = false;
 			return;
 		}
+		successf("Successfully loaded ." CONFIG_FOLDER "serverinfo.json");
 		json serverInfo = json::parse(data);
 
-		this->ip = serverInfo["ip"].get<std::string>();
-		this->port = serverInfo["port"].get<int>();
-		this->username = serverInfo["username"].get<std::string>();
-		this->password = serverInfo["password"].get<std::string>();
-		this->server = new httplib::Server();
+		//this->ip = serverInfo["ip"].get<std::string>();
+		//this->port = serverInfo["port"].get<int>();
+		//this->username = serverInfo["username"].get<std::string>();
+		//this->password = serverInfo["password"].get<std::string>();
+		//this->server = new httplib::Server();
 
 		infof("Initializing server...");
 	}
@@ -198,7 +236,7 @@ namespace daytrender
 		infof("Starting DayTrender...");
 		running = true;
 
-		serverThread = std::thread(&httplib::Server::listen, server, ip.c_str(), port, 0);
+		//serverThread = std::thread(&httplib::Server::listen, server, ip.c_str(), port, 0);
 		conioThread = std::thread(&DayTrender::scanInput, this);
 
 		long long time, last, elapsed, timeout;
@@ -233,22 +271,29 @@ namespace daytrender
 
 			thread_sleep(200);
 		}
-
 		// join threads
-		serverThread.join();
+		//serverThread.join();
 		conioThread.join();
 	}
 
 	void DayTrender::update()
 	{
 		infof("Updating assets...");
-
+		unsigned int count = 0;
 		for (std::vector<Asset *> vec : assets)
 		{
 			for (Asset *a : vec)
 			{
-				a->update();
+				if(a->isLive())
+				{
+					count++;
+					a->update();
+				}
 			}
+		}
+		if(!count)
+		{
+			warningf("No assets were live for updating");
 		}
 	}
 
@@ -256,39 +301,48 @@ namespace daytrender
 	{
 		if (!running)
 		{
-			std::cout << "DayTrender has already stopped!" << std::endl;
+			warningf("DayTrender has already stopped");
 			return;
 		}
 
 		running = false;
-		server->stop();
-		std::cout << "Shutting down..." << std::endl;
+		//server->stop();
+		infof("Shutting down...");
 	}
 
 	void DayTrender::scanInput()
 	{
 		std::string input;
 
+
 		while (running)
 		{
-			std::cin >> input;
-
-			if (input == "exit")
+			std::getline(std::cin, input);
+			std::vector<std::string> tokens = hirzel::tokenize(input, " \t");
+			infof("input: %s", input);
+			if (tokens[0] == "exit")
 			{
 				stop();
 			}
-			// for testing response time of console
-			else if (input == "hello")
+			else if (tokens[0] == "build")
 			{
-				hirzel::printf("Hello, Ike~\n");
-			}
-			else if (input == "time")
-			{
-				hirzel::printf("unixtime: %d\n", { hirzel::getSeconds() });
+				if(tokens.size() != 2)
+				{
+					warningf("Invalid usage of command: must be in format 'build <input-file>'");
+					continue;
+				}
+				if(buildAlgorithm(tokens[1]))
+				{
+					successf("Successfully compiled %s", tokens[1]);
+				}
+				else
+				{
+					errorf("Failed to compile %s", tokens[1]);
+				}
 			}
 			else
 			{
-				hirzel::printf("Command not found!\n");
+				warningf("Command not found");
 			}
 		}
 	}
