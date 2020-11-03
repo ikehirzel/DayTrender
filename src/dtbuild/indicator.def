@@ -14,7 +14,8 @@ struct %INDICATOR_CLASS%
 		return "%INDICATOR_LABEL%";
 	}
 
-	indicator_data calculate(const candleset& candles, unsigned int index, unsigned int window)
+	indicator_data calculate(const candleset& candles, unsigned int index,
+		unsigned int window)
 	{
 		unsigned int range = window * ratio;
 		unsigned int startIndex = (index + 1) - window;

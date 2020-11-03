@@ -13,10 +13,9 @@ if(shortma[index] > longma[index] && lastShort < lastLong)
 {
 	buy();
 }
+
 //bearish crossover
 else if (shortma[index] < longma[index] && lastShort > lastLong)
 {
 	sell();
 }
-
-do_nothing();

@@ -5,7 +5,8 @@
 #include <cctype>
 #include <filesystem>
 #include <unordered_map>
-
+#include <map>
+#include <stdio.h>
 #include <hirzel/fileutil.h>
 #include <hirzel/strutil.h>
 #include "../data/action.h"
@@ -18,14 +19,10 @@
 #define OUTPUT_EXTENSION ".so"
 #endif
 
-#define CONFIG_FILENAME "./dtbuild.config"
+#define CONFIG_FILENAME "dtbuild.config"
 #define ALGODEF_FILENAME "algorithm.def"
 #define INDIDEF_FILENAME "indicator.def"
 #define INDICATOR_FOOTER "_INDICATOR"
-
-namespace daytrender
-{
-}
 
 // hooks for replacement
 
@@ -59,38 +56,33 @@ using namespace hirzel;
 
 bool failed = false;
 
-//recursively find the files required
-std::vector<std::string> get_requires(const std::string& dir, const std::string &filename, std::unordered_map<std::string, bool>& reqd)
+//recursively find the files required, depth first
+void get_requires(const std::string& dir, const std::string &filename, std::unordered_map<std::string, int>& depths, std::unordered_map<std::string, int> requires = {}, int depth = 1)
 {
-	if(reqd[filename] == true)
+	if(requires[filename])
 	{
 		failed = true;
 		std::cout << "dtbuild: error: circular dependency detected in '" << filename << "'!\n";
-		return {};
+		return;
 	}
-	reqd[filename] = true;
-
+	requires[filename] = depth;
+	if(!depths[filename] || depths[filename]  <= depth)
+	{
+		depths[filename] = depth;
+	}
 	std::vector<std::string> file = read_file(dir + "/indicators/" + filename);
-	std::vector<std::string> reqs;
-	reqs.insert(reqs.begin(), filename);
 	for (std::string line : file)
 	{
 		std::vector<std::string> toks = hirzel::tokenize(line, "\t ");
 		if (toks[0] == REQUIRE_TOKEN)
 		{
 			std::string subname = get_filename(purge_delims(toks[1], "\""));
-			std::vector<std::string> subreqs = get_requires(dir, subname, reqd);
-			for (int i = subreqs.size() - 1; i >= 0; i--)
-			{
-				reqs.insert(reqs.begin(), subreqs[i]);
-			}
+			get_requires(dir, subname, depths, requires, depth + 1);
 		}
 	}
-
-	return reqs;
 }
 
-//takes in path to indicators script and returns a pair of its identifier and definition
+//takes in path to indicators script and returns a pair of its identifier and definition (in that order)
 std::pair<std::string, std::string> compose_indicator(const std::string& dir, const std::string &filename)
 {
 	std::string buffer
@@ -115,6 +107,12 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 		std::vector<std::string> toks = hirzel::tokenize(s, "\t ");
 		if (toks[0][0] == '$' || toks[0][0] == '#')
 		{
+			if(toks.size() < 2)
+			{
+				failed = true;
+				std::cout << "dtbuild: error: '" << filename << "': Invalid amount of args in preprocessor directive at line: " << lineIndex << std::endl;
+			}
+
 			if (toks[0] == LABEL_TOKEN)
 			{
 				if (!label.empty())
@@ -149,7 +147,7 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 			}
 			else if (toks[0] == REQUIRE_TOKEN)
 			{
-				// TODO : allow for including other indicators
+				// No need to do anything as compose algo parses this
 				break;
 			}
 			else if (toks[0] == INCLUDE_TOKEN)
@@ -183,28 +181,19 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 	return { classname, buffer };
 }
 
-/*
-	main calls compose algorithm
-	compose algorithm scans for requires,
-	compose algorithm calls compose indicator for each scanned require
-
-	TODO:
-		---Add include guards to required files so that no algorithm or indicator double
-		requires a file. This may require passing required_filenames into compose_indicator
-		so that each indicator knows as well considering they will be able to require
-		as well.
-*/
-
 std::string compose_algorithm(const std::string &dir, const std::string &filepath)
 {
 	std::string buffer
 	{
 		#include "algorithm.def"
 	};
-	std::string algo_name, script, indicator_definition_glob, includes;
+	std::string algo_name, script, indicator_definition_glob, includes, filename;
 	std::vector<std::string> input_file;
 	std::vector<std::vector<std::string>> indicator_variables;
-	std::unordered_map<std::string, std::pair<std::string, std::string>> indicator_definitions;
+	std::unordered_map<std::string, int> req_depths;
+	std::vector<std::pair<std::string, std::string>> indicator_definitions;
+
+	filename = get_filename(filepath);
 
 	// loading script
 	input_file = hirzel::read_file(filepath);
@@ -215,13 +204,21 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		return "";
 	}
 
-	unsigned int lineIndex = 0;
+	/****************************************************
+	 * Handling preprocessor/psuedo calls in algorithm	*
+	 ****************************************************/
+	unsigned int lineIndex = 1;
 	for (std::string &s : input_file)
 	{
 		std::vector<std::string> tokens = hirzel::tokenize(s, " \t");
-
 		if (tokens[0][0] == '$' || tokens[0][0] == '#')
 		{
+			if(tokens.size() < 2)
+			{
+				failed = true;
+				std::cout << "dtbuild: error: '" << filename << "': Invalid amount of args in preprocessor directive at line: " << lineIndex << std::endl;
+			}
+
 			if (tokens[0] == LABEL_TOKEN)
 			{
 				if (!algo_name.empty())
@@ -251,15 +248,11 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 			}
 			else if (tokens[0] == REQUIRE_TOKEN)
 			{
-				std::unordered_map<std::string, bool> reqd;
-				std::vector<std::string> reqs = get_requires(dir, get_filename(purge_delims(tokens[1], "\"")), reqd);
-				for (int i = reqs.size() - 1; i >= 0; i--)
+				std::string indi = get_filename(purge_delims(tokens[1], "\""));
+				get_requires(dir, indi, req_depths);
+				if(failed)
 				{
-					// checking if the indicator is already defined
-					if (indicator_definitions[reqs[i]].first.empty())
-					{
-						indicator_definitions[reqs[i]] = compose_indicator(dir, reqs[i]);
-					}
+					return "";
 				}
 			}
 			else if (tokens[0] == INCLUDE_TOKEN)
@@ -287,50 +280,84 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		{
 			s = "\treturn " + std::to_string(ACTION_SELL) + ";";
 		}
-		else
-		{
-			for (std::pair<std::string, std::pair<std::string, std::string>> pair : indicator_definitions)
-			{
-				//if the identifier used matches a declared indicator
-				if (tokens[0] == pair.second.first)
-				{
-					std::vector<std::string> vartoks = hirzel::tokenize(s, " \t();");
-					if (vartoks.size() != 3)
-					{
-						std::cout << "dtbuild: error: Syntax error when declaring indicator: lines " << lineIndex << "!\n";
-						failed = true;
-						return "";
-					}
-
-					indicator_variables.push_back(vartoks);
-					s = "";
-				}
-			}
-		}
 
 		lineIndex++;
-	} // end of algo parsing for loop
+	}
+
+
+	/********************************************
+	 * Populating list of indicator definitions	*
+	 ********************************************/
+	int maxDepth = 0;
+
+	std::unordered_map<std::string, bool> pseudoident;
+	for (std::pair<std::string, int> p : req_depths)
+	{
+		if (maxDepth < p.second)
+		{
+			maxDepth = p.second;
+		}
+	}
+	for (int i = maxDepth; i > 0; i--)
+	{
+		for (std::pair<std::string, int> p : req_depths)
+		{
+			if (p.second == i)
+			{
+				std::pair<std::string, std::string> indi_def = compose_indicator(dir, p.first);
+				pseudoident[indi_def.first] = true;
+				indicator_definition_glob += indi_def.second;
+			}
+		}
+	}
+	/********************************
+	 * Replacing pseudoidentifiers	*
+	 ********************************/
+	for (std::string& line : input_file)
+	{
+		std::vector<std::string> line_toks = tokenize(line, " \t\n();");
+		if(line_toks.empty())
+		{
+			continue;
+		}
+		if(pseudoident[line_toks[0]])
+		{
+			line = "";
+			if(line_toks.size() != 3)
+			{
+					std::cout << "dtbuild: error: '" << filename << "' Syntax error when declaring indicator: lines " << lineIndex << "!\n";
+					failed = true;
+					return "";
+			}
+
+			indicator_variables.push_back(line_toks);
+		}
+	}
+
+
+	//globbing input file into 'script'
+	for (std::string s : input_file)
+	{
+		if(!s.empty())
+		{
+			script += "\t" + s + "\n";
+		}
+	}
 
 	if (algo_name.empty())
 	{
-		std::cout << "dtbuild: fatal: A name must be defined!\n";
+		std::cout << "dtbuild: fatal: '" << filename << "'A name must be defined!\n";
 		failed = true;
 		return "";
 	}
-	// composing each indicator required in file
-	for (std::pair<std::string, std::pair<std::string, std::string>> pair : indicator_definitions)
-	{
-		indicator_definition_glob += pair.second.second + "\n";
-	}
 
-	// adding to script string, mainly for human readability
-	for (unsigned int i = 0; i < input_file.size(); i++)
-	{
-		if(!input_file[i].empty())
-		{
-			script += "\n\t" + input_file[i];
-		}
-	}
+	// composing each indicator required in file
+	//for (std::pair<std::string, std::pair<std::string, std::string>> pair : indicator_definitions)
+	//{
+	//	indicator_definition_glob += pair.second.second + "\n";
+//	}
+
+	// converting input file to string
 
 	std::string indi_decl, indi_data, dataset_init;
 	for (std::vector<std::string> v : indicator_variables)
@@ -338,7 +365,7 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		std::string data_var_name = v[1];
 		std::string var_name = v[1] + INDICATOR_FOOTER;
 		indi_decl += v[0] + " " + var_name + "(" + v[2] + ");\n";
-		indi_data += "\n\tstd::vector<double> " + data_var_name + " = dataset.at(\"" + data_var_name + "\").second;";
+		indi_data += "\n\tconst std::vector<double>& " + data_var_name + " = dataset.at(\"" + data_var_name + "\").second;";
 		dataset_init += "\n\tdataset[\"" + data_var_name + "\"] = " + var_name + ".calculate(candles, index, window);";
 	}
 	// replacing hooks in output buffer
@@ -355,16 +382,19 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 
 int main(int argc, char *argv[])
 {
-	std::cout << "PATH: " << std::filesystem::current_path().string() + "/" +std::string(argv[0]) << std::endl;
 	if (argc == 1)
 	{
 		std::cout << "dtbuid: fatal: No input files!\n";
 		return 1;
 	}
 
-	std::string odir, candle_h, candle_cpp;
-	std::string cxx, cxxflags, lflags, srcdir;
+	std::string odir, cwd, execdir, configpath;
+	std::string cxx, cxxflags, lflags;
 	std::string filepath;
+
+	cwd = std::filesystem::current_path().string();
+	execdir = hirzel::get_folder(cwd + "/" + std::string(argv[0]));
+	configpath = execdir + "/" + std::string(CONFIG_FILENAME);
 
 	bool setodir = false;
 	bool printcode = false;
@@ -401,7 +431,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	std::vector<std::string> config_file = hirzel::read_file(CONFIG_FILENAME);
+	std::vector<std::string> config_file = hirzel::read_file(configpath);
 
 	if (config_file.empty())
 	{
@@ -433,16 +463,6 @@ int main(int argc, char *argv[])
 				lflags += tokens[i] + " ";
 			}
 		}
-		else if (tokens[0] == "DTSRCDIR")
-		{
-			srcdir = tokens[1];
-		}
-	}
-
-	if (srcdir.empty())
-	{
-		std::cout << "dtbuild: fatal: Must supply path of DayTrender src folder in config!\n";
-		return 1;
 	}
 
 	if (cxx.empty())
@@ -452,12 +472,12 @@ int main(int argc, char *argv[])
 	}
 
 	// std::cout << "SCRIPT FILENAME: " << script_filepath << std::endl;
-	std::string cwd = hirzel::get_folder(filepath);
+	std::string algo_folder = hirzel::get_folder(filepath);
 	// adding extension on end of file
 
 	std::string basename = hirzel::get_basename(filepath);
-	std::string temp_output_filename = cwd + "/" + basename + TEMP_OUTPUT_EXTENSION;
-	std::string algo_buf = compose_algorithm(cwd, filepath);
+	std::string temp_output_filename = algo_folder + "/" + basename + TEMP_OUTPUT_EXTENSION;
+	std::string algo_buf = compose_algorithm(algo_folder, filepath);
 
 	if (failed)
 	{
@@ -466,7 +486,23 @@ int main(int argc, char *argv[])
 
 	if (printcode)
 	{
-		std::cout << algo_buf << std::endl;
+		unsigned int line = 1;
+		printf("%5d | ", line);
+
+		for (char c : algo_buf)
+		{
+			if(c == '\n')
+			{
+				putchar(c);
+				line++;
+				printf("%5d | ", line);
+			}
+			else
+			{
+				putchar(c);
+			}
+		}
+		putchar('\n');
 	}
 
 	// writing temp file
@@ -474,17 +510,18 @@ int main(int argc, char *argv[])
 	std::string output_name;
 	if (odir.empty())
 	{
-		output_name = cwd;
+		output_name = algo_folder;
 	}
 	output_name += odir + "/" + basename + ".so";
-	std::string cmd = cxx + " " + cxxflags + temp_output_filename + " -o " + output_name + " " + lflags;
-	// std::cout << "CWD: " << cwd << std::endl;
+	std::string cmd = cxx + " " + cxxflags + temp_output_filename + " -o " + output_name
+		+ " -I" + execdir + "/include " + lflags;
+	// std::cout << "Algo Folder: " << algo_folder << std::endl;
 	if (system(cmd.c_str()))
 	{
 		failed = true;
 		std::cout << "Failed to compile " + output_name + "!\n";
 	}
-	if (false)//std::remove(temp_output_filename.c_str()))
+	if (std::remove(temp_output_filename.c_str()))
 	{
 		failed = true;
 		std::cout << "dtbuild: error: Failed to remove temp files!\n";

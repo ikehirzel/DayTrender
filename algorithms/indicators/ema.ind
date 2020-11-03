@@ -1,8 +1,6 @@
 $label "EMA"
 $identifier EMA
 
-// Script:
-
 double multiplier = 2.0 / (double)(range + 1);
 
 double sum = 0.0;

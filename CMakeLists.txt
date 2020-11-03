@@ -3,7 +3,7 @@ project(DayTrender)
 set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp)
-
+file(COPY ./src/data/candle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
 add_executable(daytrender ${DAYTRENDER_SRCS})
 add_executable(dtbuild ./src/dtbuild/dtbuild.cpp)
 
