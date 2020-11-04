@@ -5,7 +5,6 @@ $label "Simple MA"
 EMA longma(1.0);
 EMA shortma(0.25);
 
-std::cout << "Giving it a shot\n";
 double lastShort = shortma[index - 1];
 double lastLong = longma[index - 1];
 

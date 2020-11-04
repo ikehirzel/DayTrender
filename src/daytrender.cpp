@@ -12,13 +12,13 @@
 #include "api/alpacaclient.h"
 #include "api/oandaclient.h"
 
-#define CPPHTTPLIB_OPENSSL_SUPPORT
-#include <httplib.h>
+//#define CPPHTTPLIB_OPENSSL_SUPPORT
+//#include <httplib.h>
 
 #include <filesystem>
-
+#include <functional>
 using namespace hirzel;
-using namespace httplib;
+//using namespace httplib;
 
 #define CONFIG_FOLDER			"/config/"
 #define RESOURCES_FOLDER		"/resources/"
@@ -310,23 +310,40 @@ namespace daytrender
 		infof("Shutting down...");
 	}
 
+	void backtest(const std::string& algoname, const std::string& clientname, unsigned int interval = 0, unsigned int window = 0)
+	{
+		std::cout << "blHa\n";
+	}
+
 	void DayTrender::scanInput()
 	{
+		typedef void (*func_ptr)();
 		std::string input;
-
-
+		std::unordered_map<std::string, std::pair<func_ptr, bool>> funcs;
 		while (running)
 		{
 			std::getline(std::cin, input);
+			infof("dtshell: $ %s", input);
 			std::vector<std::string> tokens = hirzel::tokenize(input, " \t");
-			infof("input: %s", input);
+			//std::function<void()> f = funcs[tokens[0]];
+			func_ptr f;
+			if(f)
+			{
+				f();
+				continue;
+			}
+
+			warningf("dtshell: Command not fount");
 			if (tokens[0] == "exit")
 			{
 				stop();
 			}
+			else if (tokens[0] == "backtest")
+			{
+			}
 			else if (tokens[0] == "build")
 			{
-				if(tokens.size() != 2)
+				if(tokens.size() < 2 || tokens.size() > 3)
 				{
 					warningf("Invalid usage of command: must be in format 'build <input-file>'");
 					continue;

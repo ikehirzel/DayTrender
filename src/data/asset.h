@@ -5,65 +5,63 @@
 #include <unordered_map>
 
 #include "candle.h"
-
+#include "action.h"
 #include "paperaccount.h"
 #include "tradealgorithm.h"
 
+#ifndef PAPER_BY_DEFAULT
+	#define PAPER_TRADING false
+#else
+	#define PAPER_TRADING true
+#endif
+
+// algorithm constants
+#define MAX_ALGORITHM_WINDOW	250U
+#define MIN_ALGORITHM_WINDOW	8U
+
+// interval constants
+	
+// PaperAccount constants
+#define PAPER_ACCOUNT_INITIAL	500U
+	
+#define FOREX_FEE				0.00007
+#define FOREX_MINIMUM			0.01
+#define FOREX_INITIALS			{ FOREX_FEE, FOREX_MINIMUM }
+
+#define STOCK_FEE				0.0
+#define STOCK_MINIMUM			1.0
+#define STOCK_INITIALS			{ STOCK_FEE, STOCK_MINIMUM }
+
+#define CRYPTO_FEE				0.0025
+#define CRYPTO_MINIMUM			0.001
+#define CRYPTO_INITIALS			{ CRYPTO_FEE, CRYPTO_MINIMUM }
+
+#define PAPER_INITIALS			{ FOREX_INITIALS }
+
+// Asset constants
+
+#define FOREX_INDEX			0U
+#define FOREX_LABEL			"Forex"
+
+#define STOCK_INDEX			1U
+#define STOCK_LABEL			"Stocks"
+
+#define CRYPTO_INDEX		2U
+#define CRYPTO_LABEL		"Crypto"
+
+//temporarily set to just forex for testing
+#define ASSET_TYPE_COUNT	1
+#define ASSET_LABELS		{ FOREX_LABEL }
+
+#define FOREX_INTERVALS		{ MIN5, MIN15, HOUR1 }
+#define STOCK_INTERVALS		{ MIN5, MIN15, HOUR1 }
+#define CRYPTO_INTERVALS		{ MIN5, MIN15, HOUR1 }
+#define BACKTEST_INTERVALS	{ FOREX_INTERVALS }
+
 namespace daytrender
 {
-	#ifndef PAPER_BY_DEFAULT
-		#define PAPER_TRADING false
-	#else
-		#define PAPER_TRADING true
-	#endif
-	// algorithm constants
-	#define MAX_ALGORITHM_WINDOW	250U
-	#define MIN_ALGORITHM_WINDOW	8U
-
-	// interval constants
-	
-	
-
-	// PaperAccount constants
-	#define PAPER_ACCOUNT_INITIAL	500U
-	
-	#define FOREX_FEE				0.00007
-	#define FOREX_MINIMUM			0.01
-	#define FOREX_INITIALS			{ FOREX_FEE, FOREX_MINIMUM }
-
-	#define STOCK_FEE				0.0
-	#define STOCK_MINIMUM			1.0
-	#define STOCK_INITIALS			{ STOCK_FEE, STOCK_MINIMUM }
-
-	#define CRYPTO_FEE				0.0025
-	#define CRYPTO_MINIMUM			0.001
-	#define CRYPTO_INITIALS			{ CRYPTO_FEE, CRYPTO_MINIMUM }
-
-	#define PAPER_INITIALS			{ FOREX_INITIALS }
-
-	// Asset constants
-
-	#define FOREX_INDEX			0U
-	#define FOREX_LABEL			"Forex"
-
-	#define STOCK_INDEX			1U
-	#define STOCK_LABEL			"Stocks"
-
-	#define CRYPTO_INDEX		2U
-	#define CRYPTO_LABEL		"Crypto"
-
-	//temporarily set to just forex for testing
-	#define ASSET_TYPE_COUNT	1
-	#define ASSET_LABELS		{ FOREX_LABEL }
-
-	#define FOREX_INTERVALS		{ MIN5, MIN15, HOUR1 }
-	#define STOCK_INTERVALS		{ MIN5, MIN15, HOUR1 }
-	#define CRYPTO_INTERVALS		{ MIN5, MIN15, HOUR1 }
-	#define BACKTEST_INTERVALS	{ FOREX_INTERVALS }
-
 	class TradeClient;
 	class OandaClient;
-	class PaperAccount;
 	class AlpacaClient;
 	
 	typedef std::pair<candleset, algorithm_data> asset_data;
@@ -71,10 +69,10 @@ namespace daytrender
 	extern const char* asset_labels[];
 	extern double paper_initials[ASSET_TYPE_COUNT][2];
 	extern unsigned int backtest_intervals[ASSET_TYPE_COUNT][3];
+
 	class Asset
 	{
 		//function pointer to things like nothing, sell, buy, etc...
-		typedef void (Asset::*actionFunc)(PaperAccount*);
 	protected:
 		bool paper = PAPER_TRADING, live = false;
 		unsigned int tick = 0, interval = 0, window = 0, index = 0;
@@ -89,16 +87,6 @@ namespace daytrender
 		//papaerAccount is the current paperAccount
 		PaperAccount basePaperAccount, paperAccount;
 		
-		actionFunc actions[3];
-		// Callbacks for algorithm actions
-
-		// Callback for ACTION_NOTHING
-		void nothing(PaperAccount *account = nullptr) {}
-		// Callback for ACTION_BUY
-		void buy(PaperAccount* account = nullptr);
-		// Callback for ACTION_SELL
-		void sell(PaperAccount* account = nullptr);
-		
 	public:
 
 		Asset(unsigned int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
@@ -106,11 +94,8 @@ namespace daytrender
 
 		void update();
 		
-		PaperAccount backtest(TradeAlgorithm* algorithm, const candleset& candles,
-			unsigned int inter, unsigned int win);
-		
-		//tests the current algorithm with current window and interval
-		PaperAccount testCurrentConstraints();
+		// simply used to backtest the current asset with all of its settings
+		PaperAccount backtest();
 		
 		PaperAccount findBestWindow(TradeAlgorithm* algorithm, unsigned int inter);
 		
@@ -126,5 +111,6 @@ namespace daytrender
 		inline std::string getTicker() const { return ticker; }
 		inline unsigned int getInterval() const { return interval; }
 		inline bool isLive() const { return live; }
+		inline void setLive(bool _live) { live = _live; }
 	};
 }
