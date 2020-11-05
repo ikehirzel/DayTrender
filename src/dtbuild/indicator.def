@@ -14,17 +14,11 @@ struct %INDICATOR_CLASS%
 		return "%INDICATOR_LABEL%";
 	}
 
-	indicator_data calculate(const candleset& candles, unsigned int index,
-		unsigned int window)
+	indicator_data calculate(const candleset& candles)
 	{
-		unsigned int range = window * ratio;
-		unsigned int startIndex = (index + 1) - window;
-		std::vector<double> data(window, 0.0);
-		if(index >= candles.size() || startIndex >= candles.size())
-		{
-			std::cout << getName() << "(" << ratio << ") : Index out of bounds! index: " << index << " candles size: " << candles.size() << "\n";
-			return { getName(), data };
-		}
+		unsigned int length = candles.size();
+		unsigned int range = length * ratio;
+		std::vector<double> data(length, 0.0);
 		
 		%CALCULATE_SCRIPT%
 		

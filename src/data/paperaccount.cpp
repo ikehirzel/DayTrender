@@ -3,11 +3,12 @@
 #include "../data/interval.h"
 #include "../data/action.h"
 #include <cmath>
+#include <hirzel/fountain.h>
 
 namespace daytrender
 {
-	PaperAccount::PaperAccount(double initial, double fee, double minimum,
-		unsigned int interval, unsigned int window)
+	PaperAccount::PaperAccount(double initial, double fee, double minimum, unsigned int interval,
+		unsigned int window)
 	{
 		this->initial = initial;
 		this->balance = initial;
@@ -15,278 +16,186 @@ namespace daytrender
 		this->minimum = minimum;
 		this->interval = interval;
 		this->window = window;
-		
-		prices.clear();
-		actions.clear();
-	}
-	
-	PaperAccount::PaperAccount(const PaperAccount& other)
-	{
-		*this = other;
-	}
-	
-	PaperAccount::PaperAccount(const PaperAccount& other, unsigned int interval, unsigned int window)
-	{
-		*this = other;
-		this->interval = interval;
-		this->window = window;
 	}
 
-	void PaperAccount::buy(const double& shares)
+	void PaperAccount::buy(double _shares)
 	{
-		std::string name = "PaperAccount::buy(shares): ";
 		if (shares < minimum)
 		{
-			std::cout << name + "A minimum of " << minimum
-				<< " shares must be bought to complete trade!" << std::endl;
+			warningf("A minimum of %f must be bought to complete a trade");
 			return;
 		}
-		
-		double price = getPrice();
 		
 		if(!price)
 		{
-			std::cout << "\t" + name + "Price returned null!\n";
+			errorf("Price must be set before purchasing!");
 			return;
 		}
+
+		if(!lastActPrice) lastActPrice = price;
 		
-		double cost = shares * price * (fee + 1.0);
+		if (price > lastActPrice)
+		{
+			buylosses++;
+		}
+		else if (price < lastActPrice)
+		{
+			buywins++;
+		}
+		
+		double cost = _shares * price * (fee + 1.0);
 		
 		if (cost > balance)
 		{			
-			std::cout << name + "Not enough balance to complete purchase!\nBalance: "
-				<< balance << std::endl;
-			std::cout << "Cost: " << cost << "\nBalance: " << balance
-				<< "\nFee: " << fee << "\nShares: " << shares << std::endl;
-				std::cin.get();
+			warningf("Not enough balance to complete purchase");
 			return;
 		}
 		
-		actions.back() = ACTION_BUY;
 		buys++;
-		this->shares += shares;
+		shares += _shares;
 		balance -= cost;
 	}
 
-	void PaperAccount::sell(const double& shares)
+	void PaperAccount::sell(double _shares)
 	{
-		std::string name = "PaperAccount::sell(shares): ";
-		bool evac = false;
-		double price = getPrice();
-		if(!price)
+		if (_shares < minimum)
 		{
-			std::cout << "\t" + name + "Price returned null!\n";
+			warningf("A minimum of %f myst be sold to complete trade", minimum);
 			return;
-		}
-		double returns = shares * price * (1.0 - fee);
-		if (shares > this->shares)
-		{
-			std::cout << name << "Not enough shares to complete sale!\nShares: " << shares << std::endl;
-			evac = true;
 		}
 
-		if (shares < minimum)
+		if (_shares > shares)
 		{
-			std::cout << name << "A minimum of " << minimum << " shares must be sold to complete trade!" << std::endl;
-			evac = true;
-		}
-		if (evac)
-		{
+			warningf("Not enough shares to complete sale");
 			return;
 		}
-		else
+
+		if(!price)
 		{
-			actions.back() = ACTION_SELL;
-			sells++;
-			this->shares -= shares;
-			balance += returns;
+			errorf("Price must be set before selling!");
+			return;
 		}
-	}
+
+		if(!lastActPrice) lastActPrice = price;
+		
+		if (price > lastActPrice)
+		{
+			sellwins++;
+		}
+		else if (price < lastActPrice)
+		{
+			selllosses++;
+		}
+
+		double returns = _shares * price * (1.0 - fee);
+		
+		sells++;
+		shares -= _shares;
+		balance += returns;
+	}	
 
 	double PaperAccount::equity() const
 	{
-		std::string name = "PaperAccount::equity(): ";
-		double price = getPrice();
-		if(!price)
-		{
-			std::cout << "\t" + name + "Price returned null!\n";
-			return 0.0;
-		}
 		return balance + (shares * price);
 	}
 
 	double PaperAccount::netReturn() const
 	{
-		std::string name = "PaperAccount::netReturn(): ";
-		double eq = equity();
-		if(!eq)
-		{
-			std::cout << "\t\t" << name << "equity() returned null!\n";
-			return 0.0;
-		}
-		return eq - initial;
+		return equity() - initial;
 	}
 
 	double PaperAccount::percentReturn() const
 	{
-		std::string name = "PaperAccount::percentReturn(): ";
-		double net_return = netReturn();
-		if(!net_return)
+		if(initial > 0.0)
 		{
-			std::cout << "\t\t\t" + name + "netReturn() returned null!\n";
+			return netReturn() / initial;
 		}
-		
-		if(initial == 0)
-		{
-			//std::cout << "PaperAccount percentReturn(): Initial balance is zero!" << std::endl;
-			return 0.0L;
-		}
-		return net_return / initial;
+		return 0.0;
 	}
-	
+
 	double PaperAccount::elapsedHours() const
 	{
-		std::string name = "PaperAccount::elapsedHours(): ";
-		if(prices.empty())
-		{
-			std::cout << name + "Price is not set!\n";
-			return 0.0;
-		}
-		double hours = prices.size() * ((double)interval / 3600.0);
-		return hours;
+		return (double)(interval * updates) / 3600.0;
 	}
 
-	double PaperAccount::netYearReturn() const
+	double PaperAccount::avgHourNetReturn() const
 	{
-		if(!interval)
+		double hours = elapsedHours();
+		if(hours > 0.0)
 		{
-			return 0.0;
+			return netReturn() / hours;
 		}
-		double timeframe = (double)YEAR / (double)(prices.size() * interval);
-		double percent_return = percentReturn();
-		double eq = equity();
-		if(!eq || !percent_return)
-		{
-			return 0.0;
-		}
-		//double year_balance =  compound(equity(), percentReturn(), timeframe);
-		double year_balance =  equity() * pow(percentReturn() + 1, timeframe);
-		return year_balance - initial;
-	}
-	
-	double PaperAccount::percentYearReturn() const
-	{
-		if(initial == 0)
-		{
-			return 0.0;
-		}
-		return netYearReturn() / initial;
-	}
-	
-
-	std::vector<double> PaperAccount::winRate() const
-	{	
-		if((buys + sells) == 0)
-		{
-			std::cout << "PaperAccount::winRate(): No trades have occurred!" << std::endl;
-			return { 0.0, 0.0, 0.0 };
-		}
-		
-		std::vector<double> rates(3);
-		
-		double lastBuy = 0.0;
-		double lastSell = 0.0;
-		
-		double buywins = 0.0, sellwins = 0.0;
-		
-		for(unsigned int i = 0; i < actions.size(); i++)
-		{
-			double buyprice = prices[i] * (1.0 + fee);
-			double sellprice = prices[i] * (1.0 - fee);
-			//winning buy
-			if (actions[i] == ACTION_BUY && buyprice < lastSell)
-			{
-				buywins++;
-				lastBuy = buyprice;
-			}
-			if (actions[i] == ACTION_SELL && sellprice > lastBuy)
-			{
-				sellwins++;
-				lastSell = sellprice;
-			}
-		}
-		
-		rates[0] = (buywins + sellwins) / (double)(buys + sells);
-		rates[1] = buywins / (double)buys;
-		rates[2] = sellwins / (double)sells;
-
-		return rates;
-	}
-	
-	double PaperAccount::getPrice() const
-	{
-		std::string name = "PaperAccount::getPrice(): ";
-		if(prices.empty())
-		{
-			std::cout << name + "Price is not set\n";
-			return 0.0;
-		}
-		return prices.back();
+		return 0.0;
 	}
 
-	double PaperAccount::getPrice(unsigned int i) const
+	double PaperAccount::avgHourPercentReturn() const
 	{
-		std::string name = "PaperAccount::getPrice(i): ";
-		if(i >= prices.size())
+		double hours = elapsedHours();
+		if(hours > 0.0)
 		{
-			std::cout << name + "Index out of range" << std::endl;
-			return 0.0L;
+			return percentReturn() / hours;
 		}
-		return prices[i];
+		return 0.0;
 	}
-	
-	void PaperAccount::setPrice(double price)
+
+	double PaperAccount::buyWinRate() const
 	{
-		prices.push_back(price);
-		actions.push_back(0);
+		if(buys)
+		{
+			return (double)buywins / (double)(buys);
+		}
+		return 0.0;
 	}
-	
+	double PaperAccount::sellWinRate() const
+	{
+		if (sells)
+		{
+			return (double)sellwins / (double)sells;
+		}
+		return 0.0;
+	}
+
+	double PaperAccount::winRate() const
+	{
+		double base = (double)(buys + sells);
+		if	(base > 0.0)
+		{
+			return (double)(buywins + sellwins) / base;
+		}
+		return 0.0;
+	}
+
+	std::string PaperAccount::to_string() const
+	{
+		std::string out;
+		out = "PaperAccount:\n{";
+		out += "\n    Buys        :    " + std::to_string(buys);
+		out += "\n    Sells       :    " + std::to_string(sells);
+		out += "\n    Interval    :    " + std::to_string(interval);
+		out += "\n    Window      :    " + std::to_string(window);
+		out += "\n    Elapsed Hrs :    " + std::to_string(elapsedHours());
+		out += "\n";
+		out += "\n    Initial     :    " + std::to_string(initial);
+		out += "\n    Shares      :    " + std::to_string(shares);
+		out += "\n    Balance     :    " + std::to_string(balance);
+		out += "\n    Equity      :    " + std::to_string(equity());
+		out += "\n";
+		out += "\n    Net Return  :    " + std::to_string(netReturn());
+		out += "\n    % Return    :    " + std::to_string(percentReturn() * 100.0) + " %";
+		out += "\n";
+		out += "\n    Hr Return   :    " + std::to_string(avgHourNetReturn());
+		out += "\n    Hr% Return  :    " + std::to_string(avgHourPercentReturn() * 100.0) + " %";
+		out += "\n";
+		out += "\n    Win Rate    :    " + std::to_string(winRate()) + " %";
+		out += "\n    B Win Rate  :    " + std::to_string(buyWinRate()) + " %";
+		out += "\n    S Win Rate  :    " + std::to_string(sellWinRate()) + " %";
+		out += "\n}";
+		return out;
+	}
+
 	std::ostream& operator<<(std::ostream& out, const PaperAccount& acc)
 	{
-		std::vector<double> rates = acc.winRate();
-		double eq = acc.equity();
-		double percent_return = acc.percentReturn() * 100.0;
-		double win_rate = rates[0] * 100.0;
-		double buy_win_rate = rates[1] * 100.0;
-		double sell_win_rate = rates[2] * 100.0;
-		double net_return = acc.netReturn();
-		
-		double net_year_return = acc.netYearReturn();
-		double percent_year_return = acc.percentYearReturn() * 100;
-		double elapsed_hours = acc.elapsedHours();
-		
-		out << "PaperAccount:\n{"
-		<< "\n\tBuys\t\t:\t"		<< acc.getBuys()
-		<< "\n\tSells\t\t:\t"		<< acc.getSells()
-		<< "\n\tInterval\t:\t"		<< acc.getInterval()
-		<< "\n\tWindow\t\t:\t"		<< acc.getWindow()
-		<< "\n\tElapsed Hrs\t:\t"	<< elapsed_hours
-		<< "\n"
-		<< "\n\tInitial\t\t:\t"		<< acc.getInitial()
-		<< "\n\tShares\t\t:\t"		<< acc.getShares()
-		<< "\n\tBalance\t\t:\t"		<< acc.getBalance() 
-		<< "\n\tEquity\t\t:\t"		<< eq
-		<< "\n"
-		<< "\n\tNet Return\t:\t"	<< net_return
-		<< "\n\t% Return\t:\t"		<< percent_return << "%"
-		<< "\n"
-		<< "\n\tYr Return\t:\t"		<< net_year_return
-		<< "\n\t% Yr Return\t:\t"	<< percent_year_return << "%"
-		<< "\n"
-		<< "\n\tWin Rate\t:\t"		<< win_rate << "%"
-		<< "\n\tB Win Rate\t:\t"	<< buy_win_rate << "%"
-		<< "\n\tS Win Rate\t:\t"	<< sell_win_rate << "%"
-		<< "\n}";
+		out << acc.to_string();
 		return out;
 	}
 }

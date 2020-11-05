@@ -8,22 +8,34 @@ namespace daytrender
 {	
 	class PaperAccount
 	{
-	protected:
-		double balance = 0.0, shares = 0.0, fee = 0.0, minimum = 0.0, initial = 0.0;
-		unsigned int buys = 0, sells = 0, interval = 0, window = 0;
+	private:
+		double
+			balance = 0.0,
+			shares = 0.0,
+			fee = 0.0,
+			minimum = 0.0,
+			initial = 1.0,
+			price = 0.0,
+			lastActPrice = 0.0;
 		
-		std::vector<double> prices = { 1.0 };
-		std::vector<unsigned int> actions = { 0 };
+		unsigned int
+			buys = 0,
+			sells = 0,
+			buywins = 0,
+			buylosses = 0,
+			sellwins = 0,
+			selllosses = 0,
+			interval = 0,
+			window = 0,
+			updates = 0;
 		
 	public:
 		PaperAccount() = default;
-		PaperAccount(double initial, double fee, double minimum,
-			unsigned int interval, unsigned int window);
-		PaperAccount(const PaperAccount& other);
-		PaperAccount(const PaperAccount& other, unsigned int interval, unsigned int window);
+		PaperAccount(double initial, double fee, double minimum, unsigned int interval,
+			unsigned int window);
 			
-		void buy(const double& shares);
-		void sell(const double& shares);
+		void buy(double shares);
+		void sell(double shares);
 		
 		inline double getInitial() const { return initial; }
 		inline double getBalance() const { return balance; }	
@@ -31,9 +43,8 @@ namespace daytrender
 		inline double getFee() const { return fee; }
 		inline double getMinimum() const { return minimum; }
 		
-		double getPrice() const;
-		double getPrice(unsigned int i) const;
-		void setPrice(double price);
+		inline double getPrice() const { return price; }
+		inline void setPrice(double _price) { updates++; price = _price; };
 		
 		inline unsigned int getBuys() const { return buys; }
 		inline unsigned int getSells() const { return sells; }
@@ -41,33 +52,22 @@ namespace daytrender
 		inline unsigned int getInterval() const { return interval; }
 		inline unsigned int getWindow() const { return window; }
 		
-		inline void setConstraints(unsigned int interval, unsigned int window)
-		{
-			this->interval = interval;
-			this->window = window;
-		}
-		
 		//non-trivial getters
-	
-		//the equity at the most recent price
+
 		double equity() const;
-		//the net dollar return
 		double netReturn() const;
-		//the overall percent return
 		double percentReturn() const;
-		//the amount of elapsed hours during calculation
 		double elapsedHours() const;
-		//theoretical net return over a year of the same performance
-		double netYearReturn() const;
-		//theoretical percnet return over a year of the same performance
-		double percentYearReturn() const;
-		//the ratio of winning trades to losing trades, returns
-		//a vector with [0] being the overall, [1] being the buy winrate,
-		//and [2] being the sell win rate
-		std::vector<double> winRate() const;
+		double avgHourNetReturn() const;
+		double avgHourPercentReturn() const;
+		double buyWinRate() const;
+		double sellWinRate() const;
+		double winRate() const;
 
 		//todo implement buy win rate and sell winrate
 		
+		std::string to_string() const;
+
 		friend std::ostream& operator<<(std::ostream& out, const PaperAccount& acc);
 	};
 }

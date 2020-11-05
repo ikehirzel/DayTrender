@@ -6,55 +6,45 @@
 namespace daytrender
 {
 	action_func actions[ACTION_COUNT] = { &action_nothing, &action_sell, &action_buy };
+
 	paper_func paper_actions[ACTION_COUNT] = { &paper_nothing, &paper_sell, &paper_buy };
 
-	void action_nothing(TradeClient* client, double risk) {}
-	void paper_nothing(PaperAccount* account, double risk) {}
+	bool action_nothing(TradeClient* client, double risk) { return true; }
+	bool paper_nothing(PaperAccount& account, double risk) { return true; }
 
-	void action_buy(TradeClient* client, double risk) 
+	bool action_buy(TradeClient* client, double risk) 
 	{
 		errorf("Live buying is not implemented yet!");
+		return false;
 	}
 
-	void paper_buy(PaperAccount* account, double risk)
+	bool paper_buy(PaperAccount& account, double risk)
 	{
-		if (!account)
+		double shares = (risk * account.getBalance() * (1.0 - account.getFee())) / account.getPrice();
+
+		if (shares < account.getMinimum())
 		{
-			errorf("Paper account supplied was nullptr!");
-			return;
+			return false;
 		}
 
-		double shares = (risk * account->getBalance() * (1.0 - account->getFee())) / account->getPrice();
-
-		if (shares < account->getMinimum())
-		{
-			warningf("Shares requested was below minimum, skipping purchase");
-			return;
-		}
-
-		account->buy(shares);
+		account.buy(shares);
+		return true;
 	}
 
-	void action_sell(TradeClient* client, double risk)
+	bool action_sell(TradeClient* client, double risk)
 	{
 		errorf("Live selling is not implemented yet!");
+		return false;
 	}
 
-	void paper_sell(PaperAccount* account, double risk) 
+	bool paper_sell(PaperAccount& account, double risk) 
 	{
-		if (!account)
+		double shares = account.getShares();
+		if (shares < account.getMinimum())
 		{
-			errorf("Paper account supplied was nullptr!");
-			return;
+			return false;
 		}
-
-		double shares = account->getShares();
-
-		if (shares < account->getMinimum())
-		{
-			warningf("Shares requested was below minimum, skipping sale");
-			return;
-		}
-		account->sell(shares);
+		account.sell(shares);
+		return true;
 	}
 }

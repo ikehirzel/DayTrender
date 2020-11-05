@@ -6,12 +6,13 @@
 #include <hirzel/fountain.h>
 
 #include "data/candle.h"
+#include "data/action.h"
 #include "data/asset.h"
 #include "data/tradealgorithm.h"
+#include "data/interval.h"
 
 #include "api/alpacaclient.h"
 #include "api/oandaclient.h"
-
 //#define CPPHTTPLIB_OPENSSL_SUPPORT
 //#include <httplib.h>
 
@@ -39,6 +40,9 @@ namespace daytrender
 		initAssets();
 		// sets the callbacks for the server
 		initServer();
+		shouldrun = false;
+		backtest("simplema", "forex", "EUR_USD");
+
 	}
 
 	// destroys clients and assets
@@ -101,10 +105,12 @@ namespace daytrender
 								 oandaCredentials["token"].get<std::string>()});
 	}
 
-	bool DayTrender::buildAlgorithm(const std::string& filename)
+	bool DayTrender::buildAlgorithm(const std::string& filename, bool print)
 	{
 		infof("Compiling %s...", filename);
-		std::string cmd = dtdir + "/dtbuild " + dtdir + SCRIPT_FOLDER + filename + ".alg -o " + dtdir + ALGORITHM_BIN_FOLDER ".";
+		std::string cmd = dtdir + "/dtbuild " + dtdir + SCRIPT_FOLDER + filename + ".alg -o ";
+		if (print) cmd += "-p ";
+		cmd += dtdir + ALGORITHM_BIN_FOLDER ".";
 		return !std::system(cmd.c_str());
 	}
 
@@ -119,7 +125,7 @@ namespace daytrender
 			//compile algorithm
 			bool success = false;
 			#ifdef JIT_COMPILE_ALGORITHMS
-			success = buildAlgorithm(filename);
+			success = buildAlgorithm(filename, false);
 			#else
 			std::string binpath = dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION;
 			hirzel::printf("binpath: %s\n", binpath);
@@ -310,57 +316,211 @@ namespace daytrender
 		infof("Shutting down...");
 	}
 
-	void backtest(const std::string& algoname, const std::string& clientname, unsigned int interval = 0, unsigned int window = 0)
+	void DayTrender::backtest(const std::string& algoname, const std::string& clientname, const std::string& ticker)
 	{
-		std::cout << "blHa\n";
+		TradeClient* client = nullptr;
+		TradeAlgorithm* algo = nullptr;
+		std::vector<candleset> candles_vec;
+		unsigned int asset_index = 0;
+		double paper_initial, paper_minimum, paper_fee;
+
+		// getting algorithm pointer
+		algo = algorithms[algoname];
+
+		if(!algo)
+		{
+			errorf("Invalid algorithm name!");
+			return;
+		}
+
+		// setting paper account information and getting client
+		paper_initial = PAPER_ACCOUNT_INITIAL;
+		if(clientname == "forex")
+		{
+			client = forex;
+			paper_minimum = FOREX_MINIMUM;
+			paper_fee = FOREX_FEE;
+		}
+		else if (clientname == "stocks")
+		{
+			client = stocks;
+			paper_minimum = STOCK_MINIMUM;
+			paper_fee = STOCK_FEE;
+		}
+
+		if(!client)
+		{
+			errorf("Invalid asset type!");
+			return;
+		}
+
+		candles_vec.resize(3);
+
+		candles_vec[0] = client->getCandles(ticker, backtest_intervals[asset_index][0]);
+		candles_vec[1] = client->getCandles(ticker, backtest_intervals[asset_index][1]);
+		candles_vec[2] = client->getCandles(ticker, backtest_intervals[asset_index][2]);
+		
+
+		for(const candleset& c : candles_vec)
+		{
+			if (c.empty())
+			{
+				errorf("Cannot continue backtest as not all candles were received!");
+				return;
+			}
+		}
+
+		PaperAccount best[3];
+		for (unsigned int c = 0; c < candles_vec.size(); c++)
+		{
+			for (unsigned int window = MIN_ALGORITHM_WINDOW; window <= MAX_ALGORITHM_WINDOW; window += 5)
+			{
+				candleset candles;
+				candles.resize(window);
+				PaperAccount acc(paper_initial, paper_fee, paper_minimum, backtest_intervals[asset_index][c], window);
+
+				for (unsigned int i = 0; i < candles_vec[c].size() - window; i++)
+				{
+					//setting value of candles to be passed to algorithm
+					unsigned int index = 0;
+					for (unsigned int j = i; j < i + window; j++)
+					{
+						candles[index] = candles_vec[c][j];
+						index++;
+					}
+
+					acc.setPrice(candles.back().close);
+
+					algorithm_data data = algo->process(candles);
+
+					paper_actions[data.action](acc, 0.9);
+				}
+
+				// check if account is better than best
+				if (acc.avgHourNetReturn() > best[c].avgHourNetReturn())
+				{
+					best[c] = acc;
+				}
+			}
+			std::cout << "Best @ " << backtest_intervals[asset_index][c] << " " << best[c] << std::endl;
+		}
 	}
 
 	void DayTrender::scanInput()
 	{
-		typedef void (*func_ptr)();
 		std::string input;
-		std::unordered_map<std::string, std::pair<func_ptr, bool>> funcs;
+
 		while (running)
 		{
 			std::getline(std::cin, input);
 			infof("dtshell: $ %s", input);
 			std::vector<std::string> tokens = hirzel::tokenize(input, " \t");
-			//std::function<void()> f = funcs[tokens[0]];
-			func_ptr f;
-			if(f)
-			{
-				f();
-				continue;
-			}
-
-			warningf("dtshell: Command not fount");
-			if (tokens[0] == "exit")
+			/************************************************************
+			 * Exit
+			 ***********************************************************/
+			if(tokens[0] == "exit")
 			{
 				stop();
 			}
+			/************************************************************
+			 *	Backtest
+			 ************************************************************/
 			else if (tokens[0] == "backtest")
 			{
-			}
-			else if (tokens[0] == "build")
-			{
-				if(tokens.size() < 2 || tokens.size() > 3)
+				std::string ticker;
+				PaperAccount result, result1;
+				bool found = false;
+				// backtesting a specific asset
+				if(tokens.size() == 2)
 				{
-					warningf("Invalid usage of command: must be in format 'build <input-file>'");
-					continue;
+					ticker = tokens[1];
+
+						// searching through assets to find asset with that ticker
+					for (std::vector<Asset*> list : assets)
+					{
+						for (Asset* a : list)
+						{
+							if(a->getTicker() == ticker)
+							{
+								//result = a->backtest();
+								//result1 = a->backtest();
+								found = false;
+								break;
+							}
+						}
+					}
+					if (found)
+					{
+						std::cout << ticker << ": " << result << std::endl;
+						std::cout << ticker << ": " << result1 << std::endl;
+					}
+					else
+					{
+						errorf("No asset '%s' was found!", ticker);
+					}
 				}
-				if(buildAlgorithm(tokens[1]))
+				// backtesting backtest simplesr forex
+				else if (tokens.size() == 4)
 				{
-					successf("Successfully compiled %s", tokens[1]);
+					backtest(tokens[1], tokens[2], tokens[3]);
 				}
 				else
 				{
-					errorf("Failed to compile %s", tokens[1]);
+					errorf("Incorrect usage of command: either use backtest <ticker-name> or backtest <algorithm> <asset-type> <ticker>!");
+				}
+
+				
+			}
+			/************************************************************
+			 *	Build
+			 ************************************************************/
+			else if (tokens[0] == "build")
+			{
+				bool build = true;
+				std::string filename;
+				bool print = false;
+				for(unsigned int i = 1; i < tokens.size(); i++)
+				{
+					infof("Tok[%d]: %s", i, tokens[i]);
+					if(tokens[i] == "-p")
+					{
+
+						print = true;
+					}
+					else
+					{
+						if (filename.empty())
+						{
+							filename = tokens[i];
+						}
+						else
+						{
+							errorf("Only one input file should be specified! Aborting...");
+							build = false;
+						}
+					}
+				}
+				if (build)
+				{
+					build = buildAlgorithm(filename, print);
+					if (build)
+					{
+						successf("Successfully compiled %s", tokens[1]);
+					}
+					else
+					{
+						errorf("Failed to compile %s", tokens[1]);
+					}
 				}
 			}
+			/************************************************************
+			 *	Default
+			 ************************************************************/
 			else
 			{
-				warningf("Command not found");
+				warningf("dtshell: Command not found");
 			}
 		}
-	}
+	} // scanInput
+
 } // namespace daytrender

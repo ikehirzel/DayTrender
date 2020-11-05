@@ -270,15 +270,15 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		}
 		else if (tokens[0] == ACTION_NOTHING_PROXY)
 			{
-				s = "\treturn " + std::to_string(ACTION_NOTHING) + ";";
+				s = "\treturn " + std::to_string(ACTION_NOTHING) + "U;";
 		}
 		else if (tokens[0] == ACTION_BUY_PROXY)
 		{
-			s = "\treturn " + std::to_string(ACTION_BUY) + ";";
+			s = "\treturn " + std::to_string(ACTION_BUY) + "U;";
 		}
 		else if (tokens[0] == ACTION_SELL_PROXY)
 		{
-			s = "\treturn " + std::to_string(ACTION_SELL) + ";";
+			s = "\treturn " + std::to_string(ACTION_SELL) + "U;";
 		}
 
 		lineIndex++;
@@ -350,23 +350,15 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		failed = true;
 		return "";
 	}
-
-	// composing each indicator required in file
-	//for (std::pair<std::string, std::pair<std::string, std::string>> pair : indicator_definitions)
-	//{
-	//	indicator_definition_glob += pair.second.second + "\n";
-//	}
-
-	// converting input file to string
-
+	
 	std::string indi_decl, indi_data, dataset_init;
 	for (std::vector<std::string> v : indicator_variables)
 	{
 		std::string data_var_name = v[1];
 		std::string var_name = v[1] + INDICATOR_FOOTER;
 		indi_decl += v[0] + " " + var_name + "(" + v[2] + ");\n";
-		indi_data += "\n\tconst std::vector<double>& " + data_var_name + " = dataset.at(\"" + data_var_name + "\").second;";
-		dataset_init += "\n\tdataset[\"" + data_var_name + "\"] = " + var_name + ".calculate(candles, index, window);";
+		indi_data += "\n\tconst std::vector<double>& " + data_var_name + " = dataset.at(\"" + data_var_name + "\").data;";
+		dataset_init += "\n\tdataset[\"" + data_var_name + "\"] = " + var_name + ".calculate(candles);";
 	}
 	// replacing hooks in output buffer
 	replace_hook(buffer, ALGORITHM_NAME_HOOK, algo_name);
@@ -522,7 +514,7 @@ int main(int argc, char *argv[])
 	}
 	output_name += odir + "/" + basename + ".so";
 	std::string cmd = cxx + " " + cxxflags + temp_output_filename + " -o " + output_name
-		+ " -I" + execdir + "/include " + lflags;
+		+ " -I" + execdir + "/algorithms/include " + lflags;
 	// std::cout << "Algo Folder: " << algo_folder << std::endl;
 	if (system(cmd.c_str()))
 	{

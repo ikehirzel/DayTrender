@@ -7,6 +7,7 @@ namespace daytrender
 	struct Point
 	{
 		double x, y;
+		Point() = default;
 		Point(double _x, double _y) { x = _x; y = _y; }
 	};
 

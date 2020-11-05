@@ -1,0 +1,46 @@
+$label "Upper Trend Line"
+$identifier UTLine
+#include <line.h>
+
+double maxDiff = 0.0, thresh = 0.0;
+daytrender::Line line;
+Line mid = toBestFit(candles, index, window);
+unsigned int size = index - (startIndex + 2);
+std::vector<Point> points;
+points.resize(size);
+unsigned int pointsIndex = 0;
+
+// finding the biggest gap between a point on the graph and the midline
+for(unsigned int i = startIndex; i <= index; i++)
+{
+	if(candles[i].close > mid[i])
+	{
+		double diff = candles[i].close - mid[i];
+		if(diff > maxDiff)
+		{
+			maxDiff = diff;
+		}
+	}
+}
+
+thresh = maxDiff / 2.0;
+
+for(unsigned int i = startIndex + 2; i < index; i++)
+{
+	candle lastLast = candles[i - 2], last = candles[i - 1], current = candles[i];
+	double movement = current.close - current.open;
+	//crest
+	if(movement < 0 && current.open > mid[i] && last.open < current.open && lastLast.close <  last.close)
+	{
+		points[pointsIndex++] = { (double)i, last.close };
+	}
+}
+
+points[size - 1] = {(double)index, candles[index].close};
+
+line = toBestFit(points);
+
+for(unsigned int i = 0; i < window; i++)
+{
+	data[i] = line[i];
+}

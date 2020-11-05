@@ -6,9 +6,20 @@ R"(#include <unordered_map>
 %INCLUDES%
 using namespace daytrender;
 
-typedef std::pair<std::string, std::vector<double>> indicator_data;
-typedef std::unordered_map<std::string, indicator_data> indicator_dataset;
-typedef std::pair<indicator_dataset, unsigned int> algorithm_data;
+namespace daytrender
+{
+	struct indicator_data
+	{
+		std::string label;
+		std::vector<double> data;
+	};
+	typedef std::unordered_map<std::string, indicator_data> indicator_dataset;
+	struct algorithm_data
+	{
+		std::unordered_map<std::string, indicator_data> dataset;
+		unsigned int action;
+	};
+}
 %INDICATOR_DEFINE%
 %INDICATOR_DECLARE%
 
@@ -17,36 +28,26 @@ extern "C" std::string getName()
 	return "%ALGORITHM_NAME%";
 }
 
-unsigned int getAction(const indicator_dataset& dataset, const candleset& candles,
-	unsigned int index)
+unsigned int getAction(const indicator_dataset& dataset, const candleset& candles)
 {
+	unsigned int length = candles.size();
 	%INDICATOR_DATA%
 	%ALGORITHM_SCRIPT%
-	return 0;
+	return 0U;
 }
 
-extern "C" algorithm_data process(const candleset& candles,
-	unsigned int index, unsigned int window)
+extern "C" bool process(algorithm_data& out, const candleset& candles)
 {
-	unsigned int action = 0;
-	indicator_dataset dataset;
-	
 	if(candles.empty())
 	{
-		std::cout << getName() << ": Candles is empty!\n";
-		return { dataset, action };
-	}
-	else if (index >= candles.size())
-	{
-		std::cout << getName() << ": Index is out of bounds! index: " << index << ", size: " << candles.size() << "\n";
-		return { dataset, action };
-	}
-	else
-	{
-		%DATASET_INIT%
-		action = getAction(dataset, candles, index);
+		return false;
 	}
 
-	return { dataset, action };
+	indicator_dataset dataset;
+	%DATASET_INIT%
+
+	out.dataset = dataset;
+	out.action = getAction(dataset, candles);
+	return true;
 }
 )"

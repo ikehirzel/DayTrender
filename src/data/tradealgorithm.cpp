@@ -13,7 +13,7 @@ namespace daytrender
 	{
 		this->filename = filename;
 		handle = new hirzel::Plugin(filename, { PROCESS_FUNCTION, GETNAME_FUNCTION });
-		name = handle->execute<std::string>(GETNAME_FUNCTION);
+		name = handle->execute_return<std::string>(GETNAME_FUNCTION);
 		if(name.empty())
 		{
 			errorf("Failed to load algorithm: %s", filename);
@@ -28,11 +28,16 @@ namespace daytrender
 		delete handle;
 	}
 	
-	algorithm_data TradeAlgorithm::process(const candleset& candles, unsigned int index,
-		unsigned int window)
+	algorithm_data TradeAlgorithm::process(const candleset& candles)
 	{
-		algorithm_data out = handle->execute<algorithm_data, const candleset&, unsigned int>
-			(PROCESS_FUNCTION, candles, index, window);
-		return out;
+		bool success = false;
+		algorithm_data data;
+		success = handle->execute_return<bool, algorithm_data&, const candleset&>
+			(PROCESS_FUNCTION, data, candles);
+		if(!success)
+		{
+			errorf("Failed to process algorithm: %s", name);
+		}
+		return data;
 	}
 }

@@ -129,6 +129,7 @@ namespace daytrender
 
 	candleset OandaClient::getCandles(const std::string& ticker, unsigned int interval, unsigned int max)
 	{
+		max = (max > 0) ? max : OANDA_MAX_CANDLES;
 		std::vector<candle> candles;
 		std::string url = OANDA_ACCOUNTS + accountid + OANDA_INSTRUMENTS + "/" + ticker + OANDA_CANDLES;
 		
@@ -143,13 +144,14 @@ namespace daytrender
 
 		if(arr.size() == 0)
 		{
-			errorf("Failed to get candles!");
+			errorf("Failed to get candles @ %s", url);
+			return candles;
 		}
 		else if(arr.size() < max)
 		{
-			errorf("Failed to get all requested candles!");
+			warningf("Failed to get all requested candles: requested: %d, got: %d", max, arr.size());
 		}
-
+		successf("Received %d candles @ %dsec", arr.size(), interval);
 		candles.resize(arr.size());
 		
 		unsigned int i = 0;
@@ -167,7 +169,7 @@ namespace daytrender
 			candles[i] = c;
 			i++;
 		}
-		
+
 		return candles;
 	}
 }

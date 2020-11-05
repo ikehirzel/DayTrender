@@ -1,0 +1,44 @@
+$label "Lower Trend Line"
+$identifier LTLine
+
+#include <line.h>
+
+double maxDiff = 0.0, thresh = 0.0;
+daytrender::Line line;
+Line mid = toBestFit(candles, index, window);
+unsigned int size = index - (startIndex + 1);
+std::vector<Point> points;
+points.resize(size);
+unsigned int pointsIndex = 0;
+
+for(unsigned int i = startIndex; i <= index; i++)
+{
+	if(candles[i].close < mid[i])
+	{
+		double diff = mid[i] - candles[i].close;
+		if(diff > maxDiff)
+		{
+			maxDiff = diff;
+		}
+	}
+}
+
+thresh = maxDiff / 2.0;
+
+for(unsigned int i = startIndex + 1; i <= index; i++)
+{
+	candle last = candles[i - 1], current = candles[i];
+	//trough
+	//if(current.movement == BEARISH && current.open > mid[i] && last.open < current.open && last.close - mid[i - 1] >= thresh)
+	double movement = current.close - current.open;
+	if(movement > 0 && current.open < mid[i] && last.open > current.open && mid[i - 1] - last.close >= thresh)
+	{
+		points[pointsIndex++] = { (double)i, last.close };
+	}
+}
+
+line = toBestFit(points);
+for(unsigned int i = 0; i < window; i++)
+{
+	data[i] = line[i];
+}

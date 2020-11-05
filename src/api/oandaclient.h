@@ -40,7 +40,7 @@ namespace daytrender
 	#define OANDA_ORDERS		"/orders"
 
 	#define OANDA_NO_MARGIN		"1.00"
-	#define OANDA_MAX_CANDLES	5000
+	#define OANDA_MAX_CANDLES	5000U
 	#define OANDA_BID_CANDLES	"B"
 	#define OANDA_ASK_CANDLES	"A"
 	#define OANDA_MID_CANDLES	"M"

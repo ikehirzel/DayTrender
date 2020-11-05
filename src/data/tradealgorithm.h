@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "../data/candle.h"
+#include "candle.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define ALGORITHM_EXTENSION ".dll"
@@ -21,9 +21,17 @@ namespace hirzel
 
 namespace daytrender
 {
-	typedef std::pair<std::string, std::vector<double>> indicator_data;
+	struct indicator_data
+	{
+		std::string label;
+		std::vector<double> data;
+	};
 	typedef std::unordered_map<std::string, indicator_data> indicator_dataset;
-	typedef std::pair<indicator_dataset, unsigned int> algorithm_data;
+	struct algorithm_data
+	{
+		std::unordered_map<std::string, indicator_data> dataset;
+		unsigned int action;
+	};
 
 	class TradeAlgorithm
 	{
@@ -36,8 +44,7 @@ namespace daytrender
 		TradeAlgorithm(const std::string& filename);
 		~TradeAlgorithm();
 
-		algorithm_data process(const candleset& candles, unsigned int index,
-			unsigned int window);
+		algorithm_data process(const candleset& candles);
 		inline std::string getName() const { return name; }
 		inline bool isBound()
 		{

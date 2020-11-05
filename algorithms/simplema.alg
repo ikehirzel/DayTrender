@@ -5,16 +5,16 @@ $label "Simple MA"
 EMA longma(1.0);
 EMA shortma(0.25);
 
-double lastShort = shortma[index - 1];
-double lastLong = longma[index - 1];
+double lastShort = shortma[length - 2];
+double lastLong = longma[length - 2];
 
 //bullish crossover
-if(shortma[index] > longma[index] && lastShort < lastLong)
+if(shortma.back() > longma.back() && lastShort < lastLong)
 {
 	buy();
 }
 //bearish crossover
-else if (shortma[index] < longma[index] && lastShort > lastLong)
+else if (shortma.back() < longma.back() && lastShort > lastLong)
 {
 	sell();
 }

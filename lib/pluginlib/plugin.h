@@ -25,13 +25,14 @@
 
 namespace hirzel
 {
+	typedef void(*func_ptr)();
 	class Plugin
 	{
 	private:
 	// Stored handle of library
 	void *lib = nullptr;
 	// Stores pointers to the functions
-	std::map<std::string, void(*)()> functions;
+	std::map<std::string, func_ptr> functions;
 
 	public:
 		Plugin() = default;
@@ -103,7 +104,7 @@ namespace hirzel
 		void bindFunction(const std::string& funcname)
 		{
 			// function pointer that will be stored
-			void (*func)();
+			func_ptr func;
 
 			//guard against unloaded library
 			if(!lib)
@@ -116,9 +117,9 @@ namespace hirzel
 
 			//loading function from library
 			#if OS_IS_WINDOWS
-			func = (void(*)())GetProcAddress((HINSTANCE)lib, funcname.c_str());
+			func = (func_ptr)GetProcAddress((HINSTANCE)lib, funcname.c_str());
 			#else
-			func = (void(*)())dlsym(lib, funcname.c_str());
+			func = (func_ptr)dlsym(lib, funcname.c_str());
 			#endif
 
 			// guard against unbound function
@@ -134,7 +135,7 @@ namespace hirzel
 		}
 
 		template <typename ...Args>
-		void execute(const std::string& funcname, Args... a)
+		void execute_void(const std::string& funcname, Args... a)
 		{
 			void (*func)(Args...) = (void(*)(Args...))functions[funcname];
 			// guard against function
@@ -152,7 +153,7 @@ namespace hirzel
 
 		// calls function from plugin's map
 		template <typename T, typename ...Args>
-		T execute(const std::string& funcname, Args... a)
+		T execute_return(const std::string& funcname, Args... a)
 		{
 			T out;
 			T(*func)(Args...) = (T(*)(Args...))functions[funcname];

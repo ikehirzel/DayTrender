@@ -45,9 +45,9 @@ namespace daytrender
 		void initClients();
 		void initAssets();
 		void initServer();
-		bool buildAlgorithm(const std::string& filename);
+		bool buildAlgorithm(const std::string& filename, bool print);
 		bool loadAlgorithm(const std::string &filename);
-
+		void backtest(const std::string& algoname, const std::string& clientname, const std::string& ticker);
 		void update();
 		void scanInput();
 	public:

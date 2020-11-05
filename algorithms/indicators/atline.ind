@@ -1,0 +1,10 @@
+$label "Average Trend Line"
+$identifier ATLine
+#include <line.h>
+
+Line l = toBestFit(candles, index, window);
+
+for(unsigned int i = 0; i < window; i++)
+{
+	data[i] = l[i];
+}
