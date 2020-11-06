@@ -1,27 +1,25 @@
 $label "SMA"
 $identifier SMA
-#require "goobo.ind"
+
+
 double sum = 0.0;
 unsigned int dataIndex = 0;
-
-for(unsigned int i = startIndex; i < startIndex + range; i++)
+for(unsigned int i = 0; i < range; i++)
 {
-	sum += candles[i][3];
-	data[dataIndex] = sum / (double)(dataIndex + 1);
-	dataIndex++;
+	sum += candles[i].close;
+	data[i] = sum / (double)(i + 1);
 }
 
-for(unsigned int i = startIndex + range; i <= index; i++)
+for(unsigned int i = range; i < length; i++)
 {
 	sum = 0.0;
 	unsigned int si = (i + 1) - range;
 	int count  = 0;
 	for(unsigned int j = si; j <= i; j++)
 	{
-		sum += candles[j][3];
+		sum += candles[j].close;
 		count++;
 	}
 
-	data[dataIndex] = sum / (double)range;
-	dataIndex++;
+	data[i] = sum / (double)range;
 }

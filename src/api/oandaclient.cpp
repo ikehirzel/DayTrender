@@ -151,7 +151,7 @@ namespace daytrender
 		{
 			warningf("Failed to get all requested candles: requested: %d, got: %d", max, arr.size());
 		}
-		successf("Received %d candles @ %dsec", arr.size(), interval);
+		successf("Received %d candles @ %dsec interval", arr.size(), interval);
 		candles.resize(arr.size());
 		
 		unsigned int i = 0;

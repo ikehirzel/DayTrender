@@ -38,14 +38,12 @@ namespace daytrender
 		return { m, b };
 	}
 
-	Line toBestFit(const candleset& candles, unsigned int index, unsigned int window)
+	Line toBestFit(const candleset& candles)
 	{
-		unsigned int start = (index + 1) - window;
-
 		double m, b, xSum = 0.0L, ySum = 0.0L, xySum = 0.0L,
-			x2Sum = 0.0L, length = (double)window;
+			x2Sum = 0.0L, length = candles.size();
 
-		for(unsigned int i = start; i <= index; i++)
+		for(unsigned int i = 0; i < candles.size(); i++)
 		{
 			double x = (double)i;
 			double y = candles[i].close;

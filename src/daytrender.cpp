@@ -41,7 +41,7 @@ namespace daytrender
 		// sets the callbacks for the server
 		initServer();
 		shouldrun = false;
-		backtest("simplema", "forex", "EUR_USD");
+		backtest("simplesr", "forex", "EUR_USD");
 
 	}
 
@@ -369,7 +369,7 @@ namespace daytrender
 				return;
 			}
 		}
-
+		infof("Backtesting algorithm...");
 		PaperAccount best[3];
 		for (unsigned int c = 0; c < candles_vec.size(); c++)
 		{
@@ -378,24 +378,23 @@ namespace daytrender
 				candleset candles;
 				candles.resize(window);
 				PaperAccount acc(paper_initial, paper_fee, paper_minimum, backtest_intervals[asset_index][c], window);
-
+				
 				for (unsigned int i = 0; i < candles_vec[c].size() - window; i++)
 				{
 					//setting value of candles to be passed to algorithm
 					unsigned int index = 0;
+					
 					for (unsigned int j = i; j < i + window; j++)
 					{
+
 						candles[index] = candles_vec[c][j];
 						index++;
 					}
-
+					
 					acc.setPrice(candles.back().close);
-
 					algorithm_data data = algo->process(candles);
-
 					paper_actions[data.action](acc, 0.9);
 				}
-
 				// check if account is better than best
 				if (acc.avgHourNetReturn() > best[c].avgHourNetReturn())
 				{

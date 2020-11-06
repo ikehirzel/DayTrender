@@ -5,13 +5,13 @@ $label "Simple SR"
 UTLine utl(1.0);
 LTLine ltl(1.0);
 
-candle top = candles[index];
+candle top = candles.back();
 
-if (top.close < utl[index] && top.open > utl[index])
+if (top.close >= utl.back() || top.open >= utl.back())
 {
 	sell();
 }
-else if (top.close > ltl[index] && top.open < ltl[index - 1])
+else if (top.close <= ltl.back() && top.open <= ltl.back())
 {
 	buy();
 }
