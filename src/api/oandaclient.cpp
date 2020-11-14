@@ -1,7 +1,8 @@
 #include "oandaclient.h"
 
-#include "../data/interval.h"
 #include <hirzel/fountain.h>
+
+#include "../data/interval.h"
 
 namespace daytrender
 {
@@ -10,9 +11,11 @@ namespace daytrender
 		this->username = this->credentials[0];
 		this->accountid = "/" + this->credentials[1];
 		this->token = this->credentials[2];
+		
 		client = new RestClient(OANDA_BASE_URL, {
 			{ "Content-Type", "application/json" },
 		});
+
 		client->set_bearer_token(token);
 	}
 
@@ -130,7 +133,7 @@ namespace daytrender
 	candleset OandaClient::getCandles(const std::string& ticker, unsigned int interval, unsigned int max)
 	{
 		max = (max > 0) ? max : OANDA_MAX_CANDLES;
-		std::vector<candle> candles;
+		candleset candles;
 		std::string url = OANDA_ACCOUNTS + accountid + OANDA_INSTRUMENTS + "/" + ticker + OANDA_CANDLES;
 		
 		arglist params = {
@@ -151,7 +154,6 @@ namespace daytrender
 		{
 			warningf("Failed to get all requested candles: requested: %d, got: %d", max, arr.size());
 		}
-		successf("Received %d candles @ %dsec interval", arr.size(), interval);
 		candles.resize(arr.size());
 		
 		unsigned int i = 0;
@@ -169,7 +171,7 @@ namespace daytrender
 			candles[i] = c;
 			i++;
 		}
-
+		successf("Received %d candles @ %dsec interval", candles.size(), interval);
 		return candles;
 	}
 }

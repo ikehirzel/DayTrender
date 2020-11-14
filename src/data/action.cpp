@@ -6,7 +6,6 @@
 namespace daytrender
 {
 	action_func actions[ACTION_COUNT] = { &action_nothing, &action_sell, &action_buy };
-
 	paper_func paper_actions[ACTION_COUNT] = { &paper_nothing, &paper_sell, &paper_buy };
 
 	bool action_nothing(TradeClient* client, double risk) { return true; }
@@ -21,12 +20,10 @@ namespace daytrender
 	bool paper_buy(PaperAccount& account, double risk)
 	{
 		double shares = (risk * account.getBalance() * (1.0 - account.getFee())) / account.getPrice();
-
 		if (shares < account.getMinimum())
 		{
 			return false;
 		}
-
 		account.buy(shares);
 		return true;
 	}

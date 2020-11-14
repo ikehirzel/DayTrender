@@ -20,18 +20,18 @@ namespace daytrender
 
 	void PaperAccount::buy(double _shares)
 	{
-		if (shares < minimum)
+		if (_shares < minimum)
 		{
 			warningf("A minimum of %f must be bought to complete a trade");
 			return;
 		}
-		
+
 		if(!price)
 		{
 			errorf("Price must be set before purchasing!");
 			return;
 		}
-
+		
 		if(!lastActPrice) lastActPrice = price;
 		
 		if (price > lastActPrice)

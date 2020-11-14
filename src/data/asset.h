@@ -24,8 +24,8 @@
 // PaperAccount constants
 #define PAPER_ACCOUNT_INITIAL	500U
 	
-#define FOREX_FEE				0//0.00007
-#define FOREX_MINIMUM			0//0.01
+#define FOREX_FEE				0.00007
+#define FOREX_MINIMUM			0.01
 #define FOREX_INITIALS			{ FOREX_FEE, FOREX_MINIMUM }
 
 #define STOCK_FEE				0.0
@@ -50,13 +50,14 @@
 #define CRYPTO_LABEL		"Crypto"
 
 //temporarily set to just forex for testing
-#define ASSET_TYPE_COUNT	1
-#define ASSET_LABELS		{ FOREX_LABEL }
+#define ASSET_TYPE_COUNT	2
+
+#define ASSET_LABELS		{ FOREX_LABEL, STOCK_LABEL }
 
 #define FOREX_INTERVALS		{ MIN5, MIN15, HOUR1 }
 #define STOCK_INTERVALS		{ MIN5, MIN15, HOUR1 }
 #define CRYPTO_INTERVALS	{ MIN5, MIN15, HOUR1 }
-#define BACKTEST_INTERVALS	{ FOREX_INTERVALS }
+#define BACKTEST_INTERVALS	{ FOREX_INTERVALS, STOCK_INTERVALS }
 
 namespace daytrender
 {
@@ -92,7 +93,7 @@ namespace daytrender
 			unsigned int interval, unsigned int window);
 
 		void update();
-		
+
 		inline asset_data getData() const { return data; }
 		inline TradeAlgorithm* getAlgorithm() const { return algo; }
 		inline std::string getTicker() const { return ticker; }

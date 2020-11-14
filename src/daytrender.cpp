@@ -13,13 +13,11 @@
 
 #include "api/alpacaclient.h"
 #include "api/oandaclient.h"
-//#define CPPHTTPLIB_OPENSSL_SUPPORT
-//#include <httplib.h>
 
 #include <filesystem>
-#include <functional>
+#include <thread>
+
 using namespace hirzel;
-//using namespace httplib;
 
 #define CONFIG_FOLDER			"/config/"
 #define RESOURCES_FOLDER		"/resources/"
@@ -29,7 +27,21 @@ using namespace hirzel;
 
 namespace daytrender
 {
-	DayTrender::DayTrender(const std::string& execpath)
+	bool running = false, shouldrun = true;
+	std::string dtdir;
+
+	// data containers
+	std::vector<Asset*> assets;
+	std::unordered_map<std::string, TradeAlgorithm*> algorithms;
+	std::vector<TradeClient*> clients;
+
+	void update();
+	void initClients();
+	void initAssets();
+	void initServer();
+	void getInput();
+
+	void init(const std::string& execpath)
 	{
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
 		// NOTE: functions must be called in this order
@@ -40,23 +52,28 @@ namespace daytrender
 		initAssets();
 		// sets the callbacks for the server
 		initServer();
-		shouldrun = false;
-		backtest("simplesr", "forex", "EUR_USD");
-
 	}
 
 	// destroys clients and assets
-	DayTrender::~DayTrender()
+	void free()
 	{
-		(forex) ? delete forex : warningf("Forex was never initialized!");
-		(stocks) ? delete stocks : warningf("Forex was never initialized!");
-		//(server) ? delete server : warningf("Server was never initialized!");
+		for (unsigned i = 0; i < clients.size(); i++)
+		{
+			if (!clients[i])
+			{
+				warningf("%s client was never initialized", asset_labels[i]);
+			}
+			else
+			{
+				delete clients[i];
+			}
+		}
 
 		unsigned int count = 0;
-		for (unsigned int i = 0; i < assets.size(); i++)
+		for (unsigned i = 0; i < assets.size(); i++)
 		{
 			count = 0;
-			for (Asset *asset : assets[i])
+			for (Asset *asset : assets)
 			{
 				count++;
 				delete asset;
@@ -74,13 +91,16 @@ namespace daytrender
 			}
 		}
 		if(!count) warningf("No algorithms were initialized!");
+		infof("End of destructor");
 	}
 
 	// loads clients credentials and creates clients
-	void DayTrender::initClients()
+	void initClients()
 	{
 		infof("Initializing clients...");
 		// loading credentials for apis
+		clients.resize(ASSET_TYPE_COUNT);
+
 		std::string credentialStr = read_string(dtdir + CONFIG_FOLDER "keys.json");
 		if (credentialStr.empty())
 		{
@@ -94,18 +114,18 @@ namespace daytrender
 		// Setting Alpaca credentials
 		json alpacaCredentials = credentials["Alpaca"];
 
-		stocks = new AlpacaClient({alpacaCredentials["key"],
+		clients[STOCK_INDEX] = new AlpacaClient({alpacaCredentials["key"],
 								   alpacaCredentials["secret"]});
 
 		// Setting oanda credentials
 		json oandaCredentials = credentials["Oanda"];
 		
-		forex = new OandaClient({oandaCredentials["username"].get<std::string>(),
+		clients[FOREX_INDEX] = new OandaClient({oandaCredentials["username"].get<std::string>(),
 								 oandaCredentials["accountid"].get<std::string>(),
 								 oandaCredentials["token"].get<std::string>()});
 	}
 
-	bool DayTrender::buildAlgorithm(const std::string& filename, bool print)
+	bool buildAlgorithm(const std::string& filename, bool print)
 	{
 		infof("Compiling %s...", filename);
 		std::string cmd = dtdir + "/dtbuild " + dtdir + SCRIPT_FOLDER + filename + ".alg -o ";
@@ -114,7 +134,7 @@ namespace daytrender
 		return !std::system(cmd.c_str());
 	}
 
-	bool DayTrender::loadAlgorithm(const std::string& filename)
+	bool loadAlgorithm(const std::string& filename)
 	{
 		infof("Loading %s...", filename);
 		// initializing algorithm
@@ -145,7 +165,7 @@ namespace daytrender
 	}
 
 	// loads asset info, creates assets, and loads algorithm names
-	void DayTrender::initAssets()
+	void initAssets()
 	{
 		infof("Initializing assets...");
 		// Loading asset info
@@ -159,12 +179,6 @@ namespace daytrender
 		successf("Successfully loaded ." CONFIG_FOLDER "assets.json");
 
 		json assetInfo = json::parse(assetStr);
-
-		assets.resize(ASSET_TYPE_COUNT);
-
-		std::vector<TradeClient*> clients;
-		clients.resize(ASSET_TYPE_COUNT);
-		clients[FOREX_INDEX] = forex;
 
 		// creating assets
 		for (unsigned int i = 0; i < ASSET_TYPE_COUNT; i++)
@@ -181,15 +195,14 @@ namespace daytrender
 
 				if(!loadAlgorithm(algo_filename))
 				{
-					assets[i].push_back(new Asset(i, clients[i], ticker, nullptr, interval, window));
+					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, window));
 				}
 				else
 				{
-					assets[i].push_back(new Asset(i, clients[i], ticker, algorithms[algo_filename], interval, window));
+					assets.push_back(new Asset(i, clients[i], ticker, algorithms[algo_filename], interval, window));
 				}
 			}
 		}
-
 
 		// if the algorithm plugin failed to load, it will clear the memory to avoid assets attempting to use it
 		for (std::pair<std::string, TradeAlgorithm*> p : algorithms)
@@ -203,7 +216,7 @@ namespace daytrender
 		}
 	}
 
-	void DayTrender::initServer()
+	void initServer()
 	{
 		infof("Loading server data...");
 		std::string data = read_string(dtdir + CONFIG_FOLDER "serverinfo.json");
@@ -225,7 +238,7 @@ namespace daytrender
 		infof("Initializing server...");
 	}
 
-	void DayTrender::start()
+	void start()
 	{
 		if (running)
 		{
@@ -243,7 +256,7 @@ namespace daytrender
 		running = true;
 
 		//serverThread = std::thread(&httplib::Server::listen, server, ip.c_str(), port, 0);
-		conioThread = std::thread(&DayTrender::scanInput, this);
+		std::thread shellInputThread(getInput);
 
 		long long time, last, elapsed, timeout;
 
@@ -277,33 +290,11 @@ namespace daytrender
 
 			thread_sleep(200);
 		}
-		// join threads
-		//serverThread.join();
-		conioThread.join();
+
+		shellInputThread.join();
 	}
 
-	void DayTrender::update()
-	{
-		infof("Updating assets...");
-		unsigned int count = 0;
-		for (std::vector<Asset *> vec : assets)
-		{
-			for (Asset *a : vec)
-			{
-				if(a->isLive())
-				{
-					count++;
-					a->update();
-				}
-			}
-		}
-		if(!count)
-		{
-			warningf("No assets were live for updating");
-		}
-	}
-
-	void DayTrender::stop()
+	void stop()
 	{
 		if (!running)
 		{
@@ -312,11 +303,29 @@ namespace daytrender
 		}
 
 		running = false;
-		//server->stop();
 		infof("Shutting down...");
 	}
 
-	void DayTrender::backtest(const std::string& algoname, const std::string& clientname, const std::string& ticker)
+	void update()
+	{
+		infof("Updating assets...");
+		unsigned int count = 0;
+		for (Asset *a : assets)
+		{
+			if(a->isLive())
+			{
+				count++;
+				a->update();
+			}
+		}
+
+		if(!count)
+		{
+			warningf("No assets were live for updating");
+		}
+	}
+
+	void backtest(const std::string& algoname, const std::string& clientname, const std::string& ticker)
 	{
 		TradeClient* client = nullptr;
 		TradeAlgorithm* algo = nullptr;
@@ -337,15 +346,17 @@ namespace daytrender
 		paper_initial = PAPER_ACCOUNT_INITIAL;
 		if(clientname == "forex")
 		{
-			client = forex;
+			client = clients[FOREX_INDEX];
 			paper_minimum = FOREX_MINIMUM;
 			paper_fee = FOREX_FEE;
+			asset_index = FOREX_INDEX;
 		}
 		else if (clientname == "stocks")
 		{
-			client = stocks;
+			client = clients[STOCK_INDEX];
 			paper_minimum = STOCK_MINIMUM;
 			paper_fee = STOCK_FEE;
+			asset_index = STOCK_INDEX;
 		}
 
 		if(!client)
@@ -369,7 +380,9 @@ namespace daytrender
 				return;
 			}
 		}
+
 		infof("Backtesting algorithm...");
+
 		PaperAccount best[3];
 		for (unsigned int c = 0; c < candles_vec.size(); c++)
 		{
@@ -378,7 +391,6 @@ namespace daytrender
 				candleset candles;
 				candles.resize(window);
 				PaperAccount acc(paper_initial, paper_fee, paper_minimum, backtest_intervals[asset_index][c], window);
-				
 				for (unsigned int i = 0; i < candles_vec[c].size() - window; i++)
 				{
 					//setting value of candles to be passed to algorithm
@@ -390,7 +402,6 @@ namespace daytrender
 						candles[index] = candles_vec[c][j];
 						index++;
 					}
-					
 					acc.setPrice(candles.back().close);
 					algorithm_data data = algo->process(candles);
 					paper_actions[data.action](acc, 0.9);
@@ -405,14 +416,19 @@ namespace daytrender
 		}
 	}
 
-	void DayTrender::scanInput()
+	void getInput()
 	{
 		std::string input;
 
 		while (running)
 		{
 			std::getline(std::cin, input);
-			infof("dtshell: $ %s", input);
+			infof("$ %s", input);
+			if(input.empty())
+			{
+				continue;
+			}
+
 			std::vector<std::string> tokens = hirzel::tokenize(input, " \t");
 			/************************************************************
 			 * Exit
@@ -426,49 +442,16 @@ namespace daytrender
 			 ************************************************************/
 			else if (tokens[0] == "backtest")
 			{
-				std::string ticker;
-				PaperAccount result, result1;
 				bool found = false;
-				// backtesting a specific asset
-				if(tokens.size() == 2)
-				{
-					ticker = tokens[1];
-
-						// searching through assets to find asset with that ticker
-					for (std::vector<Asset*> list : assets)
-					{
-						for (Asset* a : list)
-						{
-							if(a->getTicker() == ticker)
-							{
-								//result = a->backtest();
-								//result1 = a->backtest();
-								found = false;
-								break;
-							}
-						}
-					}
-					if (found)
-					{
-						std::cout << ticker << ": " << result << std::endl;
-						std::cout << ticker << ": " << result1 << std::endl;
-					}
-					else
-					{
-						errorf("No asset '%s' was found!", ticker);
-					}
-				}
-				// backtesting backtest simplesr forex
-				else if (tokens.size() == 4)
+				
+				if (tokens.size() == 4)
 				{
 					backtest(tokens[1], tokens[2], tokens[3]);
 				}
 				else
 				{
-					errorf("Incorrect usage of command: either use backtest <ticker-name> or backtest <algorithm> <asset-type> <ticker>!");
+					errorf("Incorrect usage of command: correct usage is backtest <algorithm> <asset-type> <ticker>");
 				}
-
-				
 			}
 			/************************************************************
 			 *	Build
@@ -520,6 +503,5 @@ namespace daytrender
 				warningf("dtshell: Command not found");
 			}
 		}
-	} // scanInput
-
+	}
 } // namespace daytrender

@@ -53,11 +53,17 @@ namespace daytrender
 	public:
 		OandaClient(const std::vector<std::string>& credentials);
 		~OandaClient();
+
+		// implemented functions that need to be added to TradeClient
+
 		double getBalance();
 		std::string getAccounts();
 		bool setMargin(double marginRate);
 		bool marketOrder(const std::string& pair, double units);
 		std::string getPositions();
+
+		// Inherited functions
+
 		std::string toInterval(unsigned int interval);
 		candleset getCandles(const std::string& ticker, unsigned int interval,
 			unsigned int max = OANDA_MAX_CANDLES);

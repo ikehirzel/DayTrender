@@ -1,19 +1,28 @@
 #include "alpacaclient.h"
 
-#include <iostream>
+#include <hirzel/fountain.h>
+
 #include "../data/interval.h"
+
+/*
+curl -X GET -H "APCA-API-KEY-ID: {YOUR_API_KEY_ID}" -H "APCA-API-SECRET-KEY: {YOUR_API_SECRET_KEY}" https://{apiserver_domain}/v2/account
+*/
 
 namespace daytrender
 {
 	AlpacaClient::AlpacaClient(const std::vector<std::string>& credentials) : TradeClient(credentials)
 	{	
 		trade = new RestClient(ALPACA_BASE_URL, {
-			{"APCA-API-KEY-ID", this->credentials[0]},
-			{ "APCA-API-SECRET-KEY", this->credentials[1] },
+			{"APCA-API-KEY-ID", credentials[0] },
+			{ "APCA-API-SECRET-KEY", credentials[1] },
 			{ "Content-Type", "application/json" }
 		});
 
-		data = new RestClient(ALPACA_DATA_URL);
+		data = new RestClient(ALPACA_DATA_URL, {
+			{"APCA-API-KEY-ID", credentials[0] },
+			{ "APCA-API-SECRET-KEY", credentials[1] },
+			{ "Content-Type", "application/json" }
+		});
 	}
 
 	AlpacaClient::~AlpacaClient()
@@ -30,19 +39,33 @@ namespace daytrender
 
 	candleset AlpacaClient::getCandles(const std::string& ticker, unsigned int interval, unsigned int max)
 	{
+		max = (max > 0) ? max : ALPACA_MAX_CANDLES;
 		candleset candles;
+		std::string url = ALPACA_BARS "/" + toInterval(interval);
 
 		arglist params = {
 			{ "symbols", ticker },
 			{ "limit", std::to_string(max) }
 		};
-		
-		std::string url = ALPACA_BARS + std::to_string(interval);
-		
+				
 		json res = data->get(url, params);
 
 		json arr = res[ticker];
 
+		if(arr.size() == 0)
+		{
+			errorf("Failed to get candles @ %s", url);
+			return candles;
+		}
+
+		else if(arr.size() < max)
+		{
+			warningf("Failed to get all requested candles: requested: %d, got: %d", max, arr.size());
+		}
+
+		candles.resize(arr.size());
+
+		unsigned int i = 0;
 		for (json val : arr)
 		{
 			double open, high, low, close, volume;
@@ -52,9 +75,10 @@ namespace daytrender
 			close = val["c"].get<double>();
 			volume = val["v"].get<double>();
 			candle c = { interval, open, high, low, close, volume };
-			candles.push_back(c);
+			candles[i] = c;
+			i++;
 		}
-
+		successf("Received %d candles @ %dsec interval", candles.size(), interval);
 		return candles;
 	}
 

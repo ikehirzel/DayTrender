@@ -1,15 +1,13 @@
 #include "daytrender.h"
 
-#include <iostream>
 #include <hirzel/fountain.h>
 #include <hirzel/strutil.h>
-using namespace daytrender;
 
 int main(int argc, char *argv[])
 {
-	hirzel::log_init("./report.log");
-
-	DayTrender dt(hirzel::get_folder(argv[0]));
-	dt.start();
+	hirzel::fountain::init("./report.log", true);
+	daytrender::init(hirzel::get_folder(argv[0]));
+	daytrender::start();
+	infof("DayTrender has stopped");
 	return 0;
 }

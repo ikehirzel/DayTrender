@@ -71,6 +71,7 @@ namespace hirzel
 		var(double d);
 
 		var(char c);
+		var(char* c);
 		var(const char* c);
 		var(const std::string& s);
 

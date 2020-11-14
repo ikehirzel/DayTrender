@@ -112,7 +112,7 @@ namespace daytrender
 			url += ("?" + query);
 		}
 
-		infof("%s @ %s", m, base_url);
+		debugf("%s @ %s%s", m, base_url, url);
 		Result res{nullptr, Success};
 
 		switch(method)
