@@ -166,7 +166,7 @@ namespace daytrender
 		{
 			debugf("GET @ %s", req.path);
 			// TODO : add response so let client know it is working
-			stop();
+			daytrender::stop();
 		}
 	}
 }
