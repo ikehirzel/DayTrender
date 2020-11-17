@@ -76,7 +76,7 @@ namespace daytrender
 		//function pointer to things like nothing, sell, buy, etc...
 	protected:
 		bool paper = PAPER_TRADING, live = false;
-		unsigned int tick = 0, interval = 0, window = 0, type = 0;
+		unsigned tick = 0, interval = 0, window = 0, type = 0;
 		double maxRisk = 0.9;
 		std::string ticker;
 		asset_data data;
@@ -98,7 +98,9 @@ namespace daytrender
 		inline TradeAlgorithm* getAlgorithm() const { return algo; }
 		inline std::string getTicker() const { return ticker; }
 		inline unsigned int getInterval() const { return interval; }
+		inline unsigned getType() const { return type; }
 		inline bool isLive() const { return live; }
+		
 		inline void setLive(bool _live) { live = _live; }
 	};
 }

@@ -15,25 +15,20 @@ $("document").ready(function () {
 				
 				for (let i = 0; i < data.assets.length; i++) 
 				{
-					assetSelect.append(`<option value=${i}>${data.assets[i].label}</option>`);
-					for (let j = 0; j < data.assets[i].list.length; j++) 
-					{
-						assets[i] = [];
-						assets[i][j] = data.assets[i].list[j];
-					}
+					assetSelect.append(`<option value=${i}>${data.assets[i].ticker}</option>`);
+					assets[i] = data.assets[i];
 				}
 				
 				for (let i = 0; i < data.algorithms.length; i++)
 				{
 					algorithms[i] = data.algorithms[i];
-					algoSelect.append(`<option value=${i}>${algorithms[i]}</option>`);
+					algoSelect.append(`<option value=${i}>${algorithms[i].name}</option>`);
 				}
 				
 				let assetType = assetSelect.val();
 				
-				for (let i = 0; i < assets[assetType].length; i++) {
-					let ticker = assets[assetType][i];
-					tickerSelect.append(`<option value=${ticker}>${ticker}</option>`);
+				for (let i = 0; i < assets.length; i++) {
+					tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
 				}
 			}
 		});

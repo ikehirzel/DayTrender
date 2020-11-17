@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.14)
 project(DayTrender)
 
 set(CMAKE_INSTALL_RPATH "\$ORIGIN")
@@ -6,6 +6,10 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 
 file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp ./src/interface/*.cpp)
 file(COPY ./src/data/candle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+
+file(CREATE_LINK ../resources resources SYMBOLIC)
+file(CREATE_LINK ../config config SYMBOLIC)
+file(CREATE_LINK ../algorithms algorithms SYMBOLIC)
 
 add_executable(daytrender ${DAYTRENDER_SRCS})
 add_executable(dtbuild ./src/dtbuild/dtbuild.cpp)
@@ -46,9 +50,3 @@ target_link_libraries(daytrender PRIVATE fountain hxutils nlohmann_json OpenSSL:
 
 # linking dtbuild libraries
 target_link_libraries(dtbuild PRIVATE hxutils)
-
-# copying res folder
-file(COPY resources DESTINATION .)
-file(COPY config DESTINATION .)
-file(COPY algorithms DESTINATION .)
-

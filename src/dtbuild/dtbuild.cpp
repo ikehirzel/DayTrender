@@ -284,7 +284,6 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		lineIndex++;
 	}
 
-
 	/********************************************
 	 * Populating list of indicator definitions	*
 	 ********************************************/
@@ -310,6 +309,7 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 			}
 		}
 	}
+
 	/********************************
 	 * Replacing pseudoidentifiers	*
 	 ********************************/
@@ -333,7 +333,6 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 			indicator_variables.push_back(line_toks);
 		}
 	}
-
 
 	//globbing input file into 'script'
 	for (std::string s : input_file)

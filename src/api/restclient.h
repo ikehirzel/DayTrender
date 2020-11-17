@@ -29,10 +29,12 @@ namespace daytrender
 		RestClient(const std::string& base_url, const arglist& headers = {});
 		~RestClient();
 		static const char *METHOD_NAMES[3];
+		
 	protected:
 		httplib::SSLClient* client;
 		std::string base_url;
 		arglist headers;
+
 	public:
 		void set_bearer_token(const std::string& bearer);
 		json jsonbody_request(unsigned int method, const std::string& endpoint,
