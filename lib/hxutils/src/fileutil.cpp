@@ -21,6 +21,10 @@ namespace hirzel
 				{
 					continue;
 				}
+				if (line.back() == '\r')
+				{
+					line.resize(line.size() - 1);
+				}
 				lines.push_back(line);
 			}
 			fin.close();
@@ -46,6 +50,10 @@ namespace hirzel
 				if(line.empty())
 				{
 					continue;
+				}
+				if (line.back() == '\r')
+				{
+					line.resize(line.size() - 1);
 				}
 				text += line;
 			}
@@ -73,7 +81,11 @@ namespace hirzel
 				{
 					continue;
 				}
-				text += line + '\n';
+				if (line.back() == '\r')
+				{
+					line[line.size() - 1] = '\n';
+				}
+				text += line;
 			}
 			fin.close();
 		}

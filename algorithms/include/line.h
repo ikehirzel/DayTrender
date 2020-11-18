@@ -57,6 +57,16 @@ namespace daytrender
 		return { m, b };
 	}
 
+	Line toMidLine(const std::vector<Point>& points)
+	{
+		double sum = 0.0;
+		for (unsigned i = 0; i < points.size(); i++)
+		{
+			sum += points[i].y;
+		}
+		return { 0, sum / (double)points.size()};
+	}
+
 	Line toMidLine(const candleset& candles)
 	{
 		double sum = 0.0;
