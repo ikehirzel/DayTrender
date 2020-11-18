@@ -167,7 +167,7 @@ namespace daytrender
 			high = mid["h"].get<std::string>();
 			low = mid["l"].get<std::string>();
 			close = mid["c"].get<std::string>();
-			candle c = { interval, std::stod(open), std::stod(high), std::stod(low), std::stod(close), volume };
+			candle c = { std::stod(open), std::stod(high), std::stod(low), std::stod(close), volume };
 			candles[i] = c;
 			i++;
 		}

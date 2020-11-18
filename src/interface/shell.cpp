@@ -41,7 +41,12 @@ namespace daytrender
 				
 				if (tokens.size() == 4)
 				{
-					backtest(tokens[1], tokens[2], tokens[3]);
+					auto result = backtest(tokens[1], tokens[2], tokens[3]);
+					for (const PaperAccount& p : result)
+					{
+						std::cout << p << std::endl;
+					}
+
 				}
 				else
 				{

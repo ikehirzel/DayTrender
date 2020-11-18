@@ -81,6 +81,7 @@ namespace daytrender
 				return;
 			}
 			running = true;
+			infof("Starting server @ %s:%d", ip, port);
 			mtx.unlock();
 
 			server.listen(ip.c_str(), port);
@@ -103,34 +104,34 @@ namespace daytrender
 
 		void get_root(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("GET @ %s", req.path);
+			debugf("Server GET @ %s", req.path);
 			warningf("'/' callback is not yet implemented");
 			// TODO: Implement /
 		}
 
 		void get_data(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("GET @ %s", req.path);
+			debugf("Server GET @ %s", req.path);
 
 			json response;
 
 			// gathering algorithm names
-			auto algo_names = get_algo_names();
-			if(algo_names.empty())
+			auto algo_info = getAlgoInfo();
+			if(algo_info.empty())
 			{
 				warningf("No algorithm names were received");
 			}
 			else
 			{
-				for (unsigned i = 0; i < algo_names.size(); i++)
+				for (unsigned i = 0; i < algo_info.size(); i++)
 				{
-					response["algorithms"][i]["filename"] = algo_names[i].first;
-					response["algorithms"][i]["name"] = algo_names[i].second;
+					response["algorithms"][i]["filename"] = algo_info[i].first;
+					response["algorithms"][i]["name"] = algo_info[i].second;
 				}
 			}
 
 			// gathering asset types and tickers
-			auto asset_data = get_asset_data();
+			auto asset_data = getAssetInfo();
 			if (asset_data.empty())
 			{
 				warningf("No asset data was received");
@@ -150,22 +151,57 @@ namespace daytrender
 
 		void get_watch(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("GET @ %s", req.path);
-			warningf("'/watch' callback is not yet implemented");
-			// TODO: Implement /watch
+			debugf("Server GET @ %s", req.path);
+
+			unsigned index;
+			std::string ticker;
+			asset_data data;
+			json response;
+			const Asset* asset;
+
+			index = std::stoul(req.get_param_value("index"));
+			asset = getAsset(index);
+			data = asset->getData();
+
+			response["interval"] = data.candle_data.interval;
+			response["ticker"] = asset->getTicker();
+
+			const candleset& c = data.candle_data.candles;
+			for (unsigned i = 0; i < c.size(); i++)
+			{
+				response["x"][i] = i;
+				response["open"][i] = c[i].open;
+				response["high"][i] = c[i].high;
+				response["low"][i] = c[i].low;
+				response["close"][i] = c[i].close;
+				response["volume"][i] = c[i].volume;
+			}
+
+			unsigned indi_index = 0;
+			for (std::pair<std::string, indicator_data> p : data.algo_data.dataset)
+			{
+				response["indicators"][indi_index]["label"] = p.first;
+				const std::vector<double>& d = p.second.data;
+				for (unsigned i = 0; i < d.size(); i++)
+				{
+					response["indicators"][indi_index]["data"][i] = d[i];
+				}
+				indi_index++;
+			}
+			res.set_content(response.dump(), "application/json");
 		}
 
 		void get_backtest(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("GET @ %s", req.path);
+			debugf("Server GET @ %s", req.path);
 			warningf("'/backtest' callback is not yet implemented");
 			// TODO: Implement /backtest
 		}
 
 		void get_shutdown(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("GET @ %s", req.path);
-			// TODO : add response so let client know it is working
+			debugf("Server GET @ %s", req.path);
+			res.set_content("Shutting down...", "text/plain");
 			daytrender::stop();
 		}
 	}

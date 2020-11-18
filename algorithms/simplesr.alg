@@ -1,17 +1,32 @@
 $label "Simple SR"
+
 #require "ltline.ind"
 #require "utline.ind"
+#require "atline.ind"
+#require "midline.ind"
 
 UTLine utl(1.0);
+ATLine atl(1.0);
 LTLine ltl(1.0);
+MidLine mid(1.0);
 
-candle top = candles.back();
+candle curr = candles.back();
 
-if (top.close >= utl.back() || top.open >= utl.back())
+bool upper_breach = false;
+bool lower_breach = false;
+
+for (unsigned i = length - 5; i < length - 1; i++)
+{
+	if (candles[i].close >= utl[i]) upper_breach = true;
+	if (candles[i].close <= ltl[i]) lower_breach = true;
+}
+
+if (upper_breach && curr.close <= utl.back())
 {
 	sell();
 }
-else if (top.close <= ltl.back() && top.open <= ltl.back())
+
+if (lower_breach && curr.close >= ltl.back())
 {
 	buy();
 }

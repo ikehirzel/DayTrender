@@ -1,7 +1,10 @@
+'use strict';
+
 var assets = [];
 var algorithms = [];
 
-$("document").ready(function () {
+$("document").ready(function () 
+{
 	$.get(
 		{
 			url: "/data",
@@ -9,26 +12,19 @@ $("document").ready(function () {
 			{
 				console.log("Data:", data);
 				
-				let assetSelect = $("#asset-type-select");
 				let tickerSelect = $("#ticker-select");
 				let algoSelect = $("#algo-type-select");
 				
 				for (let i = 0; i < data.assets.length; i++) 
 				{
-					assetSelect.append(`<option value=${i}>${data.assets[i].ticker}</option>`);
 					assets[i] = data.assets[i];
+					tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
 				}
 				
 				for (let i = 0; i < data.algorithms.length; i++)
 				{
 					algorithms[i] = data.algorithms[i];
 					algoSelect.append(`<option value=${i}>${algorithms[i].name}</option>`);
-				}
-				
-				let assetType = assetSelect.val();
-				
-				for (let i = 0; i < assets.length; i++) {
-					tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
 				}
 			}
 		});
@@ -62,20 +58,20 @@ $("document").ready(function () {
 	var watching = false;
 	var watching_interval;
 
-	function get_watch() {
-		var assetType = parseInt($("#asset-type-select").val());
-		var ticker = $("#ticker-select").val();
+	function get_watch()
+	{
+		let index = $("#ticker-select").val();
+		console.log("Asset index:", index);
 
 		$.get({
 			url: "/watch",
 			dataType: "json",
 			data: {
-				"assetType": assetType,
-				"ticker": ticker,
+				"index": index,
 			},
-			success: function (data, status) {
-				console.log("Data:", data);
-
+			success: function (data, status)
+			{
+				console.log("Watch data:", data);
 				var i_traces = [];
 
 				var maxVolume = data.volume[0];
@@ -112,7 +108,7 @@ $("document").ready(function () {
 						y: ind.data,
 						type: "scatter",
 						yaxis: "y2",
-						name: ind.name
+						name: ind.label
 					};
 				}
 
@@ -122,7 +118,7 @@ $("document").ready(function () {
 					chartdata.push(i_traces[i]);
 				}
 
-				let title = ticker + " @ " + data.interval + "s";
+				let title = data.ticker + " @ " + data.interval + "sec";
 
 				var layout = {
 					title: title,
@@ -157,12 +153,14 @@ $("document").ready(function () {
 			clearInterval(watching_interval);
 			watching = false;
 			console.log("Stopped watching...");
-			return;
 		}
-		watching = true;
-		console.log("Now watching...");
-		get_watch();
-		watching_interval = setInterval(get_watch, 60000);
+		else
+		{
+			get_watch();
+			watching_interval = setInterval(get_watch, 60000);
+			watching = true;
+			console.log("Now watching...");
+		}
 	});
 
 	$("#backtest-button").click(() => {
@@ -248,6 +246,4 @@ $("document").ready(function () {
 				}
 			});
 	});
-
-
 });

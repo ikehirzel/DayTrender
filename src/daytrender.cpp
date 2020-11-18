@@ -428,7 +428,7 @@ namespace daytrender
 		return running;
 	}
 
-	std::vector<std::pair<std::string, std::string>> get_algo_names()
+	std::vector<std::pair<std::string, std::string>> getAlgoInfo()
 	{
 		std::vector<std::pair<std::string, std::string>> out;
 		out.resize(algorithms.size());
@@ -445,7 +445,7 @@ namespace daytrender
 		return out;
 	}
 
-	std::vector<std::pair<std::string, unsigned>> get_asset_data()
+	std::vector<std::pair<std::string, unsigned>> getAssetInfo()
 	{
 		std::vector<std::pair<std::string, unsigned>> out;
 		out.resize(assets.size());
@@ -456,5 +456,10 @@ namespace daytrender
 		}
 
 		return out;
+	}
+
+	const Asset* getAsset(unsigned index)
+	{
+		return assets[index];
 	}
 }

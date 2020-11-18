@@ -43,8 +43,9 @@ namespace daytrender
 				return;
 			}
 			algorithm_data algodata = algo->process(candles);
-			data.first = candles;
-			data.second = algodata;
+			data.candle_data.candles = candles;
+			data.candle_data.interval = interval;
+			data.algo_data = algodata;
 
 			// paper trading
 			if(paper)

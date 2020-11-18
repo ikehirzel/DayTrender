@@ -56,4 +56,14 @@ namespace daytrender
 		b = (ySum - m * xSum) / length;
 		return { m, b };
 	}
+
+	Line toMidLine(const candleset& candles)
+	{
+		double sum = 0.0;
+		for (unsigned i = 0; i < candles.size(); i++)
+		{
+			sum += (candles[i].open + candles[i].high + candles[i].low + candles[i].close) / 4.0;
+		}
+		return { 0, sum / (double)candles.size() };
+	}
 }

@@ -64,8 +64,12 @@ namespace daytrender
 	class TradeClient;
 	class OandaClient;
 	class AlpacaClient;
-	
-	typedef std::pair<candleset, algorithm_data> asset_data;
+
+	struct asset_data
+	{
+		candleset_data candle_data;
+		algorithm_data algo_data;
+	};
 
 	extern const char* asset_labels[];
 	extern double paper_initials[ASSET_TYPE_COUNT][2];

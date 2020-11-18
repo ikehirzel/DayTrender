@@ -5,7 +5,7 @@ set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 
 file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp ./src/interface/*.cpp)
-file(COPY ./src/data/candle.h DESTINATION ${PROJECT_BINARY_DIR}/include)
+file(COPY src/data/candle.h DESTINATION algorithms/include)
 
 file(CREATE_LINK ../resources resources SYMBOLIC)
 file(CREATE_LINK ../config config SYMBOLIC)

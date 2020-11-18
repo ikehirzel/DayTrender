@@ -3,7 +3,7 @@ $identifier ATLine
 
 #include <line.h>
 
-Line l = toBestFit(candles, index, window);
+Line l = toBestFit(candles);
 
 for(unsigned int i = 0; i < length; i++)
 {

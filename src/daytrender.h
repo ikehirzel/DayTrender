@@ -36,6 +36,8 @@ namespace daytrender
 	void stop();
 
 	bool isRunning();
-	std::vector<std::pair<std::string, std::string>> get_algo_names();
-	std::vector<std::pair<std::string, unsigned>> get_asset_data();
+
+	std::vector<std::pair<std::string, std::string>> getAlgoInfo();
+	std::vector<std::pair<std::string, unsigned>> getAssetInfo();
+	const Asset* getAsset(unsigned index);
 }
