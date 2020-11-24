@@ -20,6 +20,7 @@ for (unsigned x = 0; x < div; x++)
 	double min = candles[0].close;
 	unsigned minI = 0;
 	bool found = false;
+
 	for (unsigned i = lastI; i < end; i++)
 	{
 		if (candles[i].low < mid[i] && candles[i].low < min)

@@ -46,9 +46,9 @@
 #define INCLUDE_TOKEN "#include"
 #define AS_TOKEN "as"
 
-#define ACTION_BUY_PROXY "buy();"
-#define ACTION_SELL_PROXY "sell();"
-#define ACTION_NOTHING_PROXY "do_nothing();"
+#define ACTION_BUY_PROXY "buy()"
+#define ACTION_SELL_PROXY "sell()"
+#define ACTION_NOTHING_PROXY "do_nothing()"
 
 #include <filesystem>
 
@@ -148,6 +148,7 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 			else if (toks[0] == REQUIRE_TOKEN)
 			{
 				// No need to do anything as compose algo parses this
+
 				break;
 			}
 			else if (toks[0] == INCLUDE_TOKEN)
@@ -174,10 +175,12 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 		failed = true;
 		return {};
 	}
-	replace_hook(buffer, INCLUDES_HOOK, includes);
-	replace_hook(buffer, INDICATOR_CLASS_HOOK, classname);
-	replace_hook(buffer, INDICATOR_LABEL_HOOK, label);
-	replace_hook(buffer, CALCULATE_SCRIPT_HOOK, script);
+
+	find_and_replace(buffer, INCLUDES_HOOK, includes);
+	find_and_replace(buffer, INDICATOR_CLASS_HOOK, classname);
+	find_and_replace(buffer, INDICATOR_LABEL_HOOK, label);
+	find_and_replace(buffer, CALCULATE_SCRIPT_HOOK, script);
+
 	return { classname, buffer };
 }
 
@@ -187,7 +190,7 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 	{
 		#include "algorithm.def"
 	};
-	std::string algo_name, script, indicator_definition_glob, includes, filename;
+	std::string algo_name, script, indicator_definition_glob, includes, filename, action_glob;
 	std::vector<std::string> input_file;
 	std::vector<std::vector<std::string>> indicator_variables;
 	std::unordered_map<std::string, int> req_depths;
@@ -203,6 +206,12 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		failed = true;
 		return "";
 	}
+
+	// inserting aciton definitions at top of source file
+	action_glob += "#define " ACTION_NOTHING_PROXY " return " + std::to_string(ACTION_NOTHING) + "\n";
+	action_glob += "#define " ACTION_SELL_PROXY " return " + std::to_string(ACTION_SELL) + "\n";
+	action_glob += "#define " ACTION_BUY_PROXY " return " + std::to_string(ACTION_BUY) + "\n\n";
+	buffer.insert(0, action_glob);
 
 	/****************************************************
 	 * Handling preprocessor/psuedo calls in algorithm	*
@@ -268,20 +277,16 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 
 			s = "";
 		}
-		else if (tokens[0] == ACTION_NOTHING_PROXY)
-			{
-				s = "\treturn " + std::to_string(ACTION_NOTHING) + "U;";
-		}
-		else if (tokens[0] == ACTION_BUY_PROXY)
-		{
-			s = "\treturn " + std::to_string(ACTION_BUY) + "U;";
-		}
-		else if (tokens[0] == ACTION_SELL_PROXY)
-		{
-			s = "\treturn " + std::to_string(ACTION_SELL) + "U;";
-		}
 
 		lineIndex++;
+	}
+
+	// aborting if there was no name defined in algo
+	if (algo_name.empty())
+	{
+		std::cout << "dtbuild: fatal: '" << filename << "'A name must be defined!\n";
+		failed = true;
+		return "";
 	}
 
 	/********************************************
@@ -310,63 +315,135 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 		}
 	}
 
-	/********************************
-	 * Replacing pseudoidentifiers	*
-	 ********************************/
-	for (std::string& line : input_file)
-	{
-		std::vector<std::string> line_toks = tokenize(line, " \t\n();");
-		if(line_toks.empty())
-		{
-			continue;
-		}
-		if(pseudoident[line_toks[0]])
-		{
-			line = "";
-			if(line_toks.size() != 3)
-			{
-					std::cout << "dtbuild: error: '" << filename << "' Syntax error when declaring indicator: lines " << lineIndex << "!\n";
-					failed = true;
-					return "";
-			}
-
-			indicator_variables.push_back(line_toks);
-		}
-	}
-
 	//globbing input file into 'script'
 	for (std::string s : input_file)
 	{
+		for (unsigned i = 0; i < s.size(); i++)
+		{
+			if (s[i] == '/' && s[i + 1] == '/')
+			{
+				script += s.substr(0, i);
+			}
+		}
 		if(!s.empty())
 		{
 			script += "\t" + s + "\n";
 		}
 	}
 
-	if (algo_name.empty())
+	/************************************
+	 * Getting pseudoidentifiers data	*
+	 ************************************/
+	std::vector<std::string> script_tokens = tokenize(script, "", { "(", ")", ",", ";", "\n" }, true);
+	std::vector<std::string> var_toks;
+	std::vector<unsigned> scripti_to_erase;
+	bool is_def = false;
+
+	for (unsigned i = 0; i < script_tokens.size(); i++)
 	{
-		std::cout << "dtbuild: fatal: '" << filename << "'A name must be defined!\n";
-		failed = true;
-		return "";
+		if(pseudoident[script_tokens[i]])
+		{
+			is_def = true;
+		}
+		else if (script_tokens[i] == ";")
+		{
+			is_def = false;
+			if (!var_toks.empty())
+			{
+				var_toks.push_back(script_tokens[i]);
+				scripti_to_erase.push_back(i);
+				indicator_variables.push_back(var_toks);
+				var_toks.clear();
+			}
+		}
+
+		if (is_def)
+		{
+			var_toks.push_back(script_tokens[i]);
+			scripti_to_erase.push_back(i);
+		}
+	}
+
+	for (int i = scripti_to_erase.size() - 1; i >= 0; i--)
+	{
+		script_tokens.erase(script_tokens.begin() + scripti_to_erase[i]);
+	}
+
+	script.clear();
+
+	unsigned tabs_level = 1;
+	for (unsigned i = 0; i < script_tokens.size(); i++)
+	{
+		const std::string& t = script_tokens[i];
+		switch(t[0])
+		{
+			case '(':
+				if (script.back() == ' ') script.pop_back();
+				script += t;
+				break;
+
+			case ')':
+				if (script.back() == ' ') script.pop_back();
+				script += t + ' ';
+				break;
+
+			case '{':
+				script += t;
+				tabs_level++;
+				break;
+
+			case '}':
+				script.pop_back();
+				script += t;
+				tabs_level--;
+				break;
+			case ';':
+				if(script.back() == ' ') script.pop_back();
+				script += t;
+				break;
+			case '\n':
+				script += t;
+				for (unsigned i = 0; i < tabs_level; i++) script += '\t';
+				break;
+
+			default:
+				script += t + ' ';
+				break;
+		}
 	}
 	
+	/************************************************
+	 * 	Converting pseudoidentifiers into real data	*
+	 ************************************************/
+
 	std::string indi_decl, indi_data, dataset_init;
-	for (std::vector<std::string> v : indicator_variables)
+	for (const std::vector<std::string>& v : indicator_variables)
 	{
 		std::string data_var_name = v[1];
 		std::string var_name = v[1] + INDICATOR_FOOTER;
-		indi_decl += v[0] + " " + var_name + "(" + v[2] + ");\n";
+		indi_decl += v[0] + " " + var_name;
+		for (unsigned i = 2; i < v.size(); i++)
+		{
+			indi_decl += v[i];
+			if (v[i] == ",")
+			{
+				indi_decl += " ";
+			}
+		}
+		indi_decl += "\n";
+
 		indi_data += "\n\tconst std::vector<double>& " + data_var_name + " = dataset.at(\"" + data_var_name + "\").data;";
 		dataset_init += "\n\tdataset[\"" + data_var_name + "\"] = " + var_name + ".calculate(candles);";
 	}
+
 	// replacing hooks in output buffer
-	replace_hook(buffer, ALGORITHM_NAME_HOOK, algo_name);
-	replace_hook(buffer, INCLUDES_HOOK, includes);
-	replace_hook(buffer, INDICATOR_DEFINE_HOOK, indicator_definition_glob);
-	replace_hook(buffer, INDICATOR_DECLARE_HOOK, indi_decl);
-	replace_hook(buffer, INDICATOR_DATA_HOOK, indi_data);
-	replace_hook(buffer, ALGORITHM_SCRIPT_HOOK, script);
-	replace_hook(buffer, DATASET_INIT_HOOK, dataset_init);
+	find_and_replace(buffer, ALGORITHM_NAME_HOOK, algo_name);
+	find_and_replace(buffer, INCLUDES_HOOK, includes);
+	find_and_replace(buffer, INDICATOR_DEFINE_HOOK, indicator_definition_glob);
+	find_and_replace(buffer, INDICATOR_DECLARE_HOOK, indi_decl);
+	find_and_replace(buffer, INDICATOR_DATA_HOOK, indi_data);
+	find_and_replace(buffer, ALGORITHM_SCRIPT_HOOK, script);
+	find_and_replace(buffer, DATASET_INIT_HOOK, dataset_init);
 
 	return buffer;
 }

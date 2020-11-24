@@ -33,7 +33,7 @@ unsigned int getAction(const indicator_dataset& dataset, const candleset& candle
 	unsigned int length = candles.size();
 	%INDICATOR_DATA%
 	%ALGORITHM_SCRIPT%
-	return 0U;
+	do_nothing();
 }
 
 extern "C" bool process(algorithm_data& out, const candleset& candles)

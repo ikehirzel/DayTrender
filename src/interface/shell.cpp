@@ -64,10 +64,26 @@ namespace daytrender
 				for(unsigned int i = 1; i < tokens.size(); i++)
 				{
 					infof("Tok[%d]: %s", i, tokens[i]);
-					if(tokens[i] == "-p")
+					if(tokens[i][0] == '-')
 					{
+						if(tokens[i].size() == 1)
+						{
+							warningf("'-' is used to denote options!");
+						}
+						for (unsigned c = 1; c < tokens[i].size(); c++)
+						{
+							switch (tokens[i][c])
+							{
+								case 'p':
+								case 'P':
+									print = true;
+									break;
 
-						print = true;
+								default:
+									warningf("Unknown option '%c' used in command", tokens[i][c]);
+									break;
+							}
+						}
 					}
 					else
 					{

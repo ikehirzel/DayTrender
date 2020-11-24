@@ -5,12 +5,16 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 
+/*
+	using forward declaration because the header this is defined in
+	is a header-only library and increases compile time greatly
+*/
 namespace httplib
 {
 	class SSLClient;
 }
 
-using json = nlohmann::json;
+using nlohmann::json;
 
 namespace daytrender
 {
@@ -20,8 +24,6 @@ namespace daytrender
 
 	typedef std::pair<std::string, std::string> arg;
 	typedef std::vector<arg> arglist;
-
-	
 
 	class RestClient
 	{
