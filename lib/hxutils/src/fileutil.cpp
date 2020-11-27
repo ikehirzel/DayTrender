@@ -7,120 +7,87 @@
 
 namespace hirzel
 {
-	std::vector<std::string> read_file(const std::string& filename)
+	namespace file
 	{
-		std::string line;
-		std::vector<std::string> lines;
-		std::ifstream fin(filename);
-		
-		if (fin.is_open())
+		std::vector<std::string> read_file_as_vector(const std::string &filename)
 		{
-			while (std::getline(fin, line))
+			std::string line;
+			std::vector<std::string> lines;
+			std::ifstream fin(filename);
+
+			if (fin.is_open())
 			{
-				if(line.empty())
+				while (std::getline(fin, line))
 				{
-					continue;
+					if (line.empty())
+					{
+						continue;
+					}
+					if (line.back() == '\r')
+					{
+						line.resize(line.size() - 1);
+					}
+					lines.push_back(line);
 				}
-				if (line.back() == '\r')
-				{
-					line.resize(line.size() - 1);
-				}
-				lines.push_back(line);
+				fin.close();
 			}
-			fin.close();
+
+			return lines;
 		}
-		else
+
+		std::string read_file_as_string(const std::string &filename, bool ignore_empty_lines,
+			const std::string &line_ending_fmt)
 		{
-			#ifdef HXUTILS_DEBUG
-			std::cout << "FileUtil::read_file() : Failed to open '" + filename + "'" << std::endl;
-			#endif
-		}
-		return lines;
-	}
-	
-	std::string read_string(const std::string& filename)
-	{
-		std::string text, line;
-		std::ifstream fin(filename);
-		
-		if (fin.is_open())
-		{
-			while (std::getline(fin, line))
+			std::string text, line;
+			std::ifstream fin(filename);
+
+			if (fin.is_open())
 			{
-				if(line.empty())
+				while (std::getline(fin, line))
 				{
-					continue;
-				}
-				if (line.back() == '\r')
-				{
-					line.resize(line.size() - 1);
-				}
-				text += line;
-			}
-			fin.close();
-		}
-		else
-		{
-			#ifdef HXUTILS_DEBUG
-			std::cout << "FileUtil::read_file_as_string() : Failed to open '" + filename + "'" << std::endl;
-			#endif
-		}
-		return text;
-	}
+					if (line.empty() && ignore_empty_lines)
+					{
+						continue;
+					}
 
-	std::string read_rawstring(const std::string& filename)
-	{
-		std::string text, line;
-		std::ifstream fin(filename);
-		
-		if (fin.is_open())
+					while (line.back() == '\r' || line.back() == '\n')
+					{
+						line.pop_back();
+					}
+
+					text += line + line_ending_fmt;
+				}
+
+				fin.close();
+			}
+
+			return text;
+		}
+
+		std::vector<std::vector<std::string>> read_csv(const std::string &filename)
 		{
-			while (std::getline(fin, line))
+			std::vector<std::string> lines = read_file_as_vector(filename);
+			std::vector<std::vector<std::string>> tokens;
+
+			for (std::string str : lines)
 			{
-				if(line.empty())
-				{
-					continue;
-				}
-				if (line.back() == '\r')
-				{
-					line[line.size() - 1] = '\n';
-				}
-				text += line;
+				tokens.push_back(str::tokenize(str, ",", false, false));
 			}
-			fin.close();
+			return tokens;
 		}
-		else
+
+		void write_file(const std::string &filename, const std::string &buf)
 		{
-			#ifdef HXUTILS_DEBUG
-			std::cout << "FileUtil::read_file_as_string() : Failed to open '" + filename + "'" << std::endl;
-			#endif
+			std::ofstream file;
+			file.open(filename);
+			file << buf;
+			file.close();
 		}
-		return text;
-	}
 
-	std::vector<std::vector<std::string>> read_csv(const std::string& filename)
-	{
-		std::vector<std::string> lines = read_file(filename);
-		std::vector<std::vector<std::string>> tokens;
-
-		for (std::string str : lines)
+		bool file_exists(const std::string &filepath)
 		{
-			tokens.push_back(tokenize(str, ","));
+			std::ifstream file(filepath);
+			return file.good();
 		}
-		return tokens;
-	}
-
-	void write_file(const std::string& filename, const std::string& buf)
-	{
-		std::ofstream file;
-		file.open(filename);
-		file << buf;
-		file.close();
-	}
-
-	bool file_exists(const std::string& filepath)
-	{
-		std::ifstream file(filepath);
-		return file.good();
-	}
-}
+	} // namespace fileutil
+} // namespace hirzel

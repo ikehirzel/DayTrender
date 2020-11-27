@@ -1,15 +1,18 @@
+#include <stdio.h>
+#include <cctype>
+
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <vector>
-#include <cctype>
 #include <filesystem>
 #include <unordered_map>
-#include <map>
-#include <stdio.h>
+
 #include <hirzel/fileutil.h>
 #include <hirzel/strutil.h>
+
 #include "../data/action.h"
+#include "lexer.h"
 
 #define TEMP_OUTPUT_EXTENSION ".cpp"
 
@@ -40,10 +43,10 @@
 #define INDICATOR_LABEL_HOOK "%INDICATOR_LABEL%"
 #define CALCULATE_SCRIPT_HOOK "%CALCULATE_SCRIPT%"
 
-#define LABEL_TOKEN "$label"
-#define IDENTIFIER_TOKEN "$identifier"
-#define REQUIRE_TOKEN "#require"
-#define INCLUDE_TOKEN "#include"
+#define LABEL_TOKEN "label"
+#define IDENTIFIER_TOKEN "identifier"
+#define REQUIRE_TOKEN "require"
+#define INCLUDE_TOKEN "include"
 #define AS_TOKEN "as"
 
 #define ACTION_BUY_PROXY "buy()"
@@ -56,31 +59,19 @@ using namespace hirzel;
 
 bool failed = false;
 
-//recursively find the files required, depth first
-void get_requires(const std::string& dir, const std::string &filename, std::unordered_map<std::string, int>& depths, std::unordered_map<std::string, int> requires = {}, int depth = 1)
+std::string mstr =
+R"(
+int val()
 {
-	if(requires[filename])
-	{
-		failed = true;
-		std::cout << "dtbuild: error: circular dependency detected in '" << filename << "'!\n";
-		return;
-	}
-	requires[filename] = depth;
-	if(!depths[filename] || depths[filename]  <= depth)
-	{
-		depths[filename] = depth;
-	}
-	std::vector<std::string> file = read_file(dir + "/indicators/" + filename);
-	for (std::string line : file)
-	{
-		std::vector<std::string> toks = hirzel::tokenize(line, "\t ");
-		if (toks[0] == REQUIRE_TOKEN)
-		{
-			std::string subname = get_filename(purge_delims(toks[1], "\""));
-			get_requires(dir, subname, depths, requires, depth + 1);
-		}
-	}
-}
+	// this is a comment
+	/*
+	this is a block
+	comment*/
+	str s = "HELLO MAN !!!";
+	int i = 0;
+	i += 2;
+	return i;
+})";
 
 //takes in path to indicators script and returns a pair of its identifier and definition (in that order)
 std::pair<std::string, std::string> compose_indicator(const std::string& dir, const std::string &filename)
@@ -89,8 +80,9 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 	{
 		#include "indicator.def"
 	};
+
 	std::string label, script, classname, includes;
-	std::vector<std::string> file = hirzel::read_file(dir + "/indicators/" + filename);
+	std::vector<std::string> file = file::read_file_as_vector(dir + "/indicators/" + filename);
 
 	if (file.empty())
 	{
@@ -101,10 +93,10 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 
 	script += "\n";
 
-	unsigned int lineIndex = 0;
+	unsigned lineIndex = 1;
 	for (std::string s : file)
 	{
-		std::vector<std::string> toks = hirzel::tokenize(s, "\t ");
+		std::vector<std::string> toks = str::tokenize(s, "\t ");
 		if (toks[0][0] == '$' || toks[0][0] == '#')
 		{
 			if(toks.size() < 2)
@@ -176,205 +168,191 @@ std::pair<std::string, std::string> compose_indicator(const std::string& dir, co
 		return {};
 	}
 
-	find_and_replace(buffer, INCLUDES_HOOK, includes);
-	find_and_replace(buffer, INDICATOR_CLASS_HOOK, classname);
-	find_and_replace(buffer, INDICATOR_LABEL_HOOK, label);
-	find_and_replace(buffer, CALCULATE_SCRIPT_HOOK, script);
+	str::find_and_replace(buffer, INCLUDES_HOOK, includes);
+	str::find_and_replace(buffer, INDICATOR_CLASS_HOOK, classname);
+	str::find_and_replace(buffer, INDICATOR_LABEL_HOOK, label);
+	str::find_and_replace(buffer, CALCULATE_SCRIPT_HOOK, script);
 
 	return { classname, buffer };
 }
 
+/********************************************
+ * 			Compose Algorithm				*
+ ********************************************/
+
 std::string compose_algorithm(const std::string &dir, const std::string &filepath)
 {
+	using namespace daytrender;
 	std::string buffer
 	{
 		#include "algorithm.def"
 	};
 	std::string algo_name, script, indicator_definition_glob, includes, filename, action_glob;
-	std::vector<std::string> input_file;
+	std::vector<std::string> input_file, requires;
 	std::vector<std::vector<std::string>> indicator_variables;
 	std::unordered_map<std::string, int> req_depths;
 	std::vector<std::pair<std::string, std::string>> indicator_definitions;
+	daytrender::tokenlist tokens;
+	filename = str::get_filename(filepath);
 
-	filename = get_filename(filepath);
-
-	// loading script
-	input_file = hirzel::read_file(filepath);
-	if (input_file.empty())
-	{
-		std::cout << "dtbuild: fatal: Failed to open input file!\n";
-		failed = true;
-		return "";
-	}
-
-	// inserting aciton definitions at top of source file
+	// inserting action definitions at top of output file
 	action_glob += "#define " ACTION_NOTHING_PROXY " return " + std::to_string(ACTION_NOTHING) + "\n";
 	action_glob += "#define " ACTION_SELL_PROXY " return " + std::to_string(ACTION_SELL) + "\n";
 	action_glob += "#define " ACTION_BUY_PROXY " return " + std::to_string(ACTION_BUY) + "\n\n";
 	buffer.insert(0, action_glob);
+	
+	script = file::read_file_as_string(filepath);
+	if (script.empty())
+	{
+		std::cout << "dtbuild: fatal: Failed to open the input file!\n";
+	}
+
+	tokens = daytrender::lex(script);
+	if (tokens.empty())
+	{
+		return "";
+	}
 
 	/****************************************************
 	 * Handling preprocessor/psuedo calls in algorithm	*
 	 ****************************************************/
-	unsigned int lineIndex = 1;
-	for (std::string &s : input_file)
+
+	unsigned line = 1;
+	for (unsigned i = 0; i < tokens.size(); i++)
 	{
-		std::vector<std::string> tokens = hirzel::tokenize(s, " \t");
-		if (tokens[0][0] == '$' || tokens[0][0] == '#')
+		switch (tokens[i].type)
 		{
-			if(tokens.size() < 2)
-			{
-				failed = true;
-				std::cout << "dtbuild: error: '" << filename << "': Invalid amount of args in preprocessor directive at line: " << lineIndex << std::endl;
-			}
 
-			if (tokens[0] == LABEL_TOKEN)
-			{
-				if (!algo_name.empty())
+			case DOLLAR_SIGN:
+				i++;
+				if (tokens[i].value == LABEL_TOKEN)
 				{
-					std::cout << "dtbuild: error: Redefinition of algorithm label!\n";
-					failed = true;
-					return "";
-				}
-				int startIndex = -1, endIndex = -1;
-				for (unsigned int i = 0; i < s.size(); i++)
-				{
-					if (s[i] == '"')
+					if (!algo_name.empty())
 					{
-						if (startIndex == -1)
-						{
-							startIndex = i + 1;
-						}
-						else
-						{
-							endIndex = i - 1;
-							break;
-						}
+						std::cout << "dtbuild: error: redefinition of algorithm label: line " << line << "\n";
+						return "";
 					}
+					i++;
+					algo_name = tokens[i].value;
+					algo_name.pop_back();
+					algo_name.erase(0, 1);
+					std::cout << "ALGO NAME: " << "'" << algo_name << "'" << std::endl;
 				}
-
-				algo_name = s.substr(startIndex, endIndex - startIndex + 1);
-			}
-			else if (tokens[0] == REQUIRE_TOKEN)
-			{
-				std::string indi = get_filename(purge_delims(tokens[1], "\""));
-				get_requires(dir, indi, req_depths);
-				if(failed)
+				else
 				{
+					std::cout << "dtbuild: error: invalid keyword '$" << tokens[i].value << "' used: line " << line << "\n";
 					return "";
 				}
-			}
-			else if (tokens[0] == INCLUDE_TOKEN)
-			{
-				// TODO : allow for including normal c++ files
-				includes += s + "\n";
-			}
-			else
-			{
-				std::cout << "dtbuild: error: invalid preprocessor directive at line " << lineIndex << "!\n";
-				failed = true;
-			}
-
-			s = "";
+				break;
+			case POUND_SIGN:
+				i++;
+				if (tokens[i].value == REQUIRE_TOKEN)
+				{
+					std::string filepath = tokens[++i].value;
+					filepath.pop_back();
+					filepath.erase(0, 1);
+					requires.push_back(filepath);
+				}
+				else if (tokens[i].value == INCLUDE_TOKEN)
+				{
+					// adding the tokens to the include glob
+					includes += tokens[i - 1].value;
+					while (tokens[i].value != "\n")
+					{
+						includes += tokens[i].value + ' ';
+						i++;
+					}
+					includes += tokens[i].value;
+				}
+				else
+				{
+					std::cout << "dtbuild: error: invalid keyword '#" << tokens[i].value << "' used: line " << line << "\n";
+					return "";
+				}
+				break;
 		}
-
-		lineIndex++;
 	}
 
 	// aborting if there was no name defined in algo
 	if (algo_name.empty())
 	{
 		std::cout << "dtbuild: fatal: '" << filename << "'A name must be defined!\n";
-		failed = true;
 		return "";
 	}
 
 	/********************************************
 	 * Populating list of indicator definitions	*
 	 ********************************************/
-	int maxDepth = 0;
 
-	std::unordered_map<std::string, bool> pseudoident;
-	for (std::pair<std::string, int> p : req_depths)
+	/************************************************************
+	 *	Parsing indicator declarations and cleaning up tokens	*
+	 ************************************************************/
+	unsigned offset = 0;
+	line = 1;
+	for (unsigned i = 0; i < tokens.size(); i++)
 	{
-		if (maxDepth < p.second)
+		switch (tokens[i].type)
 		{
-			maxDepth = p.second;
+
+			case DOLLAR_SIGN:
+				/*
+				while (tokens[i].type != NEW_LINE)
+				{
+					offset++;
+					i++;
+				}
+				*/
+				// curr token is a newline
+				line++;
+				offset++;
+				continue;
+
+			case POUND_SIGN:
+				if (tokens[i].value == REQUIRE_TOKEN)
+				{
+					offset += 2;
+					i += 2;
+					/*
+					while (tokens[i].type != NEW_LINE)
+					{
+						offset++;
+						i++;
+					}
+					*/
+					line++;
+					offset++;
+					continue;
+				}
+				break;
 		}
-	}
-	for (int i = maxDepth; i > 0; i--)
-	{
-		for (std::pair<std::string, int> p : req_depths)
+		/*
+		if (pseudoident[script_toks[i]])
 		{
-			if (p.second == i)
+			std::cout << "PSEUDOIDENT: " << script_toks[i] << std::endl;
+			std::vector<std::string> var_toks;
+			while (script_toks[i] != ";")
 			{
-				std::pair<std::string, std::string> indi_def = compose_indicator(dir, p.first);
-				pseudoident[indi_def.first] = true;
-				indicator_definition_glob += indi_def.second;
+				var_toks.push_back(script_toks[i]);
+				offset++;
+				i++;
 			}
+			indicator_variables.push_back(var_toks);
+			offset++;
+			continue;
 		}
+		*/
+		tokens[i - offset] = tokens[i];
 	}
 
-	//globbing input file into 'script'
-	for (std::string s : input_file)
-	{
-		for (unsigned i = 0; i < s.size(); i++)
-		{
-			if (s[i] == '/' && s[i + 1] == '/')
-			{
-				script += s.substr(0, i);
-			}
-		}
-		if(!s.empty())
-		{
-			script += "\t" + s + "\n";
-		}
-	}
+	//tokens.resize(tokens.size() - offset);
 
-	/************************************
-	 * Getting pseudoidentifiers data	*
-	 ************************************/
-	std::vector<std::string> script_tokens = tokenize(script, "", { "(", ")", ",", ";", "\n" }, true);
-	std::vector<std::string> var_toks;
-	std::vector<unsigned> scripti_to_erase;
-	bool is_def = false;
-
-	for (unsigned i = 0; i < script_tokens.size(); i++)
-	{
-		if(pseudoident[script_tokens[i]])
-		{
-			is_def = true;
-		}
-		else if (script_tokens[i] == ";")
-		{
-			is_def = false;
-			if (!var_toks.empty())
-			{
-				var_toks.push_back(script_tokens[i]);
-				scripti_to_erase.push_back(i);
-				indicator_variables.push_back(var_toks);
-				var_toks.clear();
-			}
-		}
-
-		if (is_def)
-		{
-			var_toks.push_back(script_tokens[i]);
-			scripti_to_erase.push_back(i);
-		}
-	}
-
-	for (int i = scripti_to_erase.size() - 1; i >= 0; i--)
-	{
-		script_tokens.erase(script_tokens.begin() + scripti_to_erase[i]);
-	}
-
+	return "";
 	script.clear();
-
+/*
 	unsigned tabs_level = 1;
-	for (unsigned i = 0; i < script_tokens.size(); i++)
+	for (unsigned i = 0; i < tokens.size(); i++)
 	{
-		const std::string& t = script_tokens[i];
+		const std::string& t = tokens[i].value;
 		switch(t[0])
 		{
 			case '(':
@@ -384,17 +362,17 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 
 			case ')':
 				if (script.back() == ' ') script.pop_back();
-				script += t + ' ';
+				script += t;
 				break;
 
 			case '{':
-				script += t;
+				script += '\n' + t;
 				tabs_level++;
 				break;
 
 			case '}':
 				script.pop_back();
-				script += t;
+				script += t + '\n';
 				tabs_level--;
 				break;
 			case ';':
@@ -411,7 +389,10 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 				break;
 		}
 	}
-	
+	std::cout << "Script:\n" << script << std::endl;
+*/
+
+	return "";
 	/************************************************
 	 * 	Converting pseudoidentifiers into real data	*
 	 ************************************************/
@@ -437,13 +418,13 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 	}
 
 	// replacing hooks in output buffer
-	find_and_replace(buffer, ALGORITHM_NAME_HOOK, algo_name);
-	find_and_replace(buffer, INCLUDES_HOOK, includes);
-	find_and_replace(buffer, INDICATOR_DEFINE_HOOK, indicator_definition_glob);
-	find_and_replace(buffer, INDICATOR_DECLARE_HOOK, indi_decl);
-	find_and_replace(buffer, INDICATOR_DATA_HOOK, indi_data);
-	find_and_replace(buffer, ALGORITHM_SCRIPT_HOOK, script);
-	find_and_replace(buffer, DATASET_INIT_HOOK, dataset_init);
+	str::find_and_replace(buffer, ALGORITHM_NAME_HOOK, algo_name);
+	str::find_and_replace(buffer, INCLUDES_HOOK, includes);
+	str::find_and_replace(buffer, INDICATOR_DEFINE_HOOK, indicator_definition_glob);
+	str::find_and_replace(buffer, INDICATOR_DECLARE_HOOK, indi_decl);
+	str::find_and_replace(buffer, INDICATOR_DATA_HOOK, indi_data);
+	str::find_and_replace(buffer, ALGORITHM_SCRIPT_HOOK, script);
+	str::find_and_replace(buffer, DATASET_INIT_HOOK, dataset_init);
 
 	return buffer;
 }
@@ -461,7 +442,7 @@ int main(int argc, char *argv[])
 	std::string filepath;
 
 	cwd = std::filesystem::current_path().string() + "/.";
-	std::string rdir = hirzel::get_folder(std::string(argv[0]));
+	std::string rdir = str::get_folder(std::string(argv[0]));
 	if(cwd == rdir)
 	{
 		execdir = rdir;
@@ -507,7 +488,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	std::vector<std::string> config_file = hirzel::read_file(configpath);
+	std::vector<std::string> config_file = file::read_file_as_vector(configpath);
 
 	if (config_file.empty())
 	{
@@ -520,7 +501,7 @@ int main(int argc, char *argv[])
 	{
 		size_t epos;
 		std::string val;
-		std::vector<std::string> tokens = hirzel::tokenize(s, " \t=");
+		std::vector<std::string> tokens = str::tokenize(s, " \t=");
 		if (tokens[0] == "CXX")
 		{
 			cxx = tokens[1];
@@ -548,12 +529,17 @@ int main(int argc, char *argv[])
 	}
 
 	// std::cout << "SCRIPT FILENAME: " << script_filepath << std::endl;
-	std::string algo_folder = hirzel::get_folder(filepath);
+	std::string algo_folder = str::get_folder(filepath);
 	// adding extension on end of file
 
-	std::string basename = hirzel::get_basename(filepath);
+	std::string basename = str::get_basename(filepath);
 	std::string temp_output_filename = algo_folder + "/" + basename + TEMP_OUTPUT_EXTENSION;
 	std::string algo_buf = compose_algorithm(algo_folder, filepath);
+
+	if (algo_buf.empty())
+	{
+		return 1;
+	}
 
 	if (failed)
 	{
@@ -582,7 +568,7 @@ int main(int argc, char *argv[])
 	}
 
 	// writing temp file
-	hirzel::write_file(temp_output_filename, algo_buf);
+	file::write_file(temp_output_filename, algo_buf);
 	std::string output_name;
 	if (odir.empty())
 	{
