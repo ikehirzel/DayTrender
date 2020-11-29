@@ -4,6 +4,8 @@ $label "Simple MA"
 EMA longma(1.0);
 EMA shortma(0.25);
 
+/* this is a block comment test */
+
 double lastShort = shortma[length - 2];
 double lastLong = longma[length - 2];
 

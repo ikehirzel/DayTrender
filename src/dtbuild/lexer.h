@@ -4,9 +4,8 @@
 #include <string>
 #include <unordered_map>
 
-namespace daytrender
+namespace dtbuild
 {
-	// " \"\'\t\n?$#(){}[]<>,.;:&+=-*/%!~"
 	enum token_type: short
 	{
 		NO_TYPE,
@@ -49,7 +48,12 @@ namespace daytrender
 		SLASH,
 		MODULUS,
 		NOT,
-		TILDE
+		TILDE,
+		REQUIRE_PREPRO,
+		INCLUDE_PREPRO,
+		BUY_CALL,
+		SELL_CALL,
+		NOTHING_CALL
 	};
 
 	extern std::unordered_map<std::string, short> token_types;
@@ -71,5 +75,5 @@ namespace daytrender
 
 	typedef std::vector<token> tokenlist;
 
-	tokenlist lex(const std::string& src);
+	tokenlist lex(const std::string& src, const std::string& filepath);
 }

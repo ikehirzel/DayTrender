@@ -1,8 +1,11 @@
 #include "lexer.h"
 
-#include <hirzel/strutil.h>
+#include "dtbuild.h"
 
 #include <iostream>
+
+#include <hirzel/strutil.h>
+
 
 /*
 	Giga chad version:
@@ -25,7 +28,7 @@
 */
 
 
-namespace daytrender
+namespace dtbuild
 {
 	std::unordered_map<std::string, short> token_types;
 
@@ -38,8 +41,9 @@ namespace daytrender
 		IS_CHAR_LIT
 	};
 
-	tokenlist lex(const std::string& src)
+	tokenlist lex(const std::string& src, const std::string& filepath)
 	{
+		// TODO HANDLE LEADER KEY
 		if (token_types.empty())
 		{
 			token_types =
@@ -76,18 +80,16 @@ namespace daytrender
 				{ "//",	LINE_COMMENT},
 				{ "/*",	COMMENT_START},
 				{ "*/",	COMMENT_END},
+				{ "#include", INCLUDE_PREPRO },
+				{ "#require", REQUIRE_PREPRO },
+				{ "buy()", BUY_CALL },
+				{ "sell()", SELL_CALL },
+				{ "do_nothing()", NOTHING_CALL }
 			};
 		}
 
 		using namespace hirzel;
 
-		long offset = 0;
-		long line = 1;
-		int col = 1;
-
-		long tmp_line = 0;
-		int tmp_col = 0;
-		std::string tmp;
 		std::vector<std::string> str_toks;
 		tokenlist toks;
 
@@ -97,81 +99,16 @@ namespace daytrender
 		/*******************************************
 		 *   Creating list of tokens from string   *
 		 *******************************************/
-		int state = NORMAL_MODE;
-		short quote_type;
-		for (long i = 0; i < toks.size(); i++)
+
+		long line = 1;
+		int col = 1;
+
+		for (long i = 0; i < str_toks.size(); i++)
 		{
-			const std::string& s = str_toks[i];
-
-			toks[i].value = s;
-			toks[i].type = token_types[s];
-			toks[i].column = col;
+			toks[i].value = str_toks[i];
+			toks[i].type = token_types[toks[i].value];
 			toks[i].line = line;
-
-			toks[i - offset] = toks[i];
-
-			// handling the state specific behaviours
-			switch (state)
-			{
-				case IS_LCOMMENT:
-					// this is the correct ordering
-					if (toks[i].type == SPACE || toks[i].type == TAB) offset--;
-					offset ++;
-					if (toks[i].type == NEW_LINE)
-					//if (toks[i].line > toks[i - 1].line)
-					{
-						state = NORMAL_MODE;
-					}
-					break;
-
-				case IS_BCOMMENT:
-					// this is the correct ordering
-					if (toks[i].type == SPACE || toks[i].type == TAB || toks[i].type == NEW_LINE)
-					{
-						offset--;
-					}
-					offset ++;
-					if (toks[i].type == SLASH && toks[i - 1].type == ASTERISK)
-					{
-						offset++;
-						state = NORMAL_MODE;
-					}
-					break;
-
-				// does not handle \" or \'
-				case IS_STR_LIT:
-					if (!tmp_col) tmp_col = toks[i].column;
-					if (!tmp_line) tmp_line = toks[i].line;
-					if (toks[i].type == quote_type)
-					{
-						offset++;
-						std::cout << "VAL: " << tmp << std::endl;
-						state = NORMAL_MODE;
-						toks[i - offset].value = tmp;
-						toks[i - offset].type = STRING_LITERAL;
-						toks[i - offset].column = tmp_col;
-						toks[i - offset].line = tmp_line;
-						tmp_col = 0;
-						tmp_line = 0;
-						tmp.clear();
-						break;
-					}
-					if (toks[i].type == NEW_LINE)
-					{
-						state = NORMAL_MODE;
-						tmp_col = 0;
-						tmp_line = 0;
-						tmp.clear();
-						break;
-					}
-					tmp += toks[i].value;
-					if (toks[i].type == SPACE || toks[i].type == TAB)
-					{
-						 offset--;
-					}
-					offset++;
-					break;
-			}
+			toks[i].column = col;
 
 			switch (toks[i].type)
 			{
@@ -181,130 +118,225 @@ namespace daytrender
 				case TAB:
 				case SPACE:
 					col++;
-					offset++;
 					break;
 
 				default:
 					col += toks[i].value.size();
-					break;
-			}
-
-			// handling token type WARNING DO NOT USE CONTINUE
-			switch (toks[i].type)
-			{
-				case NO_TYPE:
-					// testing for identifier
-					if (str::is_alpha(s[0]) || s[0] == '_')
+					if (toks[i].type == NO_TYPE)
 					{
-						toks[i].type = IDENTIFIER;
-						for (int c = 0; c < s.size(); c++)
+						if (str::is_alpha(toks[i].value[0]) || toks[i].value[0] == '_')
 						{
-							if (!str::is_digit(s[c]) && !str::is_alpha(s[c]) && s[c] != '_')
+							toks[i].type = IDENTIFIER;
+							for (int c = 0; c < toks[i].value.size(); c++)
 							{
-								toks[i].type = ERROR_TYPE;
-								break;
+								if (!str::is_digit(toks[i].value[c]) && !str::is_alpha(toks[i].value[c]) && toks[i].value[c] != '_')
+								{
+									toks[i].type = ERROR_TYPE;
+									break;
+								}
+							}
+						}
+						else if (str::is_digit(toks[i].value[0]))
+						{
+							toks[i].type = NUM_LITERAL;
+							for (int c = 0; c < toks[i].value.size(); c++)
+							{
+								if (!str::is_digit(toks[i].value[c]))
+								{
+									toks[i].type = ERROR_TYPE;
+									break;
+								}
 							}
 						}
 					}
-					else if (str::is_digit(s[0]))
-					{
-						toks[i].type = NUM_LITERAL;
-						for (int c = 0; c < s.size(); c++)
-						{
-							if (!str::is_digit(s[c]))
-							{
-								toks[i].type = ERROR_TYPE;
-								break;
-							}
-						}
-						
-						if (i < 1) break;
-						if (toks[i - 1].type == PERIOD)
-						{
-							std::cout << "Should combine " << toks[i].value << " with '.'\n";
-							offset++;
-							toks[i].line = toks[i - 1].line;
-							toks[i].column = toks[i - 1].column;
-							toks[i].value.insert(0, 1, '.');
-						}
+					break;
+			}
+		}
 
-						if (i < 2) break;
-						if (toks[i - 2].type == NUM_LITERAL)
+		long cur = 0;
+		for (long i = 0; i < toks.size(); i++)
+		{
+			if (toks[i].line > cur)
+			{
+				//std::cout << '\n';
+				cur = toks[i].line;
+			}
+			//std::cout << "[" << toks[i].line << "]: " <<  toks[i].value << ", col: " << toks[i].column << std::endl;
+		}
+
+		/*********************************
+		 *   Coalescing related tokens   *
+		 *********************************/
+
+		long ai = 0;
+		std::string tmp;
+		short tmp_type = NO_TYPE;
+		for (long ei = 0; ei < toks.size(); ei++)
+		{
+			toks[ai] = toks[ei];
+			short tmp_type = 0, tmp_end = 0;
+			bool error = false;
+			switch (toks[ai].type)
+			{
+				case NUM_LITERAL:
+					if (toks[ai - 1].type == PERIOD)
+					{
+						toks[ai - 1].type = NUM_LITERAL;
+					}
+
+					for (int n = 0; n < 2; n++)
+					{
+						if (ai < 1) break;
+						if (toks[ai - 1].type == NUM_LITERAL)
 						{
-							offset++;
-							toks[i].line = toks[i - 2].line;
-							toks[i].column = toks[i - 2].column;
-							toks[i].value.insert(0, toks[i - 2].value);
+							ai--;
+							toks[ai].value += toks[ai + 1].value;
 						}
-						toks[i - offset] = toks[i];
+					}
+					break;
+
+				case SLASH:
+					// line comment of end comment
+					if (toks[ai - 1].type == SLASH || toks[ai - 1].type == ASTERISK)
+					{
+						ai--;
+						toks[ai].value += toks[ai + 1].value;
+						toks[ai].type = token_types[toks[ai].value];
+					}
+					break;
+
+				case ASTERISK:
+					// start comment
+					if (toks[ai - 1].type == SLASH)
+					{
+						ai--;
+						toks[ai].value += toks[ai + 1].value;
+						toks[ai].type = token_types[toks[ai].value];
 					}
 					break;
 
 				case SQUOTE:
+					tmp_type = CHAR_LITERAL;
+					tmp_end = SQUOTE;
 				case DQUOTE:
-					quote_type = toks[i].type;
-					state = IS_STR_LIT;
-					offset--;
-					tmp.clear();
+					if (!tmp_type) tmp_type = STRING_LITERAL;
+					if (!tmp_end) tmp_end = DQUOTE;
+
+					tmp = toks[ei].value;
+
+					toks[ai].type = tmp_type;
+					toks[ai].value.clear();
+					toks[ai].column++;
+
+					ei++;
+
+					while (ei < toks.size())
+					{
+						if (toks[ei].type == tmp_end)
+						{
+							break;
+						}
+						else if (toks[ei].type == NEW_LINE)
+						{
+							syntax_error(filepath, "missing terminating " + tmp + " character", toks[ai].line,
+								toks[ai].column -1, 0);
+							return {};
+						}
+
+						toks[ai].value += toks[ei].value;
+
+						ei++;
+					}
 					break;
 
-				case SLASH:
-					if (i < 1) break;
-					if (toks[i - 1].type == SLASH)
+				case POUND_SIGN:
+					// these checks are broken up into two so that there is no accidental seg faults
+					if (ei + 1 >= toks.size())
 					{
-						state = IS_LCOMMENT;
-						offset ++;
+						syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
+						return {};
 					}
-					break;
-				
-				case ASTERISK:
-					if (i < 1) break;
-					if (toks[i - 1].type == SLASH)
+					if (toks[ei].line != toks[ei + 1].line)
 					{
-						offset ++;
-						state = IS_BCOMMENT;
+						syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
+						return {};
 					}
+					toks[ai].value += toks[ei + 1].value;
+					std::cout << "toks ai : " << toks[ai].value << std::endl;
+					toks[ai].type = token_types[toks[ai].value];
+					std::cout << "toks ait: " << toks[ai].type << std::endl;
+					if (toks[ai].type == NO_TYPE)
+					{
+						syntax_error(filepath, "invalid proprocessing directive '" + toks[ai].value + "'",
+							toks[ai].line, toks[ai].column, toks[ai].value.size());
+						return {};
+					}
+					ei++;
 					break;
 
-				case AND:
-					if (i < 1) break;
-					if (toks[i - 1].type == AND)
+				case RPAREN:
+					if (ai < 2) break;
+					if (toks[ai - 1].type = LPAREN && toks[ai - 2].type == IDENTIFIER)
 					{
-						toks[i].type = AND_COMP;
-						toks[i].value += toks[i - 1].value;
-						toks[i].line = toks[i - 1].line;
-						toks[i].column = toks[i - 1].column;
-						offset++;
-						toks[i - offset] = toks[i];
+						tmp = toks[ai - 2].value + toks[ai - 1].value + toks[ai].value;
+						tmp_type = token_types[tmp];
+						if (tmp_type != NO_TYPE)
+						{
+							ai -= 2;
+							toks[ai].type = tmp_type;
+							toks[ai].value = tmp;
+						}
 					}
-				break;
+					break;
 			}
+			ai++;
 		}
-		std::cout << "\n\n";
-		toks.resize(toks.size() - offset);
-		long currline = 0;
-		
-		long samt = 12;
-		for (long i = 0; i < toks.size(); i++)
+
+		toks.resize(ai);
+
+		/*****************************************
+		 *   Removing blank space and comments   *
+		 *****************************************/	
+
+		ai = 0;
+		for (long ei = 0; ei < toks.size(); ei++)
 		{
-			if (toks[i].line > currline)
+			short cmt_end_type = 0;
+			toks[ai] = toks[ei];
+			switch (toks[ai].type)
 			{
-				std::cout << "\n";
-				currline = toks[i].line;
-			}
-			std::cout << "[" << toks[i].line << "]: " << toks[i].value;
-			for (int a = 0; a < 10 - toks[i].value.size(); a++)
-			{
-				std::cout << ' ';
-			}
-			std::cout << "col: " << toks[i].column << std::endl;
-		}
-		
+				case SPACE:
+				case TAB:
+				case NEW_LINE:
+					ai--;
+					break;
 
-		std::cout << "Basic reconstruction:\n\n";
+				case LINE_COMMENT:
+					cmt_end_type = NEW_LINE;
+				case COMMENT_START:
+					if(!cmt_end_type) cmt_end_type = COMMENT_END;
+					ai--;
+					while (ei < toks.size())
+					{
+						if (toks[ei].type == cmt_end_type)
+						{
+							break;
+						}
+						ei++;
+					}
+					break;
+			}
+			ai++;
+		}
+
+		toks.resize(ai);
+
+		std::cout << "\n*********************************\nBasic Reconstruction\n*********************************\n\n";
+
 		short tabsLevel = 0;
 		bool newline = false;
-		currline = 1;
+		long currline = 0;
+
 		for (long i = 0; i < toks.size(); i++)
 		{
 			const std::string& t = toks[i].value;
@@ -334,7 +366,7 @@ namespace daytrender
 			}
 		}
 
-		std::cout << "\n\nEnd lexing phase...\n";
+		std::cout << "\n\n*********************************\nEnd lexing phase...\n*********************************\n\n";
 
 		return toks;
 	}

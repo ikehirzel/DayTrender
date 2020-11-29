@@ -1,0 +1,16 @@
+#require "ema.ind"
+
+algorithm Simple_MA (EMA<0.5> short, EMA<1.0> long)
+{
+	double i = 0.0;
+	if (i < 0)
+	{
+		buy();
+	}
+	else
+	{
+		sell();
+	}
+
+	do_nothing();
+}

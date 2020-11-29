@@ -1,3 +1,5 @@
+#include "dtbuild.h"
+
 #include <stdio.h>
 #include <cctype>
 
@@ -60,7 +62,7 @@ using namespace hirzel;
 bool failed = false;
 
 std::string mstr =
-R"(
+	R"(
 int val()
 {
 	// this is a comment
@@ -73,155 +75,192 @@ int val()
 	return i;
 })";
 
-//takes in path to indicators script and returns a pair of its identifier and definition (in that order)
-std::pair<std::string, std::string> compose_indicator(const std::string& dir, const std::string &filename)
+namespace dtbuild
 {
-	std::string buffer
+	void syntax_error(const std::string& filepath, const std::string& msg, long line, int col, int width)
 	{
-		#include "indicator.def"
-	};
+		// doing this because they start at 1 in tokens
+		line--;
+		col--;
+		// TODO add open relative to executable by combining filepath with absolute path
+		#define RED_ESCAPE "\033[31;1m"
+		#define RESET_ESCAPE "\033[0m"
+		std::vector<std::string> file = hirzel::file::read_file_as_vector(filepath);
+		std::string str = file[line];
 
-	std::string label, script, classname, includes;
-	std::vector<std::string> file = file::read_file_as_vector(dir + "/indicators/" + filename);
-
-	if (file.empty())
-	{
-		std::cout << "dtbuild: error: Failed to load file '" + filename + "'\n";
-		failed = true;
-		return {"", ""};
-	}
-
-	script += "\n";
-
-	unsigned lineIndex = 1;
-	for (std::string s : file)
-	{
-		std::vector<std::string> toks = str::tokenize(s, "\t ");
-		if (toks[0][0] == '$' || toks[0][0] == '#')
+		if (width < 1)
 		{
-			if(toks.size() < 2)
-			{
-				failed = true;
-				std::cout << "dtbuild: error: '" << filename << "': Invalid amount of args in preprocessor directive at line: " << lineIndex << std::endl;
-			}
-
-			if (toks[0] == LABEL_TOKEN)
-			{
-				if (!label.empty())
-				{
-					std::cout << "dtbuild: error: Redefinition of indicator label!\n";
-					failed = true;
-					return { "", "" };
-				}
-				int startIndex = -1, endIndex = -1;
-				for (unsigned int i = 0; i < s.size(); i++)
-				{
-					if (s[i] == '"')
-					{
-						if (startIndex == -1)
-						{
-							startIndex = i + 1;
-						}
-						else
-						{
-							endIndex = i - 1;
-							break;
-						}
-					}
-				}
-
-				label = s.substr(startIndex, endIndex - startIndex + 1);
-
-			}
-			else if (toks[0] == IDENTIFIER_TOKEN)
-			{
-				classname = toks[1];
-			}
-			else if (toks[0] == REQUIRE_TOKEN)
-			{
-				// No need to do anything as compose algo parses this
-
-				break;
-			}
-			else if (toks[0] == INCLUDE_TOKEN)
-			{
-				// TODO : allow for including normal c++ files
-				includes += s + "\n";
-			}
-			else
-			{
-				std::cout << "dtbuild: error: Syntax error: line " << lineIndex << std::endl;
-				failed = true;
-				return {};
-			}
-			lineIndex++;
-			continue;
+			width = str.size() - col;
 		}
 
-		script += "\n\t\t" + s;
-		lineIndex++;
-	}
-	if (label.empty())
-	{
-		std::cout << "dtbuild: error: $label must be defined in indicator '" + filename + "'\n";
-		failed = true;
-		return {};
-	}
+		std::cout << "dtbuild: " << filepath << ':' << line << ':' << col << ": "
+		<< RED_ESCAPE "error: " RESET_ESCAPE << msg << '\n';
 
-	str::find_and_replace(buffer, INCLUDES_HOOK, includes);
-	str::find_and_replace(buffer, INDICATOR_CLASS_HOOK, classname);
-	str::find_and_replace(buffer, INDICATOR_LABEL_HOOK, label);
-	str::find_and_replace(buffer, CALCULATE_SCRIPT_HOOK, script);
+		std::cout << std::setw(5) << line + 1 << " | " << str.substr(0, col)
+		<< RED_ESCAPE;
 
-	return { classname, buffer };
-}
+		std::cout << str.substr(col, width)
+		<< RESET_ESCAPE << str.substr(col + width) << std::endl;
 
-/********************************************
- * 			Compose Algorithm				*
- ********************************************/
+		std::cout << std::setw(5) << " " << " | ";
 
-std::string compose_algorithm(const std::string &dir, const std::string &filepath)
-{
-	using namespace daytrender;
-	std::string buffer
-	{
-		#include "algorithm.def"
-	};
-	std::string algo_name, script, indicator_definition_glob, includes, filename, action_glob;
-	std::vector<std::string> input_file, requires;
-	std::vector<std::vector<std::string>> indicator_variables;
-	std::unordered_map<std::string, int> req_depths;
-	std::vector<std::pair<std::string, std::string>> indicator_definitions;
-	daytrender::tokenlist tokens;
-	filename = str::get_filename(filepath);
+		for (int i = 1; i < col + 1; i++) std::cout << ' ';
+		std::cout << RED_ESCAPE << '^';
 
-	// inserting action definitions at top of output file
-	action_glob += "#define " ACTION_NOTHING_PROXY " return " + std::to_string(ACTION_NOTHING) + "\n";
-	action_glob += "#define " ACTION_SELL_PROXY " return " + std::to_string(ACTION_SELL) + "\n";
-	action_glob += "#define " ACTION_BUY_PROXY " return " + std::to_string(ACTION_BUY) + "\n\n";
-	buffer.insert(0, action_glob);
-	
-	script = file::read_file_as_string(filepath);
-	if (script.empty())
-	{
-		std::cout << "dtbuild: fatal: Failed to open the input file!\n";
+		for (int i = 1; i < width; i++) std::cout << '~';
+		std::cout << RESET_ESCAPE << '\n';		
 	}
 
-	tokens = daytrender::lex(script);
-	if (tokens.empty())
+	//takes in path to indicators script and returns a pair of its identifier and definition (in that order)
+	std::pair<std::string, std::string> compose_indicator(const std::string &dir, const std::string &filename)
 	{
-		return "";
+		std::string buffer{
+#include "indicator.def"
+		};
+
+		std::string label, script, classname, includes;
+		std::vector<std::string> file = file::read_file_as_vector(dir + "/indicators/" + filename);
+
+		if (file.empty())
+		{
+			std::cout << "dtbuild: error: Failed to load file '" + filename + "'\n";
+			failed = true;
+			return {"", ""};
+		}
+
+		script += '\n';
+
+		unsigned lineIndex = 1;
+		for (std::string s : file)
+		{
+			std::vector<std::string> toks = str::tokenize(s, "\t ");
+			if (toks[0][0] == '$' || toks[0][0] == '#')
+			{
+				if (toks.size() < 2)
+				{
+					failed = true;
+					std::cout << "dtbuild: error: '" << filename << "': Invalid amount of args in preprocessor directive at line: " << lineIndex << std::endl;
+				}
+
+				if (toks[0] == LABEL_TOKEN)
+				{
+					if (!label.empty())
+					{
+						std::cout << "dtbuild: error: Redefinition of indicator label!\n";
+						failed = true;
+						return {"", ""};
+					}
+					int startIndex = -1, endIndex = -1;
+					for (unsigned int i = 0; i < s.size(); i++)
+					{
+						if (s[i] == '"')
+						{
+							if (startIndex == -1)
+							{
+								startIndex = i + 1;
+							}
+							else
+							{
+								endIndex = i - 1;
+								break;
+							}
+						}
+					}
+
+					label = s.substr(startIndex, endIndex - startIndex + 1);
+				}
+				else if (toks[0] == IDENTIFIER_TOKEN)
+				{
+					classname = toks[1];
+				}
+				else if (toks[0] == REQUIRE_TOKEN)
+				{
+					// No need to do anything as compose algo parses this
+
+					break;
+				}
+				else if (toks[0] == INCLUDE_TOKEN)
+				{
+					// TODO : allow for including normal c++ files
+					includes += s + "\n";
+				}
+				else
+				{
+					std::cout << "dtbuild: error: Syntax error: line " << lineIndex << std::endl;
+					failed = true;
+					return {};
+				}
+				lineIndex++;
+				continue;
+			}
+
+			script += "\n\t\t" + s;
+			lineIndex++;
+		}
+		if (label.empty())
+		{
+			std::cout << "dtbuild: error: $label must be defined in indicator '" + filename + "'\n";
+			failed = true;
+			return {};
+		}
+
+		str::find_and_replace(buffer, INCLUDES_HOOK, includes);
+		str::find_and_replace(buffer, INDICATOR_CLASS_HOOK, classname);
+		str::find_and_replace(buffer, INDICATOR_LABEL_HOOK, label);
+		str::find_and_replace(buffer, CALCULATE_SCRIPT_HOOK, script);
+
+		return {classname, buffer};
 	}
 
-	/****************************************************
+	/*************************
+ 	 *   Compose Algorithm   *
+ 	 *************************/
+
+	std::string compose_algorithm(const std::string &dir, const std::string &filepath)
+	{
+		using namespace daytrender;
+		std::string buffer{
+#include "algorithm.def"
+		};
+		std::string algo_name, script, indicator_definition_glob, includes, filename, action_glob;
+		std::vector<std::string> input_file, requires;
+		std::vector<std::vector<std::string>> indicator_variables;
+		std::unordered_map<std::string, int> req_depths;
+		std::vector<std::pair<std::string, std::string>> indicator_definitions;
+		tokenlist tokens;
+		filename = str::get_filename(filepath);
+
+		// inserting action definitions at top of output file
+		action_glob += "#define " ACTION_NOTHING_PROXY " return " + std::to_string(ACTION_NOTHING) + "\n";
+		action_glob += "#define " ACTION_SELL_PROXY " return " + std::to_string(ACTION_SELL) + "\n";
+		action_glob += "#define " ACTION_BUY_PROXY " return " + std::to_string(ACTION_BUY) + "\n\n";
+		buffer.insert(0, action_glob);
+
+		script = file::read_file_as_string(filepath);
+		if (script.empty())
+		{
+			std::cout << "dtbuild: fatal: Failed to open the input file!\n";
+		}
+
+		tokens = lex(script, filepath);
+		if (tokens.empty())
+		{
+			return "";
+		}
+
+		std::cout << "\n*********************************\nTokens received\n*********************************\n\n";
+
+		syntax_error(filepath, "invalid preprocessor keyword", tokens[1].line, tokens[1].column-1, tokens[1].value.size()+1);
+		/****************************************************
 	 * Handling preprocessor/psuedo calls in algorithm	*
 	 ****************************************************/
 
-	unsigned line = 1;
-	for (unsigned i = 0; i < tokens.size(); i++)
-	{
-		switch (tokens[i].type)
+		unsigned line = 1;
+		bool error = false;
+		for (unsigned i = 0; i < tokens.size(); i++)
 		{
+			switch (tokens[i].type)
+			{
 
 			case DOLLAR_SIGN:
 				i++;
@@ -234,9 +273,8 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 					}
 					i++;
 					algo_name = tokens[i].value;
-					algo_name.pop_back();
-					algo_name.erase(0, 1);
-					std::cout << "ALGO NAME: " << "'" << algo_name << "'" << std::endl;
+					std::cout << "ALGO NAME: "
+							  << "'" << algo_name << "'" << std::endl;
 				}
 				else
 				{
@@ -244,55 +282,62 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 					return "";
 				}
 				break;
+			// potential invalid memory access
 			case POUND_SIGN:
 				i++;
 				if (tokens[i].value == REQUIRE_TOKEN)
-				{
-					std::string filepath = tokens[++i].value;
-					filepath.pop_back();
-					filepath.erase(0, 1);
+				{	
+					i++;
+					if (tokens[i].type != STRING_LITERAL)
+					{
+						syntax_error(filepath, "invalid argument type for preprocessor directive",
+							tokens[i].line, tokens[i].column, tokens[i].value.size());
+							return "";
+					}
+					std::string filepath = tokens[i].value;
 					requires.push_back(filepath);
 				}
 				else if (tokens[i].value == INCLUDE_TOKEN)
 				{
+					i++;
+
 					// adding the tokens to the include glob
 					includes += tokens[i - 1].value;
 					while (tokens[i].value != "\n")
 					{
 						includes += tokens[i].value + ' ';
+
 						i++;
 					}
 					includes += tokens[i].value;
 				}
 				else
 				{
-					std::cout << "dtbuild: error: invalid keyword '#" << tokens[i].value << "' used: line " << line << "\n";
-					return "";
+					//syntax_error(filepath, "invalid preprocessor directive", 
 				}
 				break;
+			}
 		}
-	}
-
-	// aborting if there was no name defined in algo
-	if (algo_name.empty())
-	{
-		std::cout << "dtbuild: fatal: '" << filename << "'A name must be defined!\n";
-		return "";
-	}
-
-	/********************************************
-	 * Populating list of indicator definitions	*
-	 ********************************************/
-
-	/************************************************************
-	 *	Parsing indicator declarations and cleaning up tokens	*
-	 ************************************************************/
-	unsigned offset = 0;
-	line = 1;
-	for (unsigned i = 0; i < tokens.size(); i++)
-	{
-		switch (tokens[i].type)
+		// aborting if there was no name defined in algo
+		if (algo_name.empty())
 		{
+			std::cout << "dtbuild: fatal: '" << filename << "'A name must be defined!\n";
+			return "";
+		}
+
+		/********************************************
+	 	 * Populating list of indicator definitions	*
+	 	 ********************************************/
+
+		/************************************************************
+	 	 *	Parsing indicator declarations and cleaning up tokens	*
+	 	 ************************************************************/
+		unsigned offset = 0;
+		line = 1;
+		for (unsigned i = 0; i < tokens.size(); i++)
+		{
+			switch (tokens[i].type)
+			{
 
 			case DOLLAR_SIGN:
 				/*
@@ -324,8 +369,8 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 					continue;
 				}
 				break;
-		}
-		/*
+			}
+			/*
 		if (pseudoident[script_toks[i]])
 		{
 			std::cout << "PSEUDOIDENT: " << script_toks[i] << std::endl;
@@ -341,14 +386,14 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 			continue;
 		}
 		*/
-		tokens[i - offset] = tokens[i];
-	}
+			tokens[i - offset] = tokens[i];
+		}
 
-	//tokens.resize(tokens.size() - offset);
+		//tokens.resize(tokens.size() - offset);
 
-	return "";
-	script.clear();
-/*
+		return "";
+		script.clear();
+		/*
 	unsigned tabs_level = 1;
 	for (unsigned i = 0; i < tokens.size(); i++)
 	{
@@ -392,45 +437,48 @@ std::string compose_algorithm(const std::string &dir, const std::string &filepat
 	std::cout << "Script:\n" << script << std::endl;
 */
 
-	return "";
-	/************************************************
+		return "";
+		/************************************************
 	 * 	Converting pseudoidentifiers into real data	*
 	 ************************************************/
 
-	std::string indi_decl, indi_data, dataset_init;
-	for (const std::vector<std::string>& v : indicator_variables)
-	{
-		std::string data_var_name = v[1];
-		std::string var_name = v[1] + INDICATOR_FOOTER;
-		indi_decl += v[0] + " " + var_name;
-		for (unsigned i = 2; i < v.size(); i++)
+		std::string indi_decl, indi_data, dataset_init;
+		for (const std::vector<std::string> &v : indicator_variables)
 		{
-			indi_decl += v[i];
-			if (v[i] == ",")
+			std::string data_var_name = v[1];
+			std::string var_name = v[1] + INDICATOR_FOOTER;
+			indi_decl += v[0] + " " + var_name;
+			for (unsigned i = 2; i < v.size(); i++)
 			{
-				indi_decl += " ";
+				indi_decl += v[i];
+				if (v[i] == ",")
+				{
+					indi_decl += " ";
+				}
 			}
+			indi_decl += "\n";
+
+			indi_data += "\n\tconst std::vector<double>& " + data_var_name + " = dataset.at(\"" + data_var_name + "\").data;";
+			dataset_init += "\n\tdataset[\"" + data_var_name + "\"] = " + var_name + ".calculate(candles);";
 		}
-		indi_decl += "\n";
 
-		indi_data += "\n\tconst std::vector<double>& " + data_var_name + " = dataset.at(\"" + data_var_name + "\").data;";
-		dataset_init += "\n\tdataset[\"" + data_var_name + "\"] = " + var_name + ".calculate(candles);";
+		// replacing hooks in output buffer
+		str::find_and_replace(buffer, ALGORITHM_NAME_HOOK, algo_name);
+		str::find_and_replace(buffer, INCLUDES_HOOK, includes);
+		str::find_and_replace(buffer, INDICATOR_DEFINE_HOOK, indicator_definition_glob);
+		str::find_and_replace(buffer, INDICATOR_DECLARE_HOOK, indi_decl);
+		str::find_and_replace(buffer, INDICATOR_DATA_HOOK, indi_data);
+		str::find_and_replace(buffer, ALGORITHM_SCRIPT_HOOK, script);
+		str::find_and_replace(buffer, DATASET_INIT_HOOK, dataset_init);
+
+		return buffer;
 	}
-
-	// replacing hooks in output buffer
-	str::find_and_replace(buffer, ALGORITHM_NAME_HOOK, algo_name);
-	str::find_and_replace(buffer, INCLUDES_HOOK, includes);
-	str::find_and_replace(buffer, INDICATOR_DEFINE_HOOK, indicator_definition_glob);
-	str::find_and_replace(buffer, INDICATOR_DECLARE_HOOK, indi_decl);
-	str::find_and_replace(buffer, INDICATOR_DATA_HOOK, indi_data);
-	str::find_and_replace(buffer, ALGORITHM_SCRIPT_HOOK, script);
-	str::find_and_replace(buffer, DATASET_INIT_HOOK, dataset_init);
-
-	return buffer;
 }
 
 int main(int argc, char *argv[])
 {
+	using namespace dtbuild;
+
 	if (argc == 1)
 	{
 		std::cout << "dtbuid: fatal: No input files!\n";
@@ -443,7 +491,7 @@ int main(int argc, char *argv[])
 
 	cwd = std::filesystem::current_path().string() + "/.";
 	std::string rdir = str::get_folder(std::string(argv[0]));
-	if(cwd == rdir)
+	if (cwd == rdir)
 	{
 		execdir = rdir;
 	}
@@ -476,7 +524,7 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			if(filepath.empty())
+			if (filepath.empty())
 			{
 				filepath = argv[i];
 			}
@@ -553,7 +601,7 @@ int main(int argc, char *argv[])
 
 		for (char c : algo_buf)
 		{
-			if(c == '\n')
+			if (c == '\n')
 			{
 				putchar(c);
 				line++;
@@ -575,8 +623,7 @@ int main(int argc, char *argv[])
 		output_name = algo_folder;
 	}
 	output_name += odir + "/" + basename + ".so";
-	std::string cmd = cxx + " " + cxxflags + temp_output_filename + " -o " + output_name
-		+ " -I" + execdir + "/algorithms/include " + lflags;
+	std::string cmd = cxx + " " + cxxflags + temp_output_filename + " -o " + output_name + " -I" + execdir + "/algorithms/include " + lflags;
 	// std::cout << "Algo Folder: " << algo_folder << std::endl;
 	if (system(cmd.c_str()))
 	{
@@ -587,7 +634,7 @@ int main(int argc, char *argv[])
 		failed = true;
 		std::cout << "dtbuild: error: Failed to remove temp files!\n";
 	}
-	if(failed)
+	if (failed)
 	{
 		std::cout << "dtbuild: failed to compile '" + output_name + "'!\n";
 	}
