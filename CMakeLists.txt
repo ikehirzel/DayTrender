@@ -12,7 +12,7 @@ file(CREATE_LINK ../config config SYMBOLIC)
 file(CREATE_LINK ../algorithms algorithms SYMBOLIC)
 
 add_executable(daytrender ${DAYTRENDER_SRCS})
-add_executable(dtbuild ./src/dtbuild/dtbuild.cpp src/dtbuild/lexer.cpp)
+add_executable(dtbuild ./src/dtbuild/dtbuild.cpp src/dtbuild/lexer.cpp src/dtbuild/parser.cpp)
 
 # setting properties
 set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)

@@ -6,40 +6,9 @@
 
 #include <hirzel/strutil.h>
 
-
-/*
-	Giga chad version:
-
-	all algorithms and indicators are compiled and they do not directly interact with each other
-	TradeAlgorithms will handle the calls ( get the data from the indicators, pass the dataset to the algo)
-	this saves on space a bunch and compile time because indicators do not get recompiled every time
-
-	parsing will still happen for convenience they will all be able to be written like scripts but 
-	c++ will handle the "int main (const indicator_dataset& dataset, algorithm_data& out)" stuff so that
-	it doesn't get in the way of the main point: writing an algorithm
-
-	trade algorithm 
-	tradealgorithm passes candles into 
-
-
-	indicator EMA (double ratio)
-	algorithm Simple_MA (EMA<0.5> short, EMA<0.8> long)
-
-*/
-
-
 namespace dtbuild
 {
 	std::unordered_map<std::string, short> token_types;
-
-	enum lex_states: short
-	{
-		NORMAL_MODE,
-		IS_LCOMMENT,
-		IS_BCOMMENT,
-		IS_STR_LIT,
-		IS_CHAR_LIT
-	};
 
 	tokenlist lex(const std::string& src, const std::string& filepath)
 	{
@@ -70,8 +39,12 @@ namespace dtbuild
 				{ ";",	SEMICOLON	},
 				{ ":",	COLON		},
 				{ "&",	AND			},
-				{ "=",	EQUALS		},
+				{ "&&",	AND_COMP	},
 				{ "|",	OR			},
+				{ "||",	OR_COMP		},
+				{ "=",	EQUALS_ASGN	},
+				{ "==",	EQUALS_COMP	},
+				{ "!=",	EQUALS_COMP	},
 				{ "#",	POUND_SIGN	},
 				{ "$",	DOLLAR_SIGN	},
 				{ "\n",	NEW_LINE	},
@@ -80,6 +53,9 @@ namespace dtbuild
 				{ "//",	LINE_COMMENT},
 				{ "/*",	COMMENT_START},
 				{ "*/",	COMMENT_END},
+				{ "return", RETURN },
+				{ "int", INT_TYPE },
+				{ "algorithm", ALGORITHM_TYPE },
 				{ "#include", INCLUDE_PREPRO },
 				{ "#require", REQUIRE_PREPRO },
 				{ "buy()", BUY_CALL },
@@ -102,7 +78,7 @@ namespace dtbuild
 
 		long line = 1;
 		int col = 1;
-
+		// used to see what the last meaningful type is
 		for (long i = 0; i < str_toks.size(); i++)
 		{
 			toks[i].value = str_toks[i];
@@ -131,8 +107,8 @@ namespace dtbuild
 							{
 								if (!str::is_digit(toks[i].value[c]) && !str::is_alpha(toks[i].value[c]) && toks[i].value[c] != '_')
 								{
-									toks[i].type = ERROR_TYPE;
-									break;
+									syntax_error(filepath, "invalid character in identifier name", toks[i].line, toks[i].column, toks[i].value.size());
+									return {};
 								}
 							}
 						}
@@ -143,25 +119,14 @@ namespace dtbuild
 							{
 								if (!str::is_digit(toks[i].value[c]))
 								{
-									toks[i].type = ERROR_TYPE;
-									break;
+									syntax_error(filepath, "invalid character in number literal", toks[i].line, toks[i].column, toks[i].value.size());
+									return {};
 								}
 							}
 						}
 					}
 					break;
 			}
-		}
-
-		long cur = 0;
-		for (long i = 0; i < toks.size(); i++)
-		{
-			if (toks[i].line > cur)
-			{
-				//std::cout << '\n';
-				cur = toks[i].line;
-			}
-			//std::cout << "[" << toks[i].line << "]: " <<  toks[i].value << ", col: " << toks[i].column << std::endl;
 		}
 
 		/*********************************
@@ -175,7 +140,6 @@ namespace dtbuild
 		{
 			toks[ai] = toks[ei];
 			short tmp_type = 0, tmp_end = 0;
-			bool error = false;
 			switch (toks[ai].type)
 			{
 				case NUM_LITERAL:
@@ -261,22 +225,24 @@ namespace dtbuild
 						syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
 						return {};
 					}
-					toks[ai].value += toks[ei + 1].value;
-					std::cout << "toks ai : " << toks[ai].value << std::endl;
+					ei++;
+					toks[ai].value += toks[ei].value;
 					toks[ai].type = token_types[toks[ai].value];
-					std::cout << "toks ait: " << toks[ai].type << std::endl;
 					if (toks[ai].type == NO_TYPE)
 					{
 						syntax_error(filepath, "invalid proprocessing directive '" + toks[ai].value + "'",
 							toks[ai].line, toks[ai].column, toks[ai].value.size());
 						return {};
 					}
-					ei++;
+					break;
+
+				case LPAREN:
+					std::cout << ai << ": " << toks[ai].value << std::endl;
 					break;
 
 				case RPAREN:
 					if (ai < 2) break;
-					if (toks[ai - 1].type = LPAREN && toks[ai - 2].type == IDENTIFIER)
+					if (toks[ai - 1].type == LPAREN && toks[ai - 2].type == IDENTIFIER)
 					{
 						tmp = toks[ai - 2].value + toks[ai - 1].value + toks[ai].value;
 						tmp_type = token_types[tmp];
@@ -296,7 +262,7 @@ namespace dtbuild
 
 		/*****************************************
 		 *   Removing blank space and comments   *
-		 *****************************************/	
+		 *****************************************/
 
 		ai = 0;
 		for (long ei = 0; ei < toks.size(); ei++)
@@ -336,37 +302,56 @@ namespace dtbuild
 		short tabsLevel = 0;
 		bool newline = false;
 		long currline = 0;
-
+		std::string output;
 		for (long i = 0; i < toks.size(); i++)
 		{
 			const std::string& t = toks[i].value;
+
 			if (toks[i].line > currline)
 			{
-				std::cout << '\n';
+				output += '\n';
 				currline = toks[i].line;
+				for (int i = 0; i < tabsLevel; i++) output += '\t';
 			}
-			
-			std::cout << t << ' ';
+
 			switch (toks[i].type)
 			{
+				case STRING_LITERAL:
+					output += '"' + t + "\" ";
+					break;
+
+				case RPAREN:
+				case SEMICOLON:
+					output += t;
+					break;
+
 				case LBRACE:
-					//std::cout << '\n';
+					//output.pop_back();
 					tabsLevel++;
-					for (int i = 0; i < tabsLevel; i++) std::cout << '\t';
+					output += t;
 					break;
 
 				case RBRACE:
-					//std::cout << '\n';
+					output.pop_back();
 					tabsLevel--;
-					for (int i = 0; i < tabsLevel; i++) std::cout << '\t';
+					output += t;
 					break;
 
 				default:
+					output += t + ' ';
 					break;
 			}
 		}
 
-		std::cout << "\n\n*********************************\nEnd lexing phase...\n*********************************\n\n";
+		output += "\n\n";
+		std::cout << output;
+
+		for (long i = 0; i < toks.size(); i++)
+		{
+			std::cout << i << ": " << toks[i].value;
+			for (int j = 0; j < 12 - toks[i].value.size(); j++) std::cout << ' ';
+			std::cout << "type: " << toks[i].type << std::endl;
+		}
 
 		return toks;
 	}

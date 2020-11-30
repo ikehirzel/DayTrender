@@ -15,6 +15,7 @@
 
 #include "../data/action.h"
 #include "lexer.h"
+#include "parser.h"
 
 #define TEMP_OUTPUT_EXTENSION ".cpp"
 
@@ -59,22 +60,6 @@
 
 using namespace hirzel;
 
-bool failed = false;
-
-std::string mstr =
-	R"(
-int val()
-{
-	// this is a comment
-	/*
-	this is a block
-	comment*/
-	str s = "HELLO MAN !!!";
-	int i = 0;
-	i += 2;
-	return i;
-})";
-
 namespace dtbuild
 {
 	void syntax_error(const std::string& filepath, const std::string& msg, long line, int col, int width)
@@ -111,107 +96,6 @@ namespace dtbuild
 		std::cout << RESET_ESCAPE << '\n';		
 	}
 
-	//takes in path to indicators script and returns a pair of its identifier and definition (in that order)
-	std::pair<std::string, std::string> compose_indicator(const std::string &dir, const std::string &filename)
-	{
-		std::string buffer{
-#include "indicator.def"
-		};
-
-		std::string label, script, classname, includes;
-		std::vector<std::string> file = file::read_file_as_vector(dir + "/indicators/" + filename);
-
-		if (file.empty())
-		{
-			std::cout << "dtbuild: error: Failed to load file '" + filename + "'\n";
-			failed = true;
-			return {"", ""};
-		}
-
-		script += '\n';
-
-		unsigned lineIndex = 1;
-		for (std::string s : file)
-		{
-			std::vector<std::string> toks = str::tokenize(s, "\t ");
-			if (toks[0][0] == '$' || toks[0][0] == '#')
-			{
-				if (toks.size() < 2)
-				{
-					failed = true;
-					std::cout << "dtbuild: error: '" << filename << "': Invalid amount of args in preprocessor directive at line: " << lineIndex << std::endl;
-				}
-
-				if (toks[0] == LABEL_TOKEN)
-				{
-					if (!label.empty())
-					{
-						std::cout << "dtbuild: error: Redefinition of indicator label!\n";
-						failed = true;
-						return {"", ""};
-					}
-					int startIndex = -1, endIndex = -1;
-					for (unsigned int i = 0; i < s.size(); i++)
-					{
-						if (s[i] == '"')
-						{
-							if (startIndex == -1)
-							{
-								startIndex = i + 1;
-							}
-							else
-							{
-								endIndex = i - 1;
-								break;
-							}
-						}
-					}
-
-					label = s.substr(startIndex, endIndex - startIndex + 1);
-				}
-				else if (toks[0] == IDENTIFIER_TOKEN)
-				{
-					classname = toks[1];
-				}
-				else if (toks[0] == REQUIRE_TOKEN)
-				{
-					// No need to do anything as compose algo parses this
-
-					break;
-				}
-				else if (toks[0] == INCLUDE_TOKEN)
-				{
-					// TODO : allow for including normal c++ files
-					includes += s + "\n";
-				}
-				else
-				{
-					std::cout << "dtbuild: error: Syntax error: line " << lineIndex << std::endl;
-					failed = true;
-					return {};
-				}
-				lineIndex++;
-				continue;
-			}
-
-			script += "\n\t\t" + s;
-			lineIndex++;
-		}
-		if (label.empty())
-		{
-			std::cout << "dtbuild: error: $label must be defined in indicator '" + filename + "'\n";
-			failed = true;
-			return {};
-		}
-
-		str::find_and_replace(buffer, INCLUDES_HOOK, includes);
-		str::find_and_replace(buffer, INDICATOR_CLASS_HOOK, classname);
-		str::find_and_replace(buffer, INDICATOR_LABEL_HOOK, label);
-		str::find_and_replace(buffer, CALCULATE_SCRIPT_HOOK, script);
-
-		return {classname, buffer};
-	}
-
 	/*************************
  	 *   Compose Algorithm   *
  	 *************************/
@@ -219,8 +103,9 @@ namespace dtbuild
 	std::string compose_algorithm(const std::string &dir, const std::string &filepath)
 	{
 		using namespace daytrender;
-		std::string buffer{
-#include "algorithm.def"
+		std::string buffer
+		{
+			#include "algorithm.def"
 		};
 		std::string algo_name, script, indicator_definition_glob, includes, filename, action_glob;
 		std::vector<std::string> input_file, requires;
@@ -228,13 +113,9 @@ namespace dtbuild
 		std::unordered_map<std::string, int> req_depths;
 		std::vector<std::pair<std::string, std::string>> indicator_definitions;
 		tokenlist tokens;
+		Program program;
 		filename = str::get_filename(filepath);
 
-		// inserting action definitions at top of output file
-		action_glob += "#define " ACTION_NOTHING_PROXY " return " + std::to_string(ACTION_NOTHING) + "\n";
-		action_glob += "#define " ACTION_SELL_PROXY " return " + std::to_string(ACTION_SELL) + "\n";
-		action_glob += "#define " ACTION_BUY_PROXY " return " + std::to_string(ACTION_BUY) + "\n\n";
-		buffer.insert(0, action_glob);
 
 		script = file::read_file_as_string(filepath);
 		if (script.empty())
@@ -248,12 +129,19 @@ namespace dtbuild
 			return "";
 		}
 
-		std::cout << "\n*********************************\nTokens received\n*********************************\n\n";
+		std::cout << "\n*********************************\nParsing tokens\n*********************************\n\n";
 
-		syntax_error(filepath, "invalid preprocessor keyword", tokens[1].line, tokens[1].column-1, tokens[1].value.size()+1);
-		/****************************************************
-	 * Handling preprocessor/psuedo calls in algorithm	*
-	 ****************************************************/
+		/**********************
+	 	 *   Parsing tokens   *
+	 	 **********************/
+
+		program = parse(tokens, filepath);
+		if (program.funcs.empty())
+		{
+			return "";
+		}
+
+		return "";
 
 		unsigned line = 1;
 		bool error = false;
@@ -325,122 +213,10 @@ namespace dtbuild
 			return "";
 		}
 
-		/********************************************
-	 	 * Populating list of indicator definitions	*
-	 	 ********************************************/
-
-		/************************************************************
-	 	 *	Parsing indicator declarations and cleaning up tokens	*
-	 	 ************************************************************/
-		unsigned offset = 0;
-		line = 1;
-		for (unsigned i = 0; i < tokens.size(); i++)
-		{
-			switch (tokens[i].type)
-			{
-
-			case DOLLAR_SIGN:
-				/*
-				while (tokens[i].type != NEW_LINE)
-				{
-					offset++;
-					i++;
-				}
-				*/
-				// curr token is a newline
-				line++;
-				offset++;
-				continue;
-
-			case POUND_SIGN:
-				if (tokens[i].value == REQUIRE_TOKEN)
-				{
-					offset += 2;
-					i += 2;
-					/*
-					while (tokens[i].type != NEW_LINE)
-					{
-						offset++;
-						i++;
-					}
-					*/
-					line++;
-					offset++;
-					continue;
-				}
-				break;
-			}
-			/*
-		if (pseudoident[script_toks[i]])
-		{
-			std::cout << "PSEUDOIDENT: " << script_toks[i] << std::endl;
-			std::vector<std::string> var_toks;
-			while (script_toks[i] != ";")
-			{
-				var_toks.push_back(script_toks[i]);
-				offset++;
-				i++;
-			}
-			indicator_variables.push_back(var_toks);
-			offset++;
-			continue;
-		}
-		*/
-			tokens[i - offset] = tokens[i];
-		}
-
-		//tokens.resize(tokens.size() - offset);
-
 		return "";
-		script.clear();
-		/*
-	unsigned tabs_level = 1;
-	for (unsigned i = 0; i < tokens.size(); i++)
-	{
-		const std::string& t = tokens[i].value;
-		switch(t[0])
-		{
-			case '(':
-				if (script.back() == ' ') script.pop_back();
-				script += t;
-				break;
-
-			case ')':
-				if (script.back() == ' ') script.pop_back();
-				script += t;
-				break;
-
-			case '{':
-				script += '\n' + t;
-				tabs_level++;
-				break;
-
-			case '}':
-				script.pop_back();
-				script += t + '\n';
-				tabs_level--;
-				break;
-			case ';':
-				if(script.back() == ' ') script.pop_back();
-				script += t;
-				break;
-			case '\n':
-				script += t;
-				for (unsigned i = 0; i < tabs_level; i++) script += '\t';
-				break;
-
-			default:
-				script += t + ' ';
-				break;
-		}
-	}
-	std::cout << "Script:\n" << script << std::endl;
-*/
-
-		return "";
-		/************************************************
-	 * 	Converting pseudoidentifiers into real data	*
-	 ************************************************/
+		/***************************************************
+	 	 *   Converting pseudoidentifiers into real data   *
+	 	 ***************************************************/
 
 		std::string indi_decl, indi_data, dataset_init;
 		for (const std::vector<std::string> &v : indicator_variables)
@@ -576,7 +352,6 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	// std::cout << "SCRIPT FILENAME: " << script_filepath << std::endl;
 	std::string algo_folder = str::get_folder(filepath);
 	// adding extension on end of file
 
@@ -585,11 +360,6 @@ int main(int argc, char *argv[])
 	std::string algo_buf = compose_algorithm(algo_folder, filepath);
 
 	if (algo_buf.empty())
-	{
-		return 1;
-	}
-
-	if (failed)
 	{
 		return 1;
 	}
@@ -625,6 +395,7 @@ int main(int argc, char *argv[])
 	output_name += odir + "/" + basename + ".so";
 	std::string cmd = cxx + " " + cxxflags + temp_output_filename + " -o " + output_name + " -I" + execdir + "/algorithms/include " + lflags;
 	// std::cout << "Algo Folder: " << algo_folder << std::endl;
+	bool failed = false;
 	if (system(cmd.c_str()))
 	{
 		failed = true;
@@ -634,10 +405,5 @@ int main(int argc, char *argv[])
 		failed = true;
 		std::cout << "dtbuild: error: Failed to remove temp files!\n";
 	}
-	if (failed)
-	{
-		std::cout << "dtbuild: failed to compile '" + output_name + "'!\n";
-	}
-
 	return failed;
 }

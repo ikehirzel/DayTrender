@@ -1,39 +1,100 @@
 #pragma once
 
 #include <vector>
+#include "lexer.h"
+
+/* BNF of DTScript:
+ * 
+ * PROG		::= FUNCS
+ * 
+ * FUNC		::= TYPE IDENT ( ARGLIST ) { STMTS }
+ * FUNCS	::= FUNC | FUNC FUNCS
+ * 
+ * ARG		::= TYPE IDENT | TYPE < ARGLIST > IDENT
+ * ARGLIST	::= ARG | ARG , ARGLIST | ""
+ * 
+ * STMT		::= EXPR OP EXPR ; | TYPENAME ID = EXPR ;| if ( EXPR ) STMT | { STMTLIST } | STMT STMT
+ * 
+ * EXPR		::= TERM +- EXPR | TERM
+ * TERM		::= TERM /* FACTOR | FACTOR
+ * FACTOR	::= ID | ( EXPR ) | CONST
+ * CONST	::= NUM_LITERAL | CHAR_LITERAL | STRING_LITERAL
+ */ 
 
 namespace dtbuild
 {
-	typedef std::vector<std::vector<short>> deflist;
-	struct Operator
+	namespace parser
 	{
-		short type;
-	};
+		enum nonterminal_type : short
+		{
+			PROGRAM = -6,
+			FUNCTION,
+			STATEMENT,
+			EXPRESSION,
+			TYPENAME,
+			TERM,
+			OPERATOR
+		};
 
-	struct Expression
-	{
-		short type;
-	};
+		inline int nt_to_index(short t)
+		{
+			return t + -PROGRAM;
+		}
 
-	struct Statement
-	{
+		typedef std::vector<std::vector<short>> deflist;
+		typedef std::vector<deflist> Grammar;
 
-	};
+		struct Node
+		{
+			short type;
+			union value
+			{
+				std::vector<Node> args;
+				token tok;
+			};
+		};
 
-	struct Program
-	{
-		std::vector<Statement> stmts;
-	};
+		struct Operator
+		{
+			static deflist defs;
+		};
 
-	struct AST
-	{
-		Program prog;
-	};
+		struct Expression
+		{
+			static deflist defs;
+			std::vector<token> args;
+		};
 
-	bool is_expression(short type);
-	bool is_statement(short type);
+		struct Statement
+		{
+			static deflist defs;
+			std::vector<token> args;
+		};
 
-	deflist expression_defs, operator_defs;
+		struct Function
+		{
+			static deflist defs;
+			std::vector<Statement> stmts;
+		};
 
-	AST parse(const tokenlist& toks);
+		struct Program
+		{
+			static deflist defs;
+			std::vector<Function> funcs;
+		};
+		Grammar grammar;
+		typedef bool(*check_func)(const tokenlist&, long);
+		std::vector<check_func> checks;
+		//bool is_program(const tokenlist& toks, long index);
+		bool is_program(const tokenlist& toks, long index);
+		bool is_statement(const tokenlist& toks, long index);
+		//check_func is_statement();
+		check_func is_expression();
+
+		bool is_expression(short type);
+
+		//deflist expression_defs, operator_defs;
+		void init();
+		Program parse(const tokenlist& toks, const std::string& filepath);
+	}
 }
