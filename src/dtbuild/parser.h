@@ -1,100 +1,95 @@
 #pragma once
 
-#include <vector>
 #include "lexer.h"
 
-/* BNF of DTScript:
+#include <vector>
+#include <unordered_map>
+#include <iostream>
+
+/* 
+ * BNF of DTScript:
  * 
- * PROG		::= FUNCS
+ * semantics of the grammar:
+ * definitions in the same list cannot start with the same type ( TERM + EXPR | TERM - EXPR )
+ * as this will make for indeterminate behaviour that will cause premature aborts
+ * comparisons must follow an equivalent till proven not style to allow for empty defs to work
  * 
- * FUNC		::= TYPE IDENT ( ARGLIST ) { STMTS }
- * FUNCS	::= FUNC | FUNC FUNCS
+ * PROG			::= FUNCS
  * 
- * ARG		::= TYPE IDENT | TYPE < ARGLIST > IDENT
- * ARGLIST	::= ARG | ARG , ARGLIST | ""
+ * FUNC			::= TYPE IDENT ( ARGLIST ) STMTS
+ * FUNCS		::= FUNC ...
  * 
- * STMT		::= EXPR OP EXPR ; | TYPENAME ID = EXPR ;| if ( EXPR ) STMT | { STMTLIST } | STMT STMT
+ * ARG			::= TYPE IDENT
+ * ARGS			::= ARG , ...
  * 
- * EXPR		::= TERM +- EXPR | TERM
- * TERM		::= TERM /* FACTOR | FACTOR
- * FACTOR	::= ID | ( EXPR ) | CONST
- * CONST	::= NUM_LITERAL | CHAR_LITERAL | STRING_LITERAL
- */ 
+ * EXPRLIST		::= EXPR , ...
+ * 
+ * DECL_STMT	::= TYPENAME IDENTIFIER DECL_CLAUSE
+ * DECL_CLAUSE	::= '=' DEFINITION
+ * DEFINITION	::= { }
+ * 
+ * IF_STMT		::=	if ( EXPR ) STMTBDY ELSE
+ * ELSE			::= else ELSEBDY | ""
+ * ELSEBDY		::= IFSTMT | STMTBDY
+ * 	
+ * STMT			::= DECL_STMT ; | | CALL_STMT ; | IF_STMT
+ * ASGN_STMT	::= INIT_ID 
+ * STMT1		::= OP EXPR | ""
+ * STMTS		::= STMT STMTS1
+ * STMTS1		::= STMTS | ""
+ * STMTBDY		::= { STMTS } | STMT
+ * 
+ * 
+ * OP			::= EQUALS_ASGN
+ * 
+ * EXPR			::= TERM EXPR1
+ * EXPR1		::= + TERM EXPR1 | - TERM EXPR1 | ""
+ * TERM			::= FACTOR TERM1
+ * TERM1		::= * FACTOR TERM1 | / FACTOR TERM1 | ""
+ * FACTOR		::= SIGN ID | ( EXPR ) | CONST
+ * SIGN			::= + | - | ""
+ * CONST		::= NUM_LITERAL | CHAR_LITERAL | STRING_LITERAL
+ * 
+ */
+
 
 namespace dtbuild
 {
 	namespace parser
 	{
-		enum nonterminal_type : short
-		{
-			PROGRAM = -6,
-			FUNCTION,
-			STATEMENT,
-			EXPRESSION,
-			TYPENAME,
-			TERM,
-			OPERATOR
-		};
-
-		inline int nt_to_index(short t)
-		{
-			return t + -PROGRAM;
-		}
-
-		typedef std::vector<std::vector<short>> deflist;
-		typedef std::vector<deflist> Grammar;
+		extern std::unordered_map<short, std::string> ntnames;
 
 		struct Node
 		{
-			short type;
-			union value
+			short type = NO_TYPE;
+			short subtype = NO_TYPE;
+			std::string value;
+			std::vector<Node> args;
+
+			void print(int depth = 0)
 			{
-				std::vector<Node> args;
-				token tok;
-			};
+				for (int i = 0; i < depth; i++) std::cout << "|\t";
+				std::cout << ntnames[type];
+
+				if (!value.empty())
+				{
+					std::cout << " '" << value << "'";
+				}
+				std::cout << "\n";
+
+				for (int j = 0; j < args.size(); j++)
+				{
+					args[j].print(depth + 1);
+				}
+			}
+
+			bool empty() const
+			{
+				return value.empty() && args.empty();
+			}
 		};
 
-		struct Operator
-		{
-			static deflist defs;
-		};
-
-		struct Expression
-		{
-			static deflist defs;
-			std::vector<token> args;
-		};
-
-		struct Statement
-		{
-			static deflist defs;
-			std::vector<token> args;
-		};
-
-		struct Function
-		{
-			static deflist defs;
-			std::vector<Statement> stmts;
-		};
-
-		struct Program
-		{
-			static deflist defs;
-			std::vector<Function> funcs;
-		};
-		Grammar grammar;
-		typedef bool(*check_func)(const tokenlist&, long);
-		std::vector<check_func> checks;
-		//bool is_program(const tokenlist& toks, long index);
-		bool is_program(const tokenlist& toks, long index);
-		bool is_statement(const tokenlist& toks, long index);
-		//check_func is_statement();
-		check_func is_expression();
-
-		bool is_expression(short type);
-
-		//deflist expression_defs, operator_defs;
 		void init();
-		Program parse(const tokenlist& toks, const std::string& filepath);
+		Node parse(const lexer::tokenlist& toks, const std::string& filepath);
 	}
 }

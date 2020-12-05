@@ -16,6 +16,7 @@
 #include "../data/action.h"
 #include "lexer.h"
 #include "parser.h"
+#include "generator.h"
 
 #define TEMP_OUTPUT_EXTENSION ".cpp"
 
@@ -112,8 +113,8 @@ namespace dtbuild
 		std::vector<std::vector<std::string>> indicator_variables;
 		std::unordered_map<std::string, int> req_depths;
 		std::vector<std::pair<std::string, std::string>> indicator_definitions;
-		tokenlist tokens;
-		Program program;
+		lexer::tokenlist tokens;
+		parser::Node program;
 		filename = str::get_filename(filepath);
 
 
@@ -122,8 +123,8 @@ namespace dtbuild
 		{
 			std::cout << "dtbuild: fatal: Failed to open the input file!\n";
 		}
-
-		tokens = lex(script, filepath);
+		lexer::init();
+		tokens = lexer::lex(script, filepath);
 		if (tokens.empty())
 		{
 			return "";
@@ -135,12 +136,12 @@ namespace dtbuild
 	 	 *   Parsing tokens   *
 	 	 **********************/
 
-		program = parse(tokens, filepath);
-		if (program.funcs.empty())
+		parser::init();
+		program = parser::parse(tokens, filepath);
+		if (program.empty())
 		{
 			return "";
 		}
-
 		return "";
 
 		unsigned line = 1;
