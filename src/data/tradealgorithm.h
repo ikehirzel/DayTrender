@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "candle.h"
+#include "algodefs.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define ALGORITHM_EXTENSION ".dll"
@@ -21,18 +22,6 @@ namespace hirzel
 
 namespace daytrender
 {
-	struct indicator_data
-	{
-		std::string label;
-		std::vector<double> data;
-	};
-	typedef std::unordered_map<std::string, indicator_data> indicator_dataset;
-	struct algorithm_data
-	{
-		std::unordered_map<std::string, indicator_data> dataset;
-		unsigned int action;
-	};
-
 	class TradeAlgorithm
 	{
 	protected:

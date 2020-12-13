@@ -11,174 +11,151 @@ namespace dtbuild
 	namespace parser
 	{
 		typedef std::vector<std::vector<short>> deflist;
-		std::unordered_map<short, deflist> grammar;
-		// nothing that has a null ending type needs to have a grammar name
-		std::unordered_map<short, std::string> ntnames;
-/*
-		std::unordered_map<short, bool (*)(Node&)> grammar_funcs;
-
-		bool match_statement(Node& tree)
-		{
-
-		}
-*/
+		std::unordered_map<std::string, short> types;
+		std::vector<std::string> ntnames;
+		std::vector<deflist> grammar;
 
 		void init()
 		{
-			ntnames[PROGRAM] = "program";
-			grammar[PROGRAM] =
-			{
-				{ FUNC, ELIPSIS }
-			};
+			grammar.resize(NT_CUTOFF + 1);
+			ntnames.resize(NT_CUTOFF + 1);
 
-			ntnames[FUNC] = "function-def";
-			grammar[FUNC] =
-			{
-				{ DECL_ID, LPAREN, ARGS, RPAREN, FUNCBDY }
-			};
+			#define def(t, n, ...) ntnames[t] = n; grammar[t] = { __VA_ARGS__ };
+			#define list(...) { __VA_ARGS__ }
+			#define nodef {}
 
-			ntnames[FUNC_CALL] = "function-call";
-			grammar[FUNC_CALL] =
-			{
-				{ ID, LPAREN, LIST, RPAREN }
-			};
+			def(PROGRAM, "program",
+				list(PROG_ITEM, ELIPSIS))
 
-			ntnames[ARGS] = "argument-list";
-			grammar[ARGS] =
-			{
-				{ DECL_ID, COMMA_ELIPSIS }
-			};
+			def(PROG_ITEM, "program-item",
+				list(ALGO),
+				list(FUNC),
+				list(INDI))
 
-			ntnames[DECL_ID] = "declaration-identifier";
-			grammar[DECL_ID] =
-			{
-				{ TYPE_INIT, ID }
-			};
+			def(ALGO, "algorithm-def",
+				list(ALGORITHM_TYPE, ID, LPAREN, ALGO_ARGS, RPAREN, FUNCBDY))
 
-			ntnames[ID] = "identifier";
-			grammar[ID] =
-			{
-				{ IDENTIFIER }
-			};
+			def(INDI, "indicator-def",
+				list(INDICATOR_TYPE, ID, LPAREN, ARGS, RPAREN, FUNCBDY))
 
-			ntnames[STMT] = "statement";
-			grammar[STMT] =
-			{
-				{ DECL_ID, STMT1, SEMICOLON },
-				{ EXPR, STMT1, SEMICOLON }
+			def(FUNC, "function-def",
+				list(DECL_ID, LPAREN, ARGS, RPAREN, FUNCBDY))
 
-			};
+			def(FUNCBDY, "function-body",
+				list(LBRACE, STMT, ELIPSIS, RBRACE))
+			
+			def(FUNC_CALL, "function-call",
+				list(ID, LPAREN, LIST, RPAREN))
+			
+			def(ARGS, "argument-list",
+				list(DECL_ID, COMMA_ELIPSIS))
+			
+			def(DECL_ID, "identifier-declaration",
+				list(TYPENAME, ID))
+			
+			def(ID, "identifier",
+				list(IDENTIFIER))
 
-			ntnames[STMT1] = "statement-body";
-			grammar[STMT1] =
-			{
-				{ OP, EXPR },
-				{}
-			};
+			def(COMPOUND_STMT, "compound-statement",
+				list(LBRACE, STMT, ELIPSIS, RBRACE))
 
-			ntnames[STMTS] = "statements";
-			grammar[STMTS] =
-			{
-				{ STMT, ELIPSIS }
-			};
+			def(STMT, "statement",
+				list(DECLARATION),
+				list(EXPR_STMT),
+				list(IF_STMT),
+				list(COMPOUND_STMT))
 
-			ntnames[FUNCBDY] = "function-body";
-			grammar[FUNCBDY] =
-			{
-				{ LBRACE, STMTS, RBRACE }
-			};
+			def(STMT1, "statement-body",
+				list(OP, EXPR),
+				nodef)
+			
+			def(EXPR_STMT, "expression-statement",
+				list(EXPR, STMT1, SEMICOLON))
 
-			ntnames[OP] = "operator";
-			grammar[OP] =
-			{
-				{ EQUALS_ASGN },
-				{ PLUS },
-				{ MINUS }
-			};
+			def(IF_STMT, "if-statement",
+				list(IF_KWD, LPAREN, EXPR, RPAREN, STMT))
 
-			ntnames[EXPR] = "expression";
-			grammar[EXPR] =
-			{
-				{ TERM, EXPR1 }
-			};
+			def(FOR_STMT, "for-loop",
+				list(FOR_KWD, LPAREN, EXPR, RPAREN, STMT))
 
-			ntnames[LP_OP] = "operator";
-			grammar[LP_OP] =
-			{
-				{ PLUS },
-				{ MINUS }
-			};
+			def(WHILE_STMT, "while-loop",
+				list(WHILE_KWD, LPAREN, EXPR, RPAREN, STMT))
 
-			ntnames[HP_OP] = "operator";
-			grammar[HP_OP] =
-			{
-				{ ASTERISK },
-				{ SLASH }
-			};
+			def(OP, "operator",
+				list(EQUALS_ASGN),
+				list(PLUS),
+				list(MINUS))
 
-			ntnames[EXPR1] = "expression-body";
-			grammar[EXPR1] =
-			{
-				{ LP_OP, TERM, EXPR1 },
-				{}
-			};
+			def(EXPR, "epxression",
+				list(TERM, EXPR1))
+			
+			def(DECLARATION, "declaration",
+				list(DECL_ID, INITIALIZER, SEMICOLON))
+			
+			def(INITIALIZER, "initializer",
+				list(EQUALS_ASGN, EXPR),
+				nodef)
 
-			ntnames[TERM] = "term";
-			grammar[TERM] = 
-			{
-				{ FACTOR, TERM1 }
-			};
+			def(LP_OP, "low-priority-operator",
+				list(PLUS),
+				list(MINUS))
 
-			ntnames[TERM1] = "term suffix";
-			grammar[TERM1] =
-			{
-				{ HP_OP, TERM },
-				{}
-			};
+			def(HP_OP, "high-priority-operator",
+				list(ASTERISK),
+				list(SLASH))
+			
+			def(EXPR1, "expression-body",
+				list(LP_OP, TERM, EXPR1),
+				nodef)
 
-			ntnames[FACTOR] = "factor";
-			grammar[FACTOR] = 
-			{
-				{ FUNC_CALL },
-				{ ID },
-				{ LPAREN, EXPR, RPAREN },
-				{ CONST }
-			};
+			def(TERM, "term",
+				list(FACTOR, TERM1))
 
-			ntnames[CONST] = "constant";
-			grammar[CONST] =
-			{
-				{ NUM_LITERAL }
-			};
+			def(TERM1, "term-body",
+				list(HP_OP, TERM),
+				nodef)
 
-			ntnames[TYPENAME] = "typename";
-			grammar[TYPENAME] =
-			{
-				{ INT_TYPE },
-				{ ALGORITHM_TYPE },
-				{ INDICATOR_TYPE },
-				{ IDENTIFIER }
-			};
+			def(FACTOR, "factor",
+				list(ID, FACTOR1),
+				list(LPAREN, EXPR, RPAREN),
+				list(CONST),
+				list(FUNC_CALL))
 
-			ntnames[LIST] = "value-list";
-			grammar[LIST] =
-			{
-				{ CONST, COMMA_ELIPSIS },
-				{}
-			};	
+			def(FACTOR1, "factor-body",
+				list(INDEX),
+				list(PERIOD, FUNC_CALL),
+				nodef)
 
-			ntnames[INIT_LIST] = "initializer-list";
-			grammar[INIT_LIST] = 
-			{
-				{ LANGBRACK, LIST, RANGBRACK },
-				{}
-			};
+			def(CONST, "constant",
+				list(NUM_LITERAL))
 
-			ntnames[TYPE_INIT] = "type-initializer";
-			grammar[TYPE_INIT] =
-			{
-				{ TYPENAME, INIT_LIST }
-			};
+			def(TYPENAME, "typename",
+				list(INT_TYPE),
+				list(IDENTIFIER))
+
+			def(LIST, "value-list",
+				list(CONST, COMMA_ELIPSIS),
+				nodef)
+
+			def(INIT_LIST, "initializer-list",
+				list(LANGBRACK, LIST, RANGBRACK),
+				nodef)
+			
+			def(INDI_INIT, "indicator-initializer",
+				list(ID, INIT_LIST))
+
+			def(ALGO_ARG, "argument",
+				list(INDI_INIT, ID));
+				//list(ALGO_ARG, COMMA_ELIPSIS))
+
+			def(ALGO_ARGS, "argument-list",
+				list(ALGO_ARG, COMMA_ELIPSIS))
+
+			def(INDEX, "index-operation",
+				list(LBRACK, EXPR, RBRACK))
+
+			def(THIS_STMT, "this-statement",
+				list(INDEX))
 
 			// validating grammar and sorting defs
 			for (short type = 1; type <= NT_CUTOFF; type++)
@@ -241,14 +218,6 @@ namespace dtbuild
 					defs.erase(defs.begin() + index);
 				}
 			}
-
-			std::cout << "Statement:\n";
-
-			deflist d = grammar[STMT];
-			for (long i = 0; i < d.size(); i++)
-			{
-				std::cout << i << ": " << d[i].size() << std::endl;;
-			}
 		}
 
 		std::string tabs(int amt)
@@ -261,21 +230,10 @@ namespace dtbuild
 			return out;
 		}
 
-		int val()
+//#define DEBUG_OUTPUT
+
+		int create_node(short def_type, Node& tree, const lexer::tokenlist &toks, long index, const std::string& filepath, int depth = 0)
 		{
-			return 1;
-		}
-
-		/*
-		defs: deflist to compare against
-		toks: token list being parsed
-		index: index of the current token
-		*/
-		int matches_definition(short def_type, Node& tree, const lexer::tokenlist &toks, long index, const std::string& filepath, int depth = 0)
-		{
-
-			1 * val();
-
 			int match_count = -1;
 
 			const deflist& def_list = grammar[def_type];
@@ -291,41 +249,33 @@ namespace dtbuild
 				{
 					if (match_count < 0) match_count = 0;
 					matches = 0;
+					#ifdef DEBUG_OUTPUT
 					std::cout << tabs(depth) << "empty def: match is true" << std::endl;
+					#endif
 				}
 
 				for (int i = 0; i < def.size(); i++)
 				{
 					
-					bool is_elipsis = false;
-					if (def[i] == ELIPSIS)
+					int is_elipsis = 0;
+					if (i + 1 < def.size())
 					{
-						i--;
-						is_elipsis = true;
-					}
-					if (def[i] == COMMA_ELIPSIS)
-					{
-						if (toks[index].type == COMMA)
+						if (def[i + 1] == ELIPSIS)
 						{
-							is_elipsis = true;
-							if (match_count < 0) match_count = 0;
-							matches = 1;
-							match_count++;
-							index++;
-							i--;
+							is_elipsis = 1;
 						}
-						else
+						else if (def[i + 1] == COMMA_ELIPSIS)
 						{
-							if (match_count < 0) match_count = 0;
-							matches = 0;
-							continue;
+							is_elipsis = 2;
 						}
 					}
+
 					short type = def[i];
 					bool is_non_terminal = type <= NT_CUTOFF && type > NO_TYPE;
-
-					std::cout << tabs(depth) << "@ TOK: " << toks[index].value << std::endl;
 					
+					#ifdef DEBUG_OUTPUT
+					std::cout << tabs(depth) << "@ TOK: " << toks[index].value << std::endl;
+					#endif
 					// non-terminal
 					if (is_non_terminal)
 					{
@@ -334,8 +284,10 @@ namespace dtbuild
 						n.subtype = j;
 						tree.args.push_back(n);
 
-						std::cout << tabs(depth) <<  "Testing: \033[32m" << ntnames[def[i]] << "\033[0m\n";
-						matches = matches_definition(type, tree.args.back(), toks, index, filepath, depth + 1);
+						#ifdef DEBUG_OUTPUT
+						std::cout << tabs(depth) <<  "[" << type << "] Testing: \033[32m" << ntnames[def[i]] << "\033[0m\n";
+						#endif
+						matches = create_node(type, tree.args.back(), toks, index, filepath, depth + 1);
 					}
 					// terminal
 					else
@@ -346,16 +298,51 @@ namespace dtbuild
 							tree.value = toks[index].value;
 						}
 
+						#ifdef DEBUG_OUTPUT
 						std::cout << tabs(depth) << "Testing type: " << def[i] << std::endl;
+						#endif
+
 						matches = (toks[index].type == type) * 2 - 1;
 					}
 
 					// list did not continue but it is not an error
-					if (is_elipsis && matches < 0)
+					if (is_elipsis == 1)
 					{
-						tree.args.pop_back();
-						matches = 0;
-						i++;
+						if (matches < 0)
+						{
+							tree.args.pop_back();
+							matches = 0;
+							i++;
+						}
+						else
+						{
+							i--;
+						}
+
+					}
+					else if (is_elipsis == 2)
+					{
+						if (matches < 0)
+						{
+							tree.args.pop_back();
+							matches = 0;
+							i++;
+						}
+						// matched def
+						else if (matches > 0)
+						{
+							if (toks[index + matches].type == COMMA)
+							{
+								matches++;
+								//test same def again
+								i--;
+							}
+							else
+							{
+								// test next def
+								i++;
+							}
+						}
 					}
 
 					// did not match
@@ -371,71 +358,66 @@ namespace dtbuild
 							tree.value.clear();
 						}
 
+						#ifdef DEBUG_OUTPUT
 						std::cout << tabs(depth) << "does not match: index: " << i << "\n";
+						#endif
+
 						match_count = -1;
+
 						// did not match first item
 						if (i == 0)
 						{
 							// try next def
 							break;
 						}
+						// did not match second or after element
 						else
 						{
-							i--;
-							if (def[i] == ELIPSIS || def[i] == COMMA_ELIPSIS)
+							int offs = 0;
+							if (def[i - offs] > NT_CUTOFF)
 							{
-								i--;
+								offs++;
+								if (def[i -offs] == ELIPSIS || def[i -offs] == COMMA_ELIPSIS)
+								{
+									offs++;
+								}
 							}
-							std::cout << tabs(depth) << "\033[31;1msyntax error!\033[0m:\texpected "
-								<< ntnames[def[i]] << " before '" << toks[index].value << "' token\n";
-							//syntax_error(filepath, "syntax error!", toks[index].line, toks[index].column, toks[index].value.size());
-							return match_count;
+							std::cout << "Def Type: " << def_type << std::endl;
+							syntax_error(filepath, "syntax error! expected " + ntnames[def[i - offs]] +
+								" before '" + toks[index].value + "' token", toks[index].line,
+								toks[index].column, toks[index].value.size());
+
+							//return match_count;
+							return -1;
 						}
 					}
 					// matched type
 					else
 					{
 						if (match_count < 0) match_count = 0;
-
 						index += matches;
 						match_count += matches;
-						std::cout << tabs(depth) << "matches!: " << matches << "\n";
 
-						//return total_match;
+						#ifdef DEBUG_OUTPUT
+						std::cout << tabs(depth) << "matches!: " << matches << "\n";
+						#endif
 					}
+					#ifdef DEBUG_OUTPUT
 					if (depth == 0) std::cout << "\n\n";
+					#endif
 				}
 
 				if (matches >= 0)
 				{
-					//std::cout << tabs(depth) << "matches: " << matches << std::endl:
+					#ifdef DEBUG_OUTPUT
+					std::cout << tabs(depth) << "matches: " << matches << std::endl;
+					#endif
 					break;
 				}
 			}
-
-			if (!tree.args.empty())
-			{
-				if (tree.args.back().empty())
-				{
-					tree.args.pop_back();
-				}
-			}
-
-			/* 
-				This version will pop anything in the args that is emptybut I think that is
-				unnecessary becase no middle or first node should be empty, but we shall see.
-
-			for (int i = tree.args.size() - 1; i >= 0; i--)
-			{
-				if (tree.args[i].args.empty() && tree.args[i].value.empty())
-				{
-					//tree.args.pop_back();
-					tree.args.erase(tree.args.begin() + i);
-				}
-			}
-			*/
-
+			#ifdef DEBUG_OUTPUT
 			std::cout << tabs(depth) << "\033[33mRETURNING: \033[0m" << match_count << std::endl;
+			#endif
 			return match_count;
 		}
 
@@ -450,16 +432,16 @@ namespace dtbuild
 				return out;
 			}
 
-			std::cout << "\nTokens: ";
+			std::cout << "Tokens: ";
 			for (long i = 0; i < toks.size(); i++)
 			{
 				std::cout << toks[i].type << ' ';
 			}
 
-			std::cout << "\n\n**********************************************\nStarting parsing...\n**********************************************\n\n";
+			std::cout << "\n\n";
 
-			int matches = matches_definition(PROGRAM, out, toks, 0, filepath);
-			//matches = matches_definition(STMT, out, toks, matches, filepath);
+			int matches = create_node(PROGRAM, out, toks, 0, filepath);
+			//matches = create_node(STMT, out, toks, matches, filepath);
 
 			std::cout << "\n**********************************************\n";
 			if (matches != toks.size())
@@ -471,12 +453,10 @@ namespace dtbuild
 			{
 				std::cout << "SUCCESS\n";
 			}
-			std::cout << "**********************************************\n";
+			std::cout << "**********************************************\n\n";
 
 			
 			out.print();
-
-			generate_code(out);
 
 			return out;
 		}

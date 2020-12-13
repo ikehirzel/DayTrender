@@ -1,7 +1,28 @@
-algorithm Simple_MA (EMA<0.5> short, EMA<1.0> long)
+int val()
 {
-	int i = 0;
-	c = 2 * 3;
-	int j = 122;
-	int s = (12 * boy());
+	//return 1;
+	if (i + 1)
+	{
+		int j = 2;
+		int m = 10293;
+	}
+	this[0] = 0;
+}
+
+
+indicator SMA (double ratio)
+{
+	//this[0] = 0.0;
+	//if (1) {}
+}
+
+indicator EMA(double ratio)
+{
+
+}
+
+
+algorithm Simple_MA(EMA<0.5> short, SMA<1.0> long)
+{
+	this.boy();
 }

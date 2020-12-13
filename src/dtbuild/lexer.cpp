@@ -70,11 +70,16 @@ namespace dtbuild
 					{ "return", RETURN },
 					{ "int", INT_TYPE },
 					{ "algorithm", ALGORITHM_TYPE },
+					{ "if", IF_KWD },
+					{ "while", WHILE_KWD },
+					{ "for", FOR_KWD },
+					{ "indicator", INDICATOR_TYPE },
 					{ "#include", INCLUDE_PREPRO },
 					{ "#require", REQUIRE_PREPRO },
 					{ "buy()", BUY_CALL },
 					{ "sell()", SELL_CALL },
-					{ "do_nothing()", NOTHING_CALL }
+					{ "do_nothing()", NOTHING_CALL },
+					{ "print", PRINT_CALL }
 				};
 		}
 
@@ -252,9 +257,9 @@ namespace dtbuild
 						}
 						break;
 
-					case LPAREN:
-						std::cout << ai << ": " << toks[ai].value << std::endl;
-						break;
+					// case LPAREN:
+					// 	std::cout << ai << ": " << toks[ai].value << std::endl;
+					// 	break;
 
 					case RPAREN:
 						if (ai < 2) break;
@@ -334,62 +339,6 @@ namespace dtbuild
 			}
 
 			toks.resize(ai);
-
-			std::cout << "\n*********************************\nBasic Reconstruction\n*********************************\n\n";
-
-			short tabsLevel = 0;
-			bool newline = false;
-			long currline = 0;
-			std::string output;
-			for (long i = 0; i < toks.size(); i++)
-			{
-				const std::string& t = toks[i].value;
-
-				if (toks[i].line > currline)
-				{
-					output += '\n';
-					currline = toks[i].line;
-					for (int i = 0; i < tabsLevel; i++) output += '\t';
-				}
-
-				switch (toks[i].type)
-				{
-					case STRING_LITERAL:
-						output += '"' + t + "\" ";
-						break;
-
-					case RPAREN:
-					case SEMICOLON:
-						output += t;
-						break;
-
-					case LBRACE:
-						//output.pop_back();
-						tabsLevel++;
-						output += t;
-						break;
-
-					case RBRACE:
-						output.pop_back();
-						tabsLevel--;
-						output += t;
-						break;
-
-					default:
-						output += t + ' ';
-						break;
-				}
-			}
-
-			output += "\n\n";
-			std::cout << output;
-
-			for (long i = 0; i < toks.size(); i++)
-			{
-				std::cout << i << ": " << toks[i].value;
-				for (int j = 0; j < 12 - toks[i].value.size(); j++) std::cout << ' ';
-				std::cout << "type: " << toks[i].type << std::endl;
-			}
 
 			return toks;
 		}

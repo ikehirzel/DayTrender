@@ -6,7 +6,7 @@
 
 #include "symbols.h"
 
-namespace dtbuild
+namespace dtbuild 
 {
 	namespace lexer
 	{
@@ -19,9 +19,9 @@ namespace dtbuild
 			long line = 0;
 			int column = 0;
 		};
+		
 		typedef std::vector<token> tokenlist;
 
-		
 		void init();
 		tokenlist lex(const std::string& src, const std::string& filepath);
 	}

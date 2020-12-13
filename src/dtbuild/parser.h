@@ -39,7 +39,6 @@
  * STMTS1		::= STMTS | ""
  * STMTBDY		::= { STMTS } | STMT
  * 
- * 
  * OP			::= EQUALS_ASGN
  * 
  * EXPR			::= TERM EXPR1
@@ -57,7 +56,7 @@ namespace dtbuild
 {
 	namespace parser
 	{
-		extern std::unordered_map<short, std::string> ntnames;
+		extern std::vector<std::string> ntnames;
 
 		struct Node
 		{
@@ -73,7 +72,7 @@ namespace dtbuild
 
 				if (!value.empty())
 				{
-					std::cout << " '" << value << "'";
+					std::cout << ": '" << value << "'";
 				}
 				std::cout << "\n";
 

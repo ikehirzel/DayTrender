@@ -32,7 +32,7 @@ namespace daytrender
 	{
 		bool success = false;
 		algorithm_data data;
-		success = handle->execute_return<bool, algorithm_data&, const candleset&>
+		success = handle->execute_return<void, algorithm_data&, const candleset&>
 			(PROCESS_FUNCTION, data, candles);
 		if(!success)
 		{
