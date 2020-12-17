@@ -37,17 +37,24 @@ namespace dtbuild
 					{ ";",	SEMICOLON	},
 					{ "&",	AND			},
 					{ "|",	OR			},
+					{ "++",	INC			},
+					{ "--",	DEC			},
 
 					// asign operators
+					{ "=",	EQUALS_ASGN	},
 					{ "+=",	ADD_ASGN	},
 					{ "-=",	SUB_ASGN	},
-					{ "=",	EQUALS_ASGN	},
+					{ "*=",	MUL_ASGN	},
+					{ "/=",	DIV_ASGN	},
+					{ "%=",	MOD_ASGN	},
 
 					// comp operators
 					{ "==",	EQUALS_COMP	},
 					{ "!=",	NEQUALS_COMP},
 					{ "&&",	AND_COMP	},
 					{ "||",	OR_COMP		},
+					{ ">=",	GTOET		},
+					{ "<=",	LTOET		},
 
 					// generic types
 					{ "~",	TILDE 		},
@@ -60,6 +67,7 @@ namespace dtbuild
 					{ "\n",	NEW_LINE	},
 					{ "\t",	TAB			},
 					{ " ",	SPACE		},
+					{ "^", 	XOR			},
 
 					// comments
 					{ "//",	LINE_COMMENT},
@@ -68,18 +76,17 @@ namespace dtbuild
 
 					// keywords
 					{ "return", RETURN },
+					{ "break", BREAK },
 					{ "int", INT_TYPE },
+					{ "double", DOUBLE_TYPE },
 					{ "algorithm", ALGORITHM_TYPE },
-					{ "if", IF_KWD },
+					{ "indicator", INDICATOR_TYPE },
+					{ "if", IF_KWD 		},
+					{ "else", ELSE_KWD 	},
 					{ "while", WHILE_KWD },
 					{ "for", FOR_KWD },
-					{ "indicator", INDICATOR_TYPE },
 					{ "#include", INCLUDE_PREPRO },
 					{ "#require", REQUIRE_PREPRO },
-					{ "buy()", BUY_CALL },
-					{ "sell()", SELL_CALL },
-					{ "do_nothing()", NOTHING_CALL },
-					{ "print", PRINT_CALL }
 				};
 		}
 
@@ -128,7 +135,7 @@ namespace dtbuild
 								{
 									if (!str::is_digit(toks[i].value[c]) && !str::is_alpha(toks[i].value[c]) && toks[i].value[c] != '_')
 									{
-										syntax_error(filepath, "invalid character in identifier name", toks[i].line, toks[i].column, toks[i].value.size());
+										std::cout << syntax_error(filepath, "invalid character in identifier name", toks[i].line, toks[i].column, toks[i].value.size());
 										return {};
 									}
 								}
@@ -140,7 +147,7 @@ namespace dtbuild
 								{
 									if (!str::is_digit(toks[i].value[c]))
 									{
-										syntax_error(filepath, "invalid character in number literal", toks[i].line, toks[i].column, toks[i].value.size());
+										std::cout << syntax_error(filepath, "invalid character in number literal", toks[i].line, toks[i].column, toks[i].value.size());
 										return {};
 									}
 								}
@@ -223,7 +230,7 @@ namespace dtbuild
 							}
 							else if (toks[ei].type == NEW_LINE)
 							{
-								syntax_error(filepath, "missing terminating " + tmp + " character", toks[ai].line,
+								std::cout << syntax_error(filepath, "missing terminating " + tmp + " character", toks[ai].line,
 									toks[ai].column -1, 0);
 								return {};
 							}
@@ -238,12 +245,12 @@ namespace dtbuild
 						// these checks are broken up into two so that there is no accidental seg faults
 						if (ei + 1 >= toks.size())
 						{
-							syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
+							std::cout << syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
 							return {};
 						}
 						if (toks[ei].line != toks[ei + 1].line)
 						{
-							syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
+							std::cout << syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
 							return {};
 						}
 						ei++;
@@ -251,7 +258,7 @@ namespace dtbuild
 						toks[ai].type = token_types[toks[ai].value];
 						if (toks[ai].type == NO_TYPE)
 						{
-							syntax_error(filepath, "invalid proprocessing directive '" + toks[ai].value + "'",
+							std::cout << syntax_error(filepath, "invalid proprocessing directive '" + toks[ai].value + "'",
 								toks[ai].line, toks[ai].column, toks[ai].value.size());
 							return {};
 						}

@@ -24,6 +24,11 @@ namespace dtbuild
 			#define list(...) { __VA_ARGS__ }
 			#define nodef {}
 
+			/*
+				Semantics:
+					Optional and the elipses cannot be used with non-terminals
+			*/
+
 			def(PROGRAM, "program",
 				list(PROG_ITEM, ELIPSIS))
 
@@ -33,19 +38,16 @@ namespace dtbuild
 				list(INDI))
 
 			def(ALGO, "algorithm-def",
-				list(ALGORITHM_TYPE, ID, LPAREN, ALGO_ARGS, RPAREN, FUNCBDY))
+				list(ALGORITHM_TYPE, ID, LPAREN, ALGO_ARGS, RPAREN, LBRACE, STMTS, RBRACE))
+
+			def(STMTS, "statements",
+				list(STMT, ELIPSIS))
 
 			def(INDI, "indicator-def",
-				list(INDICATOR_TYPE, ID, LPAREN, ARGS, RPAREN, FUNCBDY))
+				list(INDICATOR_TYPE, ID, LPAREN, ARGS, RPAREN, COMPOUND_STMT))
 
 			def(FUNC, "function-def",
-				list(DECL_ID, LPAREN, ARGS, RPAREN, FUNCBDY))
-
-			def(FUNCBDY, "function-body",
-				list(LBRACE, STMT, ELIPSIS, RBRACE))
-			
-			def(FUNC_CALL, "function-call",
-				list(ID, LPAREN, LIST, RPAREN))
+				list(DECL_ID, LPAREN, ARGS, RPAREN, COMPOUND_STMT))
 			
 			def(ARGS, "argument-list",
 				list(DECL_ID, COMMA_ELIPSIS))
@@ -56,81 +58,13 @@ namespace dtbuild
 			def(ID, "identifier",
 				list(IDENTIFIER))
 
-			def(COMPOUND_STMT, "compound-statement",
-				list(LBRACE, STMT, ELIPSIS, RBRACE))
-
-			def(STMT, "statement",
-				list(DECLARATION),
-				list(EXPR_STMT),
-				list(IF_STMT),
-				list(COMPOUND_STMT))
-
-			def(STMT1, "statement-body",
-				list(OP, EXPR),
-				nodef)
-			
-			def(EXPR_STMT, "expression-statement",
-				list(EXPR, STMT1, SEMICOLON))
-
-			def(IF_STMT, "if-statement",
-				list(IF_KWD, LPAREN, EXPR, RPAREN, STMT))
-
-			def(FOR_STMT, "for-loop",
-				list(FOR_KWD, LPAREN, EXPR, RPAREN, STMT))
-
-			def(WHILE_STMT, "while-loop",
-				list(WHILE_KWD, LPAREN, EXPR, RPAREN, STMT))
-
-			def(OP, "operator",
-				list(EQUALS_ASGN),
-				list(PLUS),
-				list(MINUS))
-
-			def(EXPR, "epxression",
-				list(TERM, EXPR1))
-			
-			def(DECLARATION, "declaration",
-				list(DECL_ID, INITIALIZER, SEMICOLON))
-			
-			def(INITIALIZER, "initializer",
-				list(EQUALS_ASGN, EXPR),
-				nodef)
-
-			def(LP_OP, "low-priority-operator",
-				list(PLUS),
-				list(MINUS))
-
-			def(HP_OP, "high-priority-operator",
-				list(ASTERISK),
-				list(SLASH))
-			
-			def(EXPR1, "expression-body",
-				list(LP_OP, TERM, EXPR1),
-				nodef)
-
-			def(TERM, "term",
-				list(FACTOR, TERM1))
-
-			def(TERM1, "term-body",
-				list(HP_OP, TERM),
-				nodef)
-
-			def(FACTOR, "factor",
-				list(ID, FACTOR1),
-				list(LPAREN, EXPR, RPAREN),
-				list(CONST),
-				list(FUNC_CALL))
-
-			def(FACTOR1, "factor-body",
-				list(INDEX),
-				list(PERIOD, FUNC_CALL),
-				nodef)
-
 			def(CONST, "constant",
-				list(NUM_LITERAL))
+				list(NUM_LITERAL),
+				list(STRING_LITERAL))
 
 			def(TYPENAME, "typename",
 				list(INT_TYPE),
+				list(DOUBLE_TYPE),
 				list(IDENTIFIER))
 
 			def(LIST, "value-list",
@@ -146,16 +80,187 @@ namespace dtbuild
 
 			def(ALGO_ARG, "argument",
 				list(INDI_INIT, ID));
-				//list(ALGO_ARG, COMMA_ELIPSIS))
 
 			def(ALGO_ARGS, "argument-list",
 				list(ALGO_ARG, COMMA_ELIPSIS))
 
-			def(INDEX, "index-operation",
+
+
+			//###########################################
+			//                STATEMENTS                #
+			//###########################################
+
+			def(STMT, "statement",
+				list(EXPR_STMT),
+				list(COMPOUND_STMT),
+				list(SEL_STMT),
+				list(ITER_STMT),
+				list(JUMP_STMT),
+				list(DECL_STMT))
+
+			def(COMPOUND_STMT, "compound-statement",
+				list(LBRACE, STMT, ELIPSIS, RBRACE))
+			
+			def(SEL_STMT, "if-statement",
+				list(IF_KWD, LPAREN, EXPR, RPAREN, STMT, OPTIONAL, ELSE_STMT))
+			
+			def(ELSE_STMT, "else-statment",
+				list(ELSE_KWD, STMT))
+			
+			def(ITER_STMT, "iteration-statement",
+				list(WHILE_STMT),
+				list(FOR_STMT))
+
+			def(EXPR_STMT, "expression-statement",
+				list(OPTIONAL, EXPR, SEMICOLON))
+
+			def(WHILE_STMT, "while-loop",
+				list(WHILE_KWD, LPAREN, EXPR, RPAREN, STMT))
+
+			def(FOR_STMT, "for-loop",
+				list(FOR_KWD, LPAREN, EXPR, SEMICOLON, EXPR, SEMICOLON, EXPR, SEMICOLON, RPAREN, STMT))
+
+			def(JUMP_STMT, "jump-statement",
+				list(RETURN, OPTIONAL, EXPR, SEMICOLON))
+
+			def(DECL_STMT, "declaration-statement",
+				list(DECLARATOR, OPTIONAL, INITIALIZER, SEMICOLON))
+
+			def(DECLARATOR, "declarator",
+				list(TYPENAME, ID))
+
+			def(INITIALIZER, "initializer",
+				list(EQUALS_ASGN, EXPR))
+
+
+
+			//############################################
+			//                EXPRESSIONS                #
+			//############################################
+
+			def(EXPR, "expression",
+				list(ASGN_EXPR),
+				list(COND_EXPR))
+
+			def(ASGN_EXPR, "assignment-expression",
+				list(UNARY_EXPR, ASGN_OP, EXPR))
+
+			def(COND_EXPR, "condition-expression",
+				list(OR_EXPR))
+
+			def(OR_EXPR, "or-expression",
+				list(AND_EXPR, OR_EXPR1, ELIPSIS))
+				
+			def(OR_EXPR1, "or-expression-body",
+				list(OR_COMP, AND_EXPR))
+
+			def(AND_EXPR, "and-expression",
+				list(EQ_EXPR, AND_EXPR1, ELIPSIS))
+
+			def(AND_EXPR1, "and-expression-body",
+				list(AND_COMP, EQ_EXPR))
+
+			def(EQ_EXPR, "equality-expression",
+				list(RELAT_EXPR, EQ_EXPR1, ELIPSIS))
+
+			def(EQ_EXPR1, "equality-expression-body",
+				list(EQ_OP, RELAT_EXPR))
+
+			def(RELAT_EXPR, "relational-expression",
+				list(ADD_EXPR, RELAT_EXPR1, ELIPSIS))
+
+			def(RELAT_EXPR1, "relational-expression-body",
+				list(RELAT_OP, ADD_EXPR))
+
+			def(ADD_EXPR, "additive-expression",
+				list(MUL_EXPR, ADD_EXPR1, ELIPSIS))
+			
+			def(ADD_EXPR1, "additive-expression-body",
+				list(ADD_OP, MUL_EXPR))
+
+			def(MUL_EXPR, "multiplicitive-expression",
+				list(CAST_EXPR, MUL_EXPR1, ELIPSIS))
+
+			def(MUL_EXPR1, "multiplicitive-expression-body",
+				list(MUL_OP, CAST_EXPR))
+
+			def(CAST_EXPR, "cast-expression",
+				list(OPTIONAL, CAST_OP, UNARY_EXPR))
+
+			def(CAST_OP, "cast-operation",
+				list(LPAREN, TYPENAME, RPAREN))
+
+			def(UNARY_EXPR, "unary-expression",
+				list(PRIM_EXPR, POSTFIX_EXPR),
+				list(PREFIX_OP, UNARY_EXPR),
+				list(UNARY_OP, CAST_EXPR))
+
+			def(POSTFIX_EXPR, "postfix-expression",
+				list(POSTFIX_OP, ELIPSIS))
+			
+			def(PRIM_EXPR, "primary-expression",
+				list(ID),
+				list(CONST),
+				list(STRING_LITERAL),
+				list(LPAREN, EXPR, RPAREN))
+
+
+
+			//##########################################
+			//                OPERATORS                #
+			//##########################################
+
+			def(POSTFIX_OP, "postfix-operator",
+				list(INDEX_OP),
+				list(CALL_OP),
+				list(INC),
+				list(DEC))
+
+			def(PREFIX_OP, "prefix-operator",
+				list(INC),
+				list(DEC))
+
+			def(EQ_OP, "equality-operator",
+				list(EQUALS_COMP),
+				list(NEQUALS_COMP))
+
+			def(ADD_OP, "additive-operator",
+				list(PLUS),
+				list(MINUS))
+
+			def(MUL_OP, "multiplicitive-operator",
+				list(ASTERISK),
+				list(SLASH),
+				list(MODULUS))
+
+			def(ASGN_OP, "assignment-operator",
+				list(EQUALS_ASGN),
+				list(ADD_ASGN),
+				list(SUB_ASGN),
+				list(MUL_ASGN),
+				list(DIV_ASGN),
+				list(MOD_ASGN))
+			
+			def(UNARY_OP, "unary-operator",
+				list(AND),
+				list(ASTERISK),
+				list(PLUS),
+				list(MINUS),
+				list(NOT))
+
+			def(RELAT_OP, "relational-operator",
+				list(RANGBRACK),
+				list(LANGBRACK),
+				list(LTOET),
+				list(GTOET))
+
+			def(CALL_OP, "call-operation",
+				list(LPAREN, LIST, RPAREN))
+
+			def(INDEX_OP, "index-operation",
 				list(LBRACK, EXPR, RBRACK))
 
-			def(THIS_STMT, "this-statement",
-				list(INDEX))
+
 
 			// validating grammar and sorting defs
 			for (short type = 1; type <= NT_CUTOFF; type++)
@@ -230,10 +335,19 @@ namespace dtbuild
 			return out;
 		}
 
-//#define DEBUG_OUTPUT
+#define DEBUG_OUTPUT
+
+
+#define ELIPSIS_STATE	1
+#define CELIPSIS_STATE	2
+#define OPTIONAL_STATE	3
+
+		std::vector<std::string> errors;
 
 		int create_node(short def_type, Node& tree, const lexer::tokenlist &toks, long index, const std::string& filepath, int depth = 0)
 		{
+			int i;
+			i+=1, i+=2;
 			int match_count = -1;
 
 			const deflist& def_list = grammar[def_type];
@@ -256,17 +370,24 @@ namespace dtbuild
 
 				for (int i = 0; i < def.size(); i++)
 				{
-					
-					int is_elipsis = 0;
+					int parse_state = 0;
+
 					if (i + 1 < def.size())
 					{
-						if (def[i + 1] == ELIPSIS)
+						if (def[i] == OPTIONAL)
 						{
-							is_elipsis = 1;
+							parse_state = OPTIONAL_STATE;
+							i++;
+							std::cout << "Optional: " << toks[index].value << std::endl;
+							std::cout << "Expecting: " << def[i] << std::endl;
+						}
+						else if (def[i + 1] == ELIPSIS)
+						{
+							parse_state = ELIPSIS_STATE;
 						}
 						else if (def[i + 1] == COMMA_ELIPSIS)
 						{
-							is_elipsis = 2;
+							parse_state = CELIPSIS_STATE;
 						}
 					}
 
@@ -305,9 +426,9 @@ namespace dtbuild
 						matches = (toks[index].type == type) * 2 - 1;
 					}
 
-					// list did not continue but it is not an error
-					if (is_elipsis == 1)
+					switch(parse_state)
 					{
+					case ELIPSIS_STATE:
 						if (matches < 0)
 						{
 							tree.args.pop_back();
@@ -318,10 +439,9 @@ namespace dtbuild
 						{
 							i--;
 						}
+						break;
 
-					}
-					else if (is_elipsis == 2)
-					{
+					case CELIPSIS_STATE:
 						if (matches < 0)
 						{
 							tree.args.pop_back();
@@ -343,6 +463,15 @@ namespace dtbuild
 								i++;
 							}
 						}
+						break;
+
+					case OPTIONAL_STATE:
+						if (matches < 0)
+						{
+							tree.args.pop_back();
+							matches = 0;
+						}
+						break;
 					}
 
 					// did not match
@@ -383,9 +512,9 @@ namespace dtbuild
 								}
 							}
 							std::cout << "Def Type: " << def_type << std::endl;
-							syntax_error(filepath, "syntax error! expected " + ntnames[def[i - offs]] +
+							errors.push_back(syntax_error(filepath, "syntax error! expected " + ntnames[def[i - offs]] +
 								" before '" + toks[index].value + "' token", toks[index].line,
-								toks[index].column, toks[index].value.size());
+								toks[index].column, toks[index].value.size()));
 
 							//return match_count;
 							return -1;
@@ -418,6 +547,17 @@ namespace dtbuild
 			#ifdef DEBUG_OUTPUT
 			std::cout << tabs(depth) << "\033[33mRETURNING: \033[0m" << match_count << std::endl;
 			#endif
+
+			if (match_count >= 0)
+			{
+				//std::cout << "***********************************************\n";
+				//errors.clear();
+				if (errors.size())
+				{
+					errors.pop_back();
+				}
+			}
+
 			return match_count;
 		}
 
@@ -439,15 +579,18 @@ namespace dtbuild
 			}
 
 			std::cout << "\n\n";
-
+			errors.clear();
 			int matches = create_node(PROGRAM, out, toks, 0, filepath);
-			//matches = create_node(STMT, out, toks, matches, filepath);
+			
+			out.print();
 
 			std::cout << "\n**********************************************\n";
 			if (matches != toks.size())
 			{
 				std::cout << "FAILURE\n";
 				std::cout << "toks: " << toks.size() << "\t\tmatches: " << matches << std::endl;
+				out.args.clear();
+				out.value.clear();
 			}
 			else
 			{
@@ -455,8 +598,13 @@ namespace dtbuild
 			}
 			std::cout << "**********************************************\n\n";
 
-			
-			out.print();
+
+			std::cout << "ERROR COUNT: " << errors.size() << std::endl;
+
+			for (const std::string& err : errors)
+			{
+				std::cout << err << "\n\n";
+			}
 
 			return out;
 		}

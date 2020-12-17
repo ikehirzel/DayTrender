@@ -43,11 +43,16 @@ namespace dtbuild
 				break;
 
 			case IF_STMT:
-
 				out += tabs(tab_depth) + "if (";
 				out += generate(tree.args[0]);
-				out += ") ";
+				out += ")\n";
 				out += generate(tree.args[1], tab_depth);
+				break;
+
+			case JUMP_STMT:
+				out += tabs(tab_depth) + "return ";
+				out += generate(tree.args[0]);
+				out += ";\n";
 				break;
 
 			case EXPR_STMT:
@@ -59,7 +64,7 @@ namespace dtbuild
 				out += ";\n";
 				break;
 
-			case INDEX:
+			case INDEX_OP:
 				out += '[';
 				out += generate(tree.args[0]);
 				out += ']';
@@ -83,9 +88,9 @@ namespace dtbuild
 				out += generate(tree.args[0]);
 				out += "(const candleset& _candles, ";
 				out += generate(tree.args[1], tab_depth);
-				out += ")\n" + tabs(tab_depth) + "{\n";
-				out += generate(tree.args[2], tab_depth + 1);
-				out += tabs(tab_depth) + "}\n\n";
+				out += ")\n";
+				out += generate(tree.args[2], tab_depth);
+				out += '\n';
 				break;
 				
 			case ALGO:
@@ -103,17 +108,15 @@ namespace dtbuild
 				out += generate(tree.args[0], tab_depth + 1);
 				out += '(';
 				out += generate(tree.args[1]);
-				out += ")\n" + tabs(tab_depth) + "{\n";
-				out += generate(tree.args[2], tab_depth + 1);
-				out += tabs(tab_depth) + "}\n\n";
+				out += ")\n";
+				out += generate(tree.args[2], tab_depth);
+				out += '\n';
+				std::cout << "GENERATING: " << tree.args[2].type << std::endl;
 				break;
 
-			case FUNC_CALL:
-				out += '.';
-				out += generate(tree.args[0]);
+			case CALL_OP:
 				out += '(';
-				if (tree.args.size() > 1)
-				out += generate(tree.args[1]);
+				out += generate(tree.args[0]);
 				out += ')';
 				break;
 
@@ -138,7 +141,7 @@ namespace dtbuild
 				break;
 
 			case COMPOUND_STMT:
-				out += '\n' + tabs(tab_depth) + "{\n";
+				out += tabs(tab_depth) + "{\n";
 				for (const Node& arg : tree.args)
 				{
 					out += generate(arg, tab_depth + 1);

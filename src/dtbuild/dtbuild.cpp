@@ -36,7 +36,7 @@ using namespace hirzel;
 
 namespace dtbuild
 {
-	void syntax_error(const std::string& filepath, const std::string& msg, long line, int col, int width)
+	std::string syntax_error(const std::string& filepath, const std::string& msg, long line, int col, int width)
 	{
 		col--;
 		// TODO add open relative to executable by combining filepath with absolute path
@@ -44,38 +44,51 @@ namespace dtbuild
 		#define RESET_ESCAPE "\033[0m"
 		std::vector<std::string> file = hirzel::file::read_file_as_vector(filepath);
 		std::string str = file[line - 1];
-
+		std::string out;
 		if (width < 1)
 		{
 			width = str.size() - col;
 		}
 
-		std::cout << "dtbuild: " << filepath << ':' << line << ':' << col + 1 << ": "
-		<< RED_ESCAPE "error: " RESET_ESCAPE << msg << '\n';
+		std::string l = std::to_string(line);
 
-		std::cout << std::setw(5) << line << " | " << str.substr(0, col)
-		<< RED_ESCAPE;
+		out += "dtbuild: ";
+		out += filepath;
+		out += ':';
+		out += l;
+		out += ':';
+		out += std::to_string(col + 1);
+		out += ": " RED_ESCAPE "error: " RESET_ESCAPE;
+		out += msg;
+		out += '\n';
 
-		std::cout << str.substr(col, width)
-		<< RESET_ESCAPE << str.substr(col + width) << std::endl;
+		for (int i = 0; i < 5 - l.size(); i++) out += ' ';
+		out += l;
+		out += " | ";
+		out += str.substr(0, col);
+		out += RED_ESCAPE;
 
-		std::cout << std::setw(5) << " " << " | ";
+		out += str.substr(col, width);
+		out += RESET_ESCAPE;
+		out += str.substr(col + width);
+		out += "\n      | ";
 
 		for (int i = 0; i < col; i++)
 		{
 			if (str[i] < 33)
 			{
-				std::cout << str[i];
+				out += str[i];
 			}
 			else
 			{
-				std::cout << ' ';
+				out += ' ';
 			}
 		}
-		std::cout << RED_ESCAPE << '^';
+		out += RED_ESCAPE "^";
 
-		for (int i = 1; i < width; i++) std::cout << '~';
-		std::cout << RESET_ESCAPE << "\n\n";		
+		for (int i = 1; i < width; i++) out += '~';
+		out += RESET_ESCAPE "\n\n";
+		return out;	
 	}
 
 	/*************************

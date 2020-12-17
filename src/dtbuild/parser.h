@@ -60,7 +60,7 @@ namespace dtbuild
 
 		struct Node
 		{
-			short type = NO_TYPE;
+			short type = NO_TYPE;  
 			short subtype = NO_TYPE;
 			std::string value;
 			std::vector<Node> args;

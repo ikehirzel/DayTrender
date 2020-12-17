@@ -1,19 +1,15 @@
 int val()
 {
-	//return 1;
-	if (i + 1)
-	{
-		int j = 2;
-		int m = 10293;
-	}
 	this[0] = 0;
+	if(this[0] == 1)
+	{
+		print();
+	}
 }
 
-
+/*
 indicator SMA (double ratio)
 {
-	//this[0] = 0.0;
-	//if (1) {}
 }
 
 indicator EMA(double ratio)
@@ -26,3 +22,4 @@ algorithm Simple_MA(EMA<0.5> short, SMA<1.0> long)
 {
 	this.boy();
 }
+*/
