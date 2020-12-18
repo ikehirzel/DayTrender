@@ -84,19 +84,25 @@ namespace dtbuild
 			def(ALGO_ARGS, "argument-list",
 				list(ALGO_ARG, COMMA_ELIPSIS))
 
+			def(ACCESSOR, "accessor",
+				list(PERIOD, ID))
 
+			def(PACCESSOR, "pointer-accessor",
+				list(POINTER, ID))
+
+			
 
 			//###########################################
 			//                STATEMENTS                #
 			//###########################################
 
 			def(STMT, "statement",
+				list(DECL_STMT),
 				list(EXPR_STMT),
 				list(COMPOUND_STMT),
 				list(SEL_STMT),
 				list(ITER_STMT),
-				list(JUMP_STMT),
-				list(DECL_STMT))
+				list(JUMP_STMT))
 
 			def(COMPOUND_STMT, "compound-statement",
 				list(LBRACE, STMT, ELIPSIS, RBRACE))
@@ -161,16 +167,16 @@ namespace dtbuild
 				list(AND_COMP, EQ_EXPR))
 
 			def(EQ_EXPR, "equality-expression",
-				list(RELAT_EXPR, EQ_EXPR1, ELIPSIS))
+				list(REL_EXPR, EQ_EXPR1, ELIPSIS))
 
 			def(EQ_EXPR1, "equality-expression-body",
-				list(EQ_OP, RELAT_EXPR))
+				list(EQ_OP, REL_EXPR))
 
-			def(RELAT_EXPR, "relational-expression",
-				list(ADD_EXPR, RELAT_EXPR1, ELIPSIS))
+			def(REL_EXPR, "relational-expression",
+				list(ADD_EXPR, REL_EXPR1, ELIPSIS))
 
-			def(RELAT_EXPR1, "relational-expression-body",
-				list(RELAT_OP, ADD_EXPR))
+			def(REL_EXPR1, "relational-expression-body",
+				list(REL_OP, ADD_EXPR))
 
 			def(ADD_EXPR, "additive-expression",
 				list(MUL_EXPR, ADD_EXPR1, ELIPSIS))
@@ -194,15 +200,15 @@ namespace dtbuild
 				list(PRIM_EXPR, POSTFIX_EXPR),
 				list(PREFIX_OP, UNARY_EXPR),
 				list(UNARY_OP, CAST_EXPR))
-
-			def(POSTFIX_EXPR, "postfix-expression",
-				list(POSTFIX_OP, ELIPSIS))
 			
 			def(PRIM_EXPR, "primary-expression",
 				list(ID),
 				list(CONST),
 				list(STRING_LITERAL),
 				list(LPAREN, EXPR, RPAREN))
+
+			def(POSTFIX_EXPR, "postfix-expression",
+				list(POSTFIX_OP, ELIPSIS))
 
 
 
@@ -211,14 +217,16 @@ namespace dtbuild
 			//##########################################
 
 			def(POSTFIX_OP, "postfix-operator",
+				list(ACCESSOR),
+				list(PACCESSOR),
 				list(INDEX_OP),
 				list(CALL_OP),
-				list(INC),
-				list(DEC))
+				list(INCREMENT),
+				list(DECREMENT))
 
 			def(PREFIX_OP, "prefix-operator",
-				list(INC),
-				list(DEC))
+				list(INCREMENT),
+				list(DECREMENT))
 
 			def(EQ_OP, "equality-operator",
 				list(EQUALS_COMP),
@@ -248,7 +256,7 @@ namespace dtbuild
 				list(MINUS),
 				list(NOT))
 
-			def(RELAT_OP, "relational-operator",
+			def(REL_OP, "RELional-operator",
 				list(RANGBRACK),
 				list(LANGBRACK),
 				list(LTOET),
@@ -344,7 +352,7 @@ namespace dtbuild
 
 		std::vector<std::string> errors;
 
-		int create_node(short def_type, Node& tree, const lexer::tokenlist &toks, long index, const std::string& filepath, int depth = 0)
+		int create_node(short def_type, Node& tree, const std::vector<lexer::Token> &toks, long index, const std::string& filepath, int depth = 0)
 		{
 			int i;
 			i+=1, i+=2;
@@ -378,8 +386,6 @@ namespace dtbuild
 						{
 							parse_state = OPTIONAL_STATE;
 							i++;
-							std::cout << "Optional: " << toks[index].value << std::endl;
-							std::cout << "Expecting: " << def[i] << std::endl;
 						}
 						else if (def[i + 1] == ELIPSIS)
 						{
@@ -511,10 +517,9 @@ namespace dtbuild
 									offs++;
 								}
 							}
-							std::cout << "Def Type: " << def_type << std::endl;
 							errors.push_back(syntax_error(filepath, "syntax error! expected " + ntnames[def[i - offs]] +
 								" before '" + toks[index].value + "' token", toks[index].line,
-								toks[index].column, toks[index].value.size()));
+								toks[index].col, toks[index].value.size()));
 
 							//return match_count;
 							return -1;
@@ -561,7 +566,7 @@ namespace dtbuild
 			return match_count;
 		}
 
-		Node parse(const lexer::tokenlist &toks, const std::string &filepath)
+		Node parse(const std::vector<lexer::Token> &toks, const std::string &filepath)
 		{
 			Node out;
 			out.type = PROGRAM;

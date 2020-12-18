@@ -10,10 +10,77 @@ namespace dtbuild
 {
 	namespace lexer
 	{
+		char char_types[256];
+
 		std::unordered_map<std::string, short> token_types;
 
 		void init()
 		{
+			// initializing the char types table
+
+#define CHAR_NOTYPE		0
+#define CHAR_INVALID	1
+#define CHAR_NAME		2
+#define CHAR_SEP		3
+#define CHAR_DIGIT		4
+#define CHAR_OP			5
+#define CHAR_LIT		6
+			
+
+			// setting name chars
+			char_types['_'] = CHAR_NAME;
+			for (int i = 'A'; i <= 'Z'; i++) char_types[i] = CHAR_NAME;
+			for (int i = 'a'; i <= 'z'; i++) char_types[i] = CHAR_NAME;
+			
+			
+			// setting digit chars
+
+			for (int i = '0'; i <= '9'; i++) char_types[i] = CHAR_DIGIT;
+
+			// setting separator types
+
+			char_types['('] = CHAR_SEP;
+			char_types[')'] = CHAR_SEP;
+			char_types['['] = CHAR_SEP;
+			char_types[']'] = CHAR_SEP;
+			char_types['{'] = CHAR_SEP;
+			char_types['}'] = CHAR_SEP;
+			char_types[';'] = CHAR_SEP;
+			char_types[','] = CHAR_SEP;
+			char_types['.'] = CHAR_SEP;
+
+			// setting operator types
+			
+			char_types['!'] = CHAR_OP;
+			char_types['$'] = CHAR_OP;
+			char_types['%'] = CHAR_OP;
+			char_types['?'] = CHAR_OP;
+			char_types['^'] = CHAR_OP;
+			char_types['&'] = CHAR_OP;
+			char_types['*'] = CHAR_OP;
+			char_types['/'] = CHAR_OP;
+			char_types['+'] = CHAR_OP;
+			char_types['-'] = CHAR_OP;
+			char_types['='] = CHAR_OP;
+			char_types['<'] = CHAR_OP;
+			char_types['>'] = CHAR_OP;
+
+			// setting literal types
+
+			char_types['\"'] = CHAR_LIT;
+			char_types['\''] = CHAR_LIT;
+
+
+			// setting the rest of the visible chars to invalid
+
+			for (int i = 33; i < 256; i++)
+			{
+				if (char_types[i] == CHAR_NOTYPE)
+				{
+					char_types[i] = CHAR_INVALID;
+				}
+			}
+
 			token_types =
 				{
 					// separators
@@ -34,11 +101,12 @@ namespace dtbuild
 					{ "<",	LANGBRACK	},
 					{ ">",	RANGBRACK	},
 					{ ".",	PERIOD		},
+					{ "->",	POINTER		},
 					{ ";",	SEMICOLON	},
 					{ "&",	AND			},
 					{ "|",	OR			},
-					{ "++",	INC			},
-					{ "--",	DEC			},
+					{ "++",	INCREMENT	},
+					{ "--",	DECREMENT	},
 
 					// asign operators
 					{ "=",	EQUALS_ASGN	},
@@ -90,264 +158,166 @@ namespace dtbuild
 				};
 		}
 
-		tokenlist lex(const std::string& src, const std::string& filepath)
+		std::vector<Token> lex(const std::string&str, const std::string& filepath)
 		{
 			using namespace hirzel;
 
-			std::vector<std::string> str_toks;
-			tokenlist toks;
-
-			str_toks = str::tokenize(src, " \"\'\t\n?$#(){}[]<>,.;:&+=-*/%!~", true, true);
-			toks.resize(str_toks.size());
-
-			/*******************************************
-			 *   Creating list of tokens from string   *
-			 *******************************************/
-
+			std::vector<Token> toks;
 			long line = 1;
 			int col = 1;
-			// used to see what the last meaningful type is
-			for (long i = 0; i < str_toks.size(); i++)
+			size_t i = 0;
+			while (i < str.size())
 			{
-				toks[i].value = str_toks[i];
-				toks[i].type = token_types[toks[i].value];
-				toks[i].line = line;
-				toks[i].column = col;
+				Token tok;
+				std::string tmp;
+				char char_type = char_types[str[i]];
 
-				switch (toks[i].type)
+				switch(char_type)
 				{
-					case NEW_LINE:
-						col = 0;
-						line++;
-					case TAB:
-					case SPACE:
-						col++;
-						break;
+				case CHAR_NAME:
+					tmp += str[i++];
+					while (i < str.size())
+					{
+						char_type = char_types[str[i]];
+						if (char_type != CHAR_NAME && char_type != CHAR_DIGIT) break;
+						tmp += str[i++];
+					}
+					tok.type = token_types[tmp];
+					if (!tok.type) tok.type = IDENTIFIER;
+					break;
 
-					default:
-						col += toks[i].value.size();
-						if (toks[i].type == NO_TYPE)
+				case CHAR_SEP:
+					if (i + 1 < str.size())
+					{
+						if (char_types[str[i + 1]] == CHAR_DIGIT)
 						{
-							if (str::is_alpha(toks[i].value[0]) || toks[i].value[0] == '_')
-							{
-								toks[i].type = IDENTIFIER;
-								for (int c = 0; c < toks[i].value.size(); c++)
-								{
-									if (!str::is_digit(toks[i].value[c]) && !str::is_alpha(toks[i].value[c]) && toks[i].value[c] != '_')
-									{
-										std::cout << syntax_error(filepath, "invalid character in identifier name", toks[i].line, toks[i].column, toks[i].value.size());
-										return {};
-									}
-								}
-							}
-							else if (str::is_digit(toks[i].value[0]))
-							{
-								toks[i].type = NUM_LITERAL;
-								for (int c = 0; c < toks[i].value.size(); c++)
-								{
-									if (!str::is_digit(toks[i].value[c]))
-									{
-										std::cout << syntax_error(filepath, "invalid character in number literal", toks[i].line, toks[i].column, toks[i].value.size());
-										return {};
-									}
-								}
-							}
+							tmp += str[i++];
+							tok.type = FLOAT_LITERAL;
+							goto float_literal;
 						}
-						break;
-				}
-			}
+					}
+					tmp += str[i++];
+					tok.type = token_types[tmp];
+					break;
 
-			/*********************************
-			 *   Coalescing related tokens   *
-			 *********************************/
-
-			long ai = 0;
-			std::string tmp;
-			short tmp_type = NO_TYPE;
-			for (long ei = 0; ei < toks.size(); ei++)
-			{
-				toks[ai] = toks[ei];
-				short tmp_type = 0, tmp_end = 0;
-				switch (toks[ai].type)
-				{
-					case NUM_LITERAL:
-						if (toks[ai - 1].type == PERIOD)
+				case CHAR_DIGIT:
+float_literal:
+					if (!tok.type) tok.type = INT_LITERAL;
+					tmp += str[i++];
+					while (i < str.size())
+					{
+						if (str[i] == '.')
 						{
-							toks[ai - 1].type = NUM_LITERAL;
-						}
-
-						for (int n = 0; n < 2; n++)
-						{
-							if (ai < 1) break;
-							if (toks[ai - 1].type == NUM_LITERAL)
+							if (tok.type == FLOAT_LITERAL)
 							{
-								ai--;
-								toks[ai].value += toks[ai + 1].value;
-							}
-						}
-						break;
-
-					case SLASH:
-						// line comment of end comment
-						if (toks[ai - 1].type == SLASH || toks[ai - 1].type == ASTERISK)
-						{
-							ai--;
-							toks[ai].value += toks[ai + 1].value;
-							toks[ai].type = token_types[toks[ai].value];
-						}
-						break;
-
-					case ASTERISK:
-						// start comment
-						if (toks[ai - 1].type == SLASH)
-						{
-							ai--;
-							toks[ai].value += toks[ai + 1].value;
-							toks[ai].type = token_types[toks[ai].value];
-						}
-						break;
-
-					case SQUOTE:
-						tmp_type = CHAR_LITERAL;
-						tmp_end = SQUOTE;
-					case DQUOTE:
-						if (!tmp_type) tmp_type = STRING_LITERAL;
-						if (!tmp_end) tmp_end = DQUOTE;
-
-						tmp = toks[ei].value;
-
-						toks[ai].type = tmp_type;
-						toks[ai].value.clear();
-						toks[ai].column++;
-
-						ei++;
-
-						while (ei < toks.size())
-						{
-							if (toks[ei].type == tmp_end)
-							{
-								break;
-							}
-							else if (toks[ei].type == NEW_LINE)
-							{
-								std::cout << syntax_error(filepath, "missing terminating " + tmp + " character", toks[ai].line,
-									toks[ai].column -1, 0);
+								//ERROR invalid literal 
+								// i.e. it has more than one decimal
+								std::cout << "Error: ill-formed float literal\n";
 								return {};
 							}
-
-							toks[ai].value += toks[ei].value;
-
-							ei++;
+							tok.type = FLOAT_LITERAL;
+							tmp += str[i++];
+							continue;
 						}
-						break;
 
-					case POUND_SIGN:
-						// these checks are broken up into two so that there is no accidental seg faults
-						if (ei + 1 >= toks.size())
-						{
-							std::cout << syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
-							return {};
-						}
-						if (toks[ei].line != toks[ei + 1].line)
-						{
-							std::cout << syntax_error(filepath, "stray '#' in program", toks[ei].line, toks[ei].column, 1);
-							return {};
-						}
-						ei++;
-						toks[ai].value += toks[ei].value;
-						toks[ai].type = token_types[toks[ai].value];
-						if (toks[ai].type == NO_TYPE)
-						{
-							std::cout << syntax_error(filepath, "invalid proprocessing directive '" + toks[ai].value + "'",
-								toks[ai].line, toks[ai].column, toks[ai].value.size());
-							return {};
-						}
-						break;
+						if (char_types[str[i]] != CHAR_DIGIT) break;
+						tmp += str[i++];
+					}
+					break;
+					
+				case CHAR_OP:
+					tmp += str[i++];
+					while (i < str.size())
+					{
+						if (char_types[str[i]] != CHAR_OP) break;
+						tmp += str[i++];
+					}
+					tok.type = token_types[tmp];
+					break;
 
-					// case LPAREN:
-					// 	std::cout << ai << ": " << toks[ai].value << std::endl;
-					// 	break;
+				case CHAR_LIT:
+					if (str[i] == '\'') tok.type = CHAR_LITERAL;
+					else if (str[i] == '\"') tok.type = STRING_LITERAL;
 
-					case RPAREN:
-						if (ai < 2) break;
-						if (toks[ai - 1].type == LPAREN && toks[ai - 2].type == IDENTIFIER)
+					tmp += str[i++];
+					while (i < str.size())
+					{
+						// is invalid character for string literal
+						if (str[i] < 32 && str[i] != 9)
 						{
-							tmp = toks[ai - 2].value + toks[ai - 1].value + toks[ai].value;
-							tmp_type = token_types[tmp];
-							if (tmp_type != NO_TYPE)
-							{
-								ai -= 2;
-								toks[ai].type = tmp_type;
-								toks[ai].value = tmp;
-							}
-						}
-						break;
-
-					case EQUALS_ASGN:
-						if (ai < 1) break;
-						tmp_type = NO_TYPE;
-
-						switch (toks[ai - 1].type)
-						{
-						case EQUALS_ASGN:
-						case PLUS:
-						case MINUS:
-						case NOT:
-							tmp_type = toks[ai - 1].type;
+							// it pushes back a spae so that  there is no
+							// chance of the last char accidentally being the same
+							// as the first. Avoids cases such as "abcd\" being valid
+							tmp += ' ';
 							break;
 						}
-
-						if (tmp_type > NO_TYPE)
+						// terminating character
+						else if (str[i] == tmp[0] && str[i - 1] != '\\')
 						{
-							ai--;
-							toks[ai].value += toks[ai + 1].value;
-							toks[ai].type = token_types[toks[ai].value];
+							tmp += str[i++];
+							break;
 						}
-						break;
+						
+						tmp += str[i++];
+					}
+
+					if (tmp[0] != tmp.back())
+					{
+						// ERROR
+						std::cout << "Missing terminating " << tmp[0] << " character in literal\n";
+						return {};
+					}
+					break;
+
+				case CHAR_NOTYPE:
+					if (str[i] == '\n')
+					{
+						line++;
+						col = 1;
+					}
+					else
+					{
+						col++;
+					}
+					i++;
+					continue;
+				
+				case CHAR_INVALID:
+					std::cout << "Invalid token found at line: " << line << ", col: " << col << std::endl;
+					return {};
 				}
-				ai++;
+
+				tok.value = tmp;
+				tok.line = line;
+				tok.col = col;
+				toks.push_back(tok);
+				col += tmp.size();
 			}
+			std::cout << "Tok Count: " << toks.size() << std::endl;
 
-			toks.resize(ai);
-
-			/*****************************************
-			 *   Removing blank space and comments   *
-			 *****************************************/
-
-			ai = 0;
-			for (long ei = 0; ei < toks.size(); ei++)
+			for (long i = 0; i < toks.size(); i++)
 			{
-				short cmt_end_type = 0;
-				toks[ai] = toks[ei];
-				switch (toks[ai].type)
-				{
-					case SPACE:
-					case TAB:
-					case NEW_LINE:
-						ai--;
-						break;
-
-					case LINE_COMMENT:
-						cmt_end_type = NEW_LINE;
-					case COMMENT_START:
-						if(!cmt_end_type) cmt_end_type = COMMENT_END;
-						ai--;
-						while (ei < toks.size())
-						{
-							if (toks[ei].type == cmt_end_type)
-							{
-								break;
-							}
-							ei++;
-						}
-						break;
-				}
-				ai++;
+				std::cout << i << ": " << toks[i] << std::endl;
 			}
 
-			toks.resize(ai);
+			// return toks;
+			return {};
+		}
 
-			return toks;
+		std::ostream& operator<<(std::ostream& out, const Token& t)
+		{
+			#define TOKEN_VAL_OUTPUT_LEN 16
+			if (t.value.size() > TOKEN_VAL_OUTPUT_LEN)
+			{
+				out << t.value << ": " << t.type << " @ " << t.line << ':' << t.col;
+			}
+			else
+			{
+				out << t.value;
+				for (int i = 0; i < TOKEN_VAL_OUTPUT_LEN - t.value.size(); i++) out << ' ';
+				out << ":\t" << t.type << "\t@ " << t.line << ':' << t.col;
+			}
+			return out;
 		}
 	}
 }

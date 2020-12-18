@@ -42,7 +42,7 @@ namespace dtbuild
 				out += ')';
 				break;
 
-			case IF_STMT:
+			case SEL_STMT:
 				out += tabs(tab_depth) + "if (";
 				out += generate(tree.args[0]);
 				out += ")\n";
@@ -52,6 +52,14 @@ namespace dtbuild
 			case JUMP_STMT:
 				out += tabs(tab_depth) + "return ";
 				out += generate(tree.args[0]);
+				out += ";\n";
+				break;
+
+			case DECL_STMT:
+				out += tabs(tab_depth);
+				out += generate(tree.args[0]);
+				out += "= ";
+				out += generate(tree.args[1]);
 				out += ";\n";
 				break;
 
@@ -140,6 +148,16 @@ namespace dtbuild
 				}
 				break;
 
+			case ACCESSOR:
+				out += '.';
+				out += generate(tree.args[0]);
+				break;
+
+			case PACCESSOR:
+				out += "->";
+				out += generate(tree.args[0]);
+				break;
+
 			case COMPOUND_STMT:
 				out += tabs(tab_depth) + "{\n";
 				for (const Node& arg : tree.args)
@@ -168,6 +186,19 @@ namespace dtbuild
 				out += "= ";
 				out += generate(tree.args[1]);
 				out += ";\n";
+				break;
+			
+			case CONST:
+				if (tree.subtype == STRING_LITERAL)
+				{
+					out += "\"";
+					out += tree.value;
+					out += "\"";
+				}
+				else
+				{
+					out += tree.value;
+				}
 				break;
 
 			default:

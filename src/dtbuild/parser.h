@@ -89,6 +89,6 @@ namespace dtbuild
 		};
 
 		void init();
-		Node parse(const lexer::tokenlist& toks, const std::string& filepath);
+		Node parse(const std::vector<lexer::Token>& toks, const std::string& filepath);
 	}
 }

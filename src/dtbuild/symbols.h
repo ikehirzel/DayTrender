@@ -24,6 +24,8 @@ namespace dtbuild
 		DECLARATION,
 		DECLARATOR,
 		INITIALIZER,
+		ACCESSOR,
+		PACCESSOR,
 
 		// Statements
 		STMTS,
@@ -40,13 +42,9 @@ namespace dtbuild
 		WHILE_STMT,
 		IF_STMT,
 
+
 		// Expressions
 		EXPR,
-		PRIM_EXPR,
-		POSTFIX_EXPR,
-		UNARY_EXPR,
-		EQ_EXPR,
-		EQ_EXPR1,
 		COMP_EXPR,
 		ASGN_EXPR,
 		COND_EXPR,
@@ -54,27 +52,26 @@ namespace dtbuild
 		OR_EXPR1,
 		AND_EXPR,
 		AND_EXPR1,
-		RELAT_EXPR,
-		RELAT_EXPR1,
+		EQ_EXPR,
+		EQ_EXPR1,
+		REL_EXPR,
+		REL_EXPR1,
 		ADD_EXPR,
 		ADD_EXPR1,
 		MUL_EXPR,
 		MUL_EXPR1,
 		CAST_EXPR,
+		UNARY_EXPR,
+		PRIM_EXPR,
+		POSTFIX_EXPR,
 
-		TERM,
-		TERM1,
-		FACTOR,
-		FACTOR1,
-		CONST,
-		TYPENAME,
 
 		// Operators
 		EQ_OP,
 		ADD_OP,
 		MUL_OP,
 		ASGN_OP,
-		RELAT_OP,
+		REL_OP,
 		PREFIX_OP,
 		POSTFIX_OP,
 		INDEX_OP,
@@ -83,6 +80,13 @@ namespace dtbuild
 		POINT_OP,
 		UNARY_OP,
 		CAST_OP,
+
+		TERM,
+		TERM1,
+		FACTOR,
+		FACTOR1,
+		CONST,
+		TYPENAME,
 
 		ELIPSIS,
 		COMMA_ELIPSIS,
@@ -96,9 +100,11 @@ namespace dtbuild
 		//#     terminal types used for tokenizing and parsing     #
 		//##########################################################
 
-		
+
 		IDENTIFIER,
 		NUM_LITERAL,
+		INT_LITERAL,
+		FLOAT_LITERAL,
 		STRING_LITERAL,
 		CHAR_LITERAL,
 		POUND_SIGN,
@@ -128,6 +134,7 @@ namespace dtbuild
 		COMMENT_END,
 		COMMA,
 		PERIOD,
+		POINTER,
 		SEMICOLON,
 		COLON,
 		AND,
@@ -136,8 +143,8 @@ namespace dtbuild
 		XOR,
 		OR_COMP,
 		PLUS,
-		INC,
-		DEC,
+		INCREMENT,
+		DECREMENT,
 		SUB_ASGN,
 		ADD_ASGN,
 		MUL_ASGN,

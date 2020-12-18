@@ -107,7 +107,7 @@ namespace dtbuild
 		std::vector<std::vector<std::string>> indicator_variables;
 		std::unordered_map<std::string, int> req_depths;
 		std::vector<std::pair<std::string, std::string>> indicator_definitions;
-		lexer::tokenlist tokens;
+		std::vector<lexer::Token> tokens;
 		parser::Node program;
 		filename = str::get_filename(filepath);
 
@@ -125,6 +125,7 @@ namespace dtbuild
 		tokens = lexer::lex(script, filepath);
 		if (tokens.empty())
 		{
+			std::cout << "Token list was empty!\n";
 			return "";
 		}
 

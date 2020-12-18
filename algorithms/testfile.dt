@@ -1,25 +1,5 @@
 int val()
 {
-	this[0] = 0;
-	if(this[0] == 1)
-	{
-		print();
-	}
+	double val = 0.00;
+	string s = '"';
 }
-
-/*
-indicator SMA (double ratio)
-{
-}
-
-indicator EMA(double ratio)
-{
-
-}
-
-
-algorithm Simple_MA(EMA<0.5> short, SMA<1.0> long)
-{
-	this.boy();
-}
-*/

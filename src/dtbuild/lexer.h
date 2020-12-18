@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "symbols.h"
+#include <iostream>
 
 namespace dtbuild 
 {
@@ -12,17 +13,17 @@ namespace dtbuild
 	{
 		extern std::unordered_map<std::string, short> token_types;
 
-		struct token
+		struct Token
 		{
 			std::string value;
 			short type = NO_TYPE;
 			long line = 0;
-			int column = 0;
+			int col = 0;
 		};
-		
-		typedef std::vector<token> tokenlist;
+
+		std::ostream& operator<<(std::ostream& out, const Token& t);
 
 		void init();
-		tokenlist lex(const std::string& src, const std::string& filepath);
+		std::vector<Token> lex(const std::string& src, const std::string& filepath);
 	}
 }
