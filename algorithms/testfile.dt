@@ -1,5 +1,13 @@
+
+# require("sma.dt", "ema.dt")
+
 int val()
 {
-	double val = 0.00;
-	string s = '"';
+	// This is a comment
+	/* this is a comment as well */
+	int i/* this
+	= block
+	comment */= 2;
+	int i = 0;
+	double s = 0.4765;
 }

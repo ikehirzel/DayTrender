@@ -22,7 +22,6 @@ namespace dtbuild
 
 			#define def(t, n, ...) ntnames[t] = n; grammar[t] = { __VA_ARGS__ };
 			#define list(...) { __VA_ARGS__ }
-			#define nodef {}
 
 			/*
 				Semantics:
@@ -59,8 +58,10 @@ namespace dtbuild
 				list(IDENTIFIER))
 
 			def(CONST, "constant",
-				list(NUM_LITERAL),
-				list(STRING_LITERAL))
+				list(INT_LITERAL),
+				list(FLOAT_LITERAL),
+				list(STRING_LITERAL),
+				list(CHAR_LITERAL))
 
 			def(TYPENAME, "typename",
 				list(INT_TYPE),
@@ -68,12 +69,10 @@ namespace dtbuild
 				list(IDENTIFIER))
 
 			def(LIST, "value-list",
-				list(CONST, COMMA_ELIPSIS),
-				nodef)
+				list(CONST, COMMA_ELIPSIS))
 
 			def(INIT_LIST, "initializer-list",
-				list(LANGBRACK, LIST, RANGBRACK),
-				nodef)
+				list(LANGBRACK, LIST, RANGBRACK))
 			
 			def(INDI_INIT, "indicator-initializer",
 				list(ID, INIT_LIST))
@@ -98,11 +97,11 @@ namespace dtbuild
 
 			def(STMT, "statement",
 				list(DECL_STMT),
-				list(EXPR_STMT),
 				list(COMPOUND_STMT),
 				list(SEL_STMT),
 				list(ITER_STMT),
-				list(JUMP_STMT))
+				list(JUMP_STMT),
+				list(EXPR_STMT))
 
 			def(COMPOUND_STMT, "compound-statement",
 				list(LBRACE, STMT, ELIPSIS, RBRACE))
@@ -343,21 +342,17 @@ namespace dtbuild
 			return out;
 		}
 
-#define DEBUG_OUTPUT
+//#define DEBUG_OUTPUT
 
 
 #define ELIPSIS_STATE	1
 #define CELIPSIS_STATE	2
 #define OPTIONAL_STATE	3
 
-		std::vector<std::string> errors;
-
-		int create_node(short def_type, Node& tree, const std::vector<lexer::Token> &toks, long index, const std::string& filepath, int depth = 0)
+		int create_node(short def_type, Node& tree, const std::vector<lexer::Token> &toks, long index, std::vector<std::string>& errors, const std::string& filepath, int depth = 0)
 		{
-			int i;
-			i+=1, i+=2;
 			int match_count = -1;
-
+			int err_count = errors.size();
 			const deflist& def_list = grammar[def_type];
 			// for every definition of the non-terminal
 
@@ -375,7 +370,7 @@ namespace dtbuild
 					std::cout << tabs(depth) << "empty def: match is true" << std::endl;
 					#endif
 				}
-
+				
 				for (int i = 0; i < def.size(); i++)
 				{
 					int parse_state = 0;
@@ -414,7 +409,8 @@ namespace dtbuild
 						#ifdef DEBUG_OUTPUT
 						std::cout << tabs(depth) <<  "[" << type << "] Testing: \033[32m" << ntnames[def[i]] << "\033[0m\n";
 						#endif
-						matches = create_node(type, tree.args.back(), toks, index, filepath, depth + 1);
+						matches = create_node(type, tree.args.back(), toks, index, errors, filepath, depth + 1);
+						
 					}
 					// terminal
 					else
@@ -426,7 +422,7 @@ namespace dtbuild
 						}
 
 						#ifdef DEBUG_OUTPUT
-						std::cout << tabs(depth) << "Testing type: " << def[i] << std::endl;
+						std::cout << tabs(depth) << "\033[34mTesting type: " << def[i] << "\033[0m" << std::endl;
 						#endif
 
 						matches = (toks[index].type == type) * 2 - 1;
@@ -520,7 +516,8 @@ namespace dtbuild
 							errors.push_back(syntax_error(filepath, "syntax error! expected " + ntnames[def[i - offs]] +
 								" before '" + toks[index].value + "' token", toks[index].line,
 								toks[index].col, toks[index].value.size()));
-
+							
+							//std::cout << "Deftype: " << def_type << "::: " <<  errors.back();
 							//return match_count;
 							return -1;
 						}
@@ -539,6 +536,11 @@ namespace dtbuild
 					#ifdef DEBUG_OUTPUT
 					if (depth == 0) std::cout << "\n\n";
 					#endif
+					//std::cout << "deftype: " << def_type << std::endl;
+					//std::cout << "I: " << i << std::endl;
+					
+					// this is necessary as elipsis matching can cause unsafe problems
+					if (matches == toks.size()) break;
 				}
 
 				if (matches >= 0)
@@ -552,15 +554,10 @@ namespace dtbuild
 			#ifdef DEBUG_OUTPUT
 			std::cout << tabs(depth) << "\033[33mRETURNING: \033[0m" << match_count << std::endl;
 			#endif
-
-			if (match_count >= 0)
+			
+			if (match_count > 0)
 			{
-				//std::cout << "***********************************************\n";
-				//errors.clear();
-				if (errors.size())
-				{
-					errors.pop_back();
-				}
+				errors.resize(err_count);
 			}
 
 			return match_count;
@@ -584,9 +581,8 @@ namespace dtbuild
 			}
 
 			std::cout << "\n\n";
-			errors.clear();
-			int matches = create_node(PROGRAM, out, toks, 0, filepath);
-			
+			std::vector<std::string> errors;
+			int matches = create_node(PROGRAM, out, toks, 0, errors, filepath);
 			out.print();
 
 			std::cout << "\n**********************************************\n";
@@ -603,12 +599,9 @@ namespace dtbuild
 			}
 			std::cout << "**********************************************\n\n";
 
-
-			std::cout << "ERROR COUNT: " << errors.size() << std::endl;
-
-			for (const std::string& err : errors)
+			if (!errors.empty())
 			{
-				std::cout << err << "\n\n";
+				std::cout << errors[0] << std::endl;
 			}
 
 			return out;

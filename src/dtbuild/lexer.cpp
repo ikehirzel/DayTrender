@@ -16,17 +16,6 @@ namespace dtbuild
 
 		void init()
 		{
-			// initializing the char types table
-
-#define CHAR_NOTYPE		0
-#define CHAR_INVALID	1
-#define CHAR_NAME		2
-#define CHAR_SEP		3
-#define CHAR_DIGIT		4
-#define CHAR_OP			5
-#define CHAR_LIT		6
-			
-
 			// setting name chars
 			char_types['_'] = CHAR_NAME;
 			for (int i = 'A'; i <= 'Z'; i++) char_types[i] = CHAR_NAME;
@@ -100,11 +89,7 @@ namespace dtbuild
 					{ "-",	MINUS		},
 					{ "<",	LANGBRACK	},
 					{ ">",	RANGBRACK	},
-					{ ".",	PERIOD		},
-					{ "->",	POINTER		},
 					{ ";",	SEMICOLON	},
-					{ "&",	AND			},
-					{ "|",	OR			},
 					{ "++",	INCREMENT	},
 					{ "--",	DECREMENT	},
 
@@ -125,7 +110,8 @@ namespace dtbuild
 					{ "<=",	LTOET		},
 
 					// generic types
-					{ "~",	TILDE 		},
+					{ ".",	PERIOD		},
+					{ "->",	POINTER		},
 					{ ":",	COLON		},
 					{ "\'",	SQUOTE		},
 					{ "\"",	DQUOTE		},
@@ -143,18 +129,22 @@ namespace dtbuild
 					{ "*/",	COMMENT_END},
 
 					// keywords
+
+					// jump keywords
 					{ "return", RETURN },
 					{ "break", BREAK },
+
+					// typenames
 					{ "int", INT_TYPE },
 					{ "double", DOUBLE_TYPE },
 					{ "algorithm", ALGORITHM_TYPE },
 					{ "indicator", INDICATOR_TYPE },
+
+					// stmt keywords
 					{ "if", IF_KWD 		},
 					{ "else", ELSE_KWD 	},
 					{ "while", WHILE_KWD },
 					{ "for", FOR_KWD },
-					{ "#include", INCLUDE_PREPRO },
-					{ "#require", REQUIRE_PREPRO },
 				};
 		}
 
@@ -293,6 +283,7 @@ float_literal:
 				toks.push_back(tok);
 				col += tmp.size();
 			}
+
 			std::cout << "Tok Count: " << toks.size() << std::endl;
 
 			for (long i = 0; i < toks.size(); i++)
@@ -300,8 +291,8 @@ float_literal:
 				std::cout << i << ": " << toks[i] << std::endl;
 			}
 
-			// return toks;
-			return {};
+
+			return toks;
 		}
 
 		std::ostream& operator<<(std::ostream& out, const Token& t)

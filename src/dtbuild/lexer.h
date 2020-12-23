@@ -7,11 +7,20 @@
 #include "symbols.h"
 #include <iostream>
 
+#define CHAR_NOTYPE		0
+#define CHAR_INVALID	1
+#define CHAR_NAME		2
+#define CHAR_SEP		3
+#define CHAR_DIGIT		4
+#define CHAR_OP			5
+#define CHAR_LIT		6
+
 namespace dtbuild 
 {
 	namespace lexer
 	{
 		extern std::unordered_map<std::string, short> token_types;
+		extern char char_types[256];
 
 		struct Token
 		{

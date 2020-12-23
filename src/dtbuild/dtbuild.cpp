@@ -36,6 +36,159 @@ using namespace hirzel;
 
 namespace dtbuild
 {
+	std::string cwd, execdir;
+
+	std::string read_and_preprocess(const std::string& filepath)
+	{
+		std::cout << "Preprocess filepath: " << cwd + filepath << std::endl;
+		
+		std::string src = file::read_file_as_string(filepath);
+
+		if (src.empty()) return src;
+
+		// Stripping comments
+		for (size_t i = 0; i < src.size(); i++)
+		{
+			if (src[i] == '/')
+			{
+				size_t tmpi = i;
+				i++;
+				if (i == src.size()) break;
+
+				// line comment
+				if (src[i] == '/')
+				{
+					i++;
+					while (i < src.size())
+					{
+						if (src[i] == '\n')
+						{
+							src.erase(src.begin() + tmpi, src.begin() + (i - 1));
+							i = tmpi;
+							src[i] = ' ';
+							break;
+						}
+						i++;
+					}
+				}
+				// start of block comment
+				else if (src[i] == '*')
+				{
+					i += 2;
+					while (i < src.size())
+					{
+						if (src[i - 1] == '*' && src[i] == '/')
+						{
+							src.erase(src.begin() + tmpi, src.begin() + i);
+							i = tmpi;
+							src[i] = ' ';
+							break;
+						}
+						i++;
+					}
+				}
+			}
+		}
+
+		bool valid = true;
+
+		// Handling preprocessor directives
+		for (size_t i = 0; i < src.size(); i++)
+		{
+			while (i < src.size())
+			{
+				if (src[i] == '#') break;
+				i++;
+			}
+			if (i == src.size()) break;
+
+			// check if it is a delimited '\#'
+			if (i > 0)
+			{
+				if (src[i - 1] == '\\')
+				{
+					// not handled yet
+					std::cout << "Handling of '\\#' is not implemented yet!\n";
+					continue;
+				}
+			}
+
+			i++;
+			if (i == src.size()) break;
+			
+			std::string cmd, tmp, presrc;
+			std::vector<std::string> args;
+
+			// Everything after this point is a new preprocessor command
+			size_t tmpi = i;
+			while (i < src.size())
+			{
+				if (src[i] == '\n' || (src[i] == '#' && src[i - 1] != '\\')) break;
+				i++;
+			}
+			presrc = src.substr(tmpi, i - tmpi);
+			std::cout << "PRESRC: " << presrc << std::endl;
+
+			int pi = 0;
+			while (pi < presrc.size())
+			{
+
+				pi++;
+			}
+
+
+			break;
+			cmd = tmp;
+			if (cmd.empty())
+			{
+				std::cout << "Stray '#' in program!\n";
+				return "";
+			}
+
+			while (i < src.size())
+			{
+				if (src[i] > 32) break;
+				i++;
+			}
+
+			std::cout << "CMD: " << cmd << std::endl;
+
+			if (src[i] == '(')
+			{
+				tmp.clear();
+
+				while (i < src.size())
+				{
+					if (src[i] == ')') break;
+					tmp += src[i++];
+				}
+
+				if (i == src.size())
+				{
+					std::cout << "Incomplete argument list in preprocessor directive!\n";
+					return "";
+				}
+
+				tmp.erase(0, 1);
+
+				args = str::tokenize(tmp, ",");
+
+				for (std::string s : args)
+				{
+					std::cout << "\tARG: " << s << std::endl;
+				}
+			}
+		}
+
+		if (!valid)
+		{
+			// incomplete preprocessor directive
+		}
+
+
+		return src;
+	}
+
 	std::string syntax_error(const std::string& filepath, const std::string& msg, long line, int col, int width)
 	{
 		col--;
@@ -91,34 +244,28 @@ namespace dtbuild
 		return out;	
 	}
 
-	/*************************
- 	 *   Compose Algorithm   *
- 	 *************************/
-
-	std::string compose_algorithm(const std::string &dir, const std::string &filepath)
+	std::string transpile(const std::string &dir, const std::string &filepath)
 	{
 		using namespace daytrender;
-		std::string buffer
-		{
-			#include "algorithm.def"
-		};
-		std::string algo_name, script, indicator_definition_glob, includes, filename, action_glob;
-		std::vector<std::string> input_file, requires;
-		std::vector<std::vector<std::string>> indicator_variables;
-		std::unordered_map<std::string, int> req_depths;
-		std::vector<std::pair<std::string, std::string>> indicator_definitions;
+
+		std::string script;
 		std::vector<lexer::Token> tokens;
 		parser::Node program;
-		filename = str::get_filename(filepath);
 
 		lexer::init();
 		parser::init();
 
-		script = file::read_file_as_string(filepath);
+		std::cout << "\n*********************************\nPreprocessing source code\n*********************************\n\n";
+
+		script = read_and_preprocess(filepath);
+
 		if (script.empty())
 		{
 			std::cout << "dtbuild: fatal: Failed to open the input file!\n";
 		}
+
+		std::cout << "Output:\n" << script << std::endl;
+		return "";
 
 		std::cout << "\n*********************************\nTokenizing source code\n*********************************\n\n";
 
@@ -150,12 +297,14 @@ namespace dtbuild
 		std::cout << "\nGenerated C++ Source:\n\n" << code;
 
 		return "";
-		return buffer;
+		return code;
 	}
 }
 
 int main(int argc, char *argv[])
 {
+	std::cout << "argv[0]: " << argv[0] << std::endl;
+
 	using namespace dtbuild;
 
 	if (argc == 1)
@@ -164,24 +313,18 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	std::string odir, cwd, execdir, configpath;
+	std::string odir, configpath;
 	std::string cxx, cxxflags, lflags;
 	std::string filepath;
 
-	cwd = std::filesystem::current_path().string() + "/.";
+	cwd = std::filesystem::current_path().string() + "/";
 	std::string rdir = str::get_folder(std::string(argv[0]));
-	if (cwd == rdir)
-	{
-		execdir = rdir;
-	}
-	else
-	{
-		execdir = cwd + rdir;
-	}
+	execdir = (cwd == rdir) ? rdir : cwd + rdir;
 	configpath = execdir + "/" + std::string(CONFIG_FILENAME);
 
 	bool setodir = false;
 	bool printcode = false;
+
 	for (int i = 1; i < argc; i++)
 	{
 		std::string arg = argv[i];
@@ -260,7 +403,7 @@ int main(int argc, char *argv[])
 
 	std::string basename = str::get_basename(filepath);
 	std::string temp_output_filename = algo_folder + "/" + basename + TEMP_OUTPUT_EXTENSION;
-	std::string algo_buf = compose_algorithm(algo_folder, filepath);
+	std::string algo_buf = transpile(algo_folder, filepath);
 
 	if (algo_buf.empty())
 	{
