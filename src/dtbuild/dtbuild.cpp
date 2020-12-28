@@ -17,6 +17,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "generator.h"
+#include "preprocessor.h"
 
 #define TEMP_OUTPUT_EXTENSION ".cpp"
 
@@ -34,160 +35,10 @@
 
 using namespace hirzel;
 
+
 namespace dtbuild
 {
 	std::string cwd, execdir;
-
-	std::string read_and_preprocess(const std::string& filepath)
-	{
-		std::cout << "Preprocess filepath: " << cwd + filepath << std::endl;
-		
-		std::string src = file::read_file_as_string(filepath);
-
-		if (src.empty()) return src;
-
-		// Stripping comments
-		for (size_t i = 0; i < src.size(); i++)
-		{
-			if (src[i] == '/')
-			{
-				size_t tmpi = i;
-				i++;
-				if (i == src.size()) break;
-
-				// line comment
-				if (src[i] == '/')
-				{
-					i++;
-					while (i < src.size())
-					{
-						if (src[i] == '\n')
-						{
-							src.erase(src.begin() + tmpi, src.begin() + (i - 1));
-							i = tmpi;
-							src[i] = ' ';
-							break;
-						}
-						i++;
-					}
-				}
-				// start of block comment
-				else if (src[i] == '*')
-				{
-					i += 2;
-					while (i < src.size())
-					{
-						if (src[i - 1] == '*' && src[i] == '/')
-						{
-							src.erase(src.begin() + tmpi, src.begin() + i);
-							i = tmpi;
-							src[i] = ' ';
-							break;
-						}
-						i++;
-					}
-				}
-			}
-		}
-
-		bool valid = true;
-
-		// Handling preprocessor directives
-		for (size_t i = 0; i < src.size(); i++)
-		{
-			while (i < src.size())
-			{
-				if (src[i] == '#') break;
-				i++;
-			}
-			if (i == src.size()) break;
-
-			// check if it is a delimited '\#'
-			if (i > 0)
-			{
-				if (src[i - 1] == '\\')
-				{
-					// not handled yet
-					std::cout << "Handling of '\\#' is not implemented yet!\n";
-					continue;
-				}
-			}
-
-			i++;
-			if (i == src.size()) break;
-			
-			std::string cmd, tmp, presrc;
-			std::vector<std::string> args;
-
-			// Everything after this point is a new preprocessor command
-			size_t tmpi = i;
-			while (i < src.size())
-			{
-				if (src[i] == '\n' || (src[i] == '#' && src[i - 1] != '\\')) break;
-				i++;
-			}
-			presrc = src.substr(tmpi, i - tmpi);
-			std::cout << "PRESRC: " << presrc << std::endl;
-
-			int pi = 0;
-			while (pi < presrc.size())
-			{
-
-				pi++;
-			}
-
-
-			break;
-			cmd = tmp;
-			if (cmd.empty())
-			{
-				std::cout << "Stray '#' in program!\n";
-				return "";
-			}
-
-			while (i < src.size())
-			{
-				if (src[i] > 32) break;
-				i++;
-			}
-
-			std::cout << "CMD: " << cmd << std::endl;
-
-			if (src[i] == '(')
-			{
-				tmp.clear();
-
-				while (i < src.size())
-				{
-					if (src[i] == ')') break;
-					tmp += src[i++];
-				}
-
-				if (i == src.size())
-				{
-					std::cout << "Incomplete argument list in preprocessor directive!\n";
-					return "";
-				}
-
-				tmp.erase(0, 1);
-
-				args = str::tokenize(tmp, ",");
-
-				for (std::string s : args)
-				{
-					std::cout << "\tARG: " << s << std::endl;
-				}
-			}
-		}
-
-		if (!valid)
-		{
-			// incomplete preprocessor directive
-		}
-
-
-		return src;
-	}
 
 	std::string syntax_error(const std::string& filepath, const std::string& msg, long line, int col, int width)
 	{
@@ -244,39 +95,41 @@ namespace dtbuild
 		return out;	
 	}
 
+	std::string tabs(int amt)
+	{
+		std::string out;
+		for (int i = 0; i < amt; i++)
+		{
+			out += '\t';
+		}
+		return out;
+	}
+
 	std::string transpile(const std::string &dir, const std::string &filepath)
 	{
 		using namespace daytrender;
 
 		std::string script;
-		std::vector<lexer::Token> tokens;
-		parser::Node program;
+		std::vector<Token> tokens;
+		Node program;
 
-		lexer::init();
-		parser::init();
-
-		std::cout << "\n*********************************\nPreprocessing source code\n*********************************\n\n";
-
-		script = read_and_preprocess(filepath);
-
-		if (script.empty())
-		{
-			std::cout << "dtbuild: fatal: Failed to open the input file!\n";
-		}
-
-		std::cout << "Output:\n" << script << std::endl;
-		return "";
+		lex_init();
+		parse_init();
 
 		std::cout << "\n*********************************\nTokenizing source code\n*********************************\n\n";
 
-		tokens = lexer::lex(script, filepath);
+		tokens = lex(filepath);
+
 		if (tokens.empty())
 		{
 			std::cout << "Token list was empty!\n";
 			return "";
 		}
 
-		
+		for (long i = 0; i < tokens.size(); i++)
+		{
+			std::cout << i << ": " << tokens[i] << std::endl;
+		}
 
 		std::cout << "\n*********************************\nParsing tokens\n*********************************\n\n";
 
@@ -284,7 +137,7 @@ namespace dtbuild
 	 	 *   Parsing tokens   *
 	 	 **********************/
 		
-		program = parser::parse(tokens, filepath);
+		program = parse(tokens, filepath);
 		if (program.empty())
 		{
 			return "";
@@ -292,7 +145,7 @@ namespace dtbuild
 
 		std::cout << "\n*********************************\nGenerating code\n*********************************\n\n";
 
-		std::string code = generator::generate_code(program);
+		std::string code = generate_code(program);
 
 		std::cout << "\nGenerated C++ Source:\n\n" << code;
 

@@ -1,13 +1,17 @@
-
-# require("sma.dt", "ema.dt")
-
-int val()
+indicator EMA(double ratio)
 {
-	// This is a comment
-	/* this is a comment as well */
-	int i/* this
-	= block
-	comment */= 2;
-	int i = 0;
-	double s = 0.4765;
+	for (int i = 0; i < 3; i++)
+	{
+		print("HELLO\n");
+	}
+	if (s == 'hello')
+	{
+		return 0;
+	}
+}
+
+algorithm Simple_MA(EMA<0.5> short, EMA<1.0> long)
+{
+	print(short[0]);
+	this.buy();
 }

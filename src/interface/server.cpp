@@ -38,7 +38,7 @@ namespace daytrender
 
 			infof("Loading server data...");
 
-			data = hirzel::read_string(dir + SERVER_CONFIG_FILENAME);
+			data = hirzel::file::read_file_as_string(dir + SERVER_CONFIG_FILENAME);
 
 			if(data.empty())
 			{
@@ -178,16 +178,16 @@ namespace daytrender
 			}
 
 			unsigned indi_index = 0;
-			for (std::pair<std::string, indicator_data> p : data.algo_data.dataset)
-			{
-				response["indicators"][indi_index]["label"] = p.first;
-				const std::vector<double>& d = p.second.data;
-				for (unsigned i = 0; i < d.size(); i++)
-				{
-					response["indicators"][indi_index]["data"][i] = d[i];
-				}
-				indi_index++;
-			}
+			// for (std::pair<std::string, indicator_data> p : data.algo_data.dataset)
+			// {
+			// 	response["indicators"][indi_index]["label"] = p.first;
+			// 	const std::vector<double>& d = p.second.data;
+			// 	for (unsigned i = 0; i < d.size(); i++)
+			// 	{
+			// 		response["indicators"][indi_index]["data"][i] = d[i];
+			// 	}
+			// 	indi_index++;
+			// }
 			res.set_content(response.dump(), "application/json");
 		}
 

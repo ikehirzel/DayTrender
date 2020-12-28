@@ -6,8 +6,5 @@
 
 namespace dtbuild
 {
-	namespace generator
-	{
-		std::string generate_code(const parser::Node& tree);
-	}	
+	std::string generate_code(const Node& tree);		
 }

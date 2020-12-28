@@ -6,7 +6,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 
 file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp ./src/interface/*.cpp)
 file(GLOB DTBUILD_SRCS ./src/dtbuild/*.cpp)
-file(COPY src/data/algodefs.h src/data/candle.h DESTINATION algorithms/include)
+file(COPY src/data/algodefs.h src/data/candle.h DESTINATION ../algorithms/include)
 
 file(CREATE_LINK ../resources resources SYMBOLIC)
 file(CREATE_LINK ../config config SYMBOLIC)

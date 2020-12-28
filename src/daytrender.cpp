@@ -117,7 +117,7 @@ namespace daytrender
 		// loading credentials for apis
 		clients.resize(ASSET_TYPE_COUNT);
 
-		std::string credentialStr = read_string(dtdir + CONFIG_FOLDER "keys.json");
+		std::string credentialStr = file::read_file_as_string(dtdir + CONFIG_FOLDER "keys.json");
 		if (credentialStr.empty())
 		{
 			fatalf("Failed to load '." CONFIG_FOLDER "'!");
@@ -185,7 +185,7 @@ namespace daytrender
 	{
 		infof("Initializing assets...");
 		// Loading asset info
-		std::string assetStr = read_string(dtdir + CONFIG_FOLDER "assets.json");
+		std::string assetStr = file::read_file_as_string(dtdir + CONFIG_FOLDER "assets.json");
 		if (assetStr.empty())
 		{
 			fatalf("Failed to load ." CONFIG_FOLDER "assets.json!");
@@ -258,10 +258,10 @@ namespace daytrender
 
 		long long time, last, elapsed, timeout;
 
-		time = getMillis();
+		time = sys::get_millis();
 		last = time - time % 60000;
 
-		timeout = (61000 - (getMillis() % 60000)) % 60000;
+		timeout = (61000 - (sys::get_millis() % 60000)) % 60000;
 		std::string msg = "Timeout: " + std::to_string((double)timeout / 1000.0) + " seconds";
 
 		if (timeout < 10000)
@@ -277,7 +277,7 @@ namespace daytrender
 
 		while (running)
 		{
-			time = getMillis();
+			time = sys::get_millis();
 			elapsed = time - last;
 
 			if (time % 60000 >= 1000 && time % 60000 < 2000 && elapsed >= 2000)
@@ -286,7 +286,7 @@ namespace daytrender
 				update();
 			}
 
-			thread_sleep(200);
+			sys::thread_sleep(200);
 		}
 
 		server::stop();

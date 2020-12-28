@@ -6,7 +6,7 @@
 int main(int argc, char *argv[])
 {
 	hirzel::fountain::init("./report.log", true);
-	daytrender::init(hirzel::get_folder(argv[0]));
+	daytrender::init(hirzel::str::get_folder(argv[0]));
 	daytrender::start();
 	infof("DayTrender has stopped");
 	return 0;

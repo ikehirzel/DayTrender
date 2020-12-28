@@ -17,22 +17,20 @@
 
 namespace dtbuild 
 {
-	namespace lexer
+	extern std::unordered_map<std::string, short> token_types;
+	extern char char_types[256];
+
+	struct Token
 	{
-		extern std::unordered_map<std::string, short> token_types;
-		extern char char_types[256];
+		std::string filepath;
+		std::string value;
+		short type = NO_TYPE;
+		long line = 0;
+		short col = 0;
+	};
 
-		struct Token
-		{
-			std::string value;
-			short type = NO_TYPE;
-			long line = 0;
-			int col = 0;
-		};
+	std::ostream& operator<<(std::ostream& out, const Token& t);
 
-		std::ostream& operator<<(std::ostream& out, const Token& t);
-
-		void init();
-		std::vector<Token> lex(const std::string& src, const std::string& filepath);
-	}
+	void lex_init();
+	std::vector<Token> lex(const std::string& filepath);
 }

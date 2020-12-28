@@ -30,14 +30,8 @@ namespace daytrender
 	
 	algorithm_data TradeAlgorithm::process(const candleset& candles)
 	{
-		bool success = false;
 		algorithm_data data;
-		success = handle->execute_return<void, algorithm_data&, const candleset&>
-			(PROCESS_FUNCTION, data, candles);
-		if(!success)
-		{
-			errorf("Failed to process algorithm: %s", name);
-		}
+		handle->execute_void<algorithm_data&, const candleset&>(PROCESS_FUNCTION, data, candles);
 		return data;
 	}
 }

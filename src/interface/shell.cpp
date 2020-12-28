@@ -22,7 +22,7 @@ namespace daytrender
 				continue;
 			}
 
-			std::vector<std::string> tokens = hirzel::tokenize(input, " \t");
+			std::vector<std::string> tokens = hirzel::str::tokenize(input, " \t");
 			/************************************************************
 			 * Exit
 			 ***********************************************************/
