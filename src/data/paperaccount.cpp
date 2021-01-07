@@ -7,15 +7,15 @@
 
 namespace daytrender
 {
-	PaperAccount::PaperAccount(double initial, double fee, double minimum, unsigned int interval,
-		unsigned int window)
+	PaperAccount::PaperAccount(double _initial, double _fee, double _minimum, int _interval,
+		const std::vector<int>& _ranges)
 	{
-		this->initial = initial;
-		this->balance = initial;
-		this->fee = fee;
-		this->minimum = minimum;
-		this->interval = interval;
-		this->window = window;
+		initial = _initial;
+		balance = _initial;
+		fee = _fee;
+		minimum = _minimum;
+		interval = _interval;
+		ranges = _ranges;
 	}
 
 	void PaperAccount::buy(double _shares)
@@ -172,7 +172,12 @@ namespace daytrender
 		out += "\n    Buys        :    " + std::to_string(buys);
 		out += "\n    Sells       :    " + std::to_string(sells);
 		out += "\n    Interval    :    " + std::to_string(interval);
-		out += "\n    Window      :    " + std::to_string(window);
+		out += "\n    Ranges      :    ";
+		for (int i = 0; i < ranges.size(); i++)
+		{
+			if (i > 0) out += ", ";
+			out += std::to_string(ranges[i]);
+		}
 		out += "\n    Elapsed Hrs :    " + std::to_string(elapsedHours()) + " (" + std::to_string(elapsedHours() / 24.0) + " days)";
 		out += "\n";
 		out += "\n    Initial     :  $ " + std::to_string(initial);
@@ -186,9 +191,9 @@ namespace daytrender
 		out += "\n    Hr Return   :  $ " + std::to_string(avgHourNetReturn());
 		out += "\n    Hr% Return  :  % " + std::to_string(avgHourPercentReturn() * 100.0);
 		out += "\n";
-		out += "\n    Win Rate    :  % " + std::to_string(winRate());
-		out += "\n    B Win Rate  :  % " + std::to_string(buyWinRate());
-		out += "\n    S Win Rate  :  % " + std::to_string(sellWinRate());
+		out += "\n    Win Rate    :  % " + std::to_string(winRate() * 100.0);
+		out += "\n    B Win Rate  :  % " + std::to_string(buyWinRate() * 100.0);
+		out += "\n    S Win Rate  :  % " + std::to_string(sellWinRate() * 100.0);
 		out += "\n}";
 		return out;
 	}

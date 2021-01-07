@@ -18,7 +18,7 @@ namespace daytrender
 			price = 0.0,
 			lastActPrice = 0.0;
 		
-		unsigned int
+		int
 			buys = 0,
 			sells = 0,
 			buywins = 0,
@@ -26,13 +26,13 @@ namespace daytrender
 			sellwins = 0,
 			selllosses = 0,
 			interval = 0,
-			window = 0,
 			updates = 0;
+		std::vector<int> ranges;
 		
 	public:
 		PaperAccount() = default;
-		PaperAccount(double initial, double fee, double minimum, unsigned int interval,
-			unsigned int window);
+		PaperAccount(double _initial, double _fee, double _minimum, int _interval,
+			const std::vector<int>& _ranges);
 			
 		void buy(double shares);
 		void sell(double shares);
@@ -46,11 +46,11 @@ namespace daytrender
 		inline double getPrice() const { return price; }
 		inline void setPrice(double _price) { updates++; price = _price; };
 		
-		inline unsigned int getBuys() const { return buys; }
-		inline unsigned int getSells() const { return sells; }
-		inline unsigned int getTrades() const { return buys + sells; }
-		inline unsigned int getInterval() const { return interval; }
-		inline unsigned int getWindow() const { return window; }
+		inline int getBuys() const { return buys; }
+		inline int getSells() const { return sells; }
+		inline int getTrades() const { return buys + sells; }
+		inline int getInterval() const { return interval; }
+		inline const std::vector<int>& getRanges() const { return ranges; };
 		
 		//non-trivial getters
 

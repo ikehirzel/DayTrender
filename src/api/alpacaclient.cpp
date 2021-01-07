@@ -63,7 +63,7 @@ namespace daytrender
 			warningf("Failed to get all requested candles: requested: %d, got: %d", max, arr.size());
 		}
 
-		candles.resize(arr.size());
+		candles.init(arr.size(), interval);
 
 		unsigned int i = 0;
 		for (json val : arr)
@@ -74,11 +74,10 @@ namespace daytrender
 			low = val["l"].get<double>();
 			close = val["c"].get<double>();
 			volume = val["v"].get<double>();
-			candle c = { open, high, low, close, volume };
-			candles[i] = c;
+			candles[i] = { open, high, low, close, volume };
 			i++;
 		}
-		successf("Received %d candles @ %dsec interval", candles.size(), interval);
+		successf("Received %d candles @ %dsec interval", candles.size, interval);
 		return candles;
 	}
 

@@ -9,20 +9,14 @@
 #include "paperaccount.h"
 #include "tradealgorithm.h"
 
-#ifndef PAPER_BY_DEFAULT
-	#define PAPER_TRADING false
-#else
-	#define PAPER_TRADING true
-#endif
-
 // algorithm constants
-#define MAX_ALGORITHM_WINDOW	250U
-#define MIN_ALGORITHM_WINDOW	8U
+#define MAX_ALGORITHM_WINDOW	50
+#define MIN_ALGORITHM_WINDOW	4
 
 // interval constants
 	
 // PaperAccount constants
-#define PAPER_ACCOUNT_INITIAL	500U
+#define PAPER_ACCOUNT_INITIAL	500
 	
 #define FOREX_FEE				0.00007
 #define FOREX_MINIMUM			0.01
@@ -65,46 +59,34 @@ namespace daytrender
 	class OandaClient;
 	class AlpacaClient;
 
-	struct asset_data
-	{
-		candleset_data candle_data;
-		algorithm_data algo_data;
-	};
-
 	extern const char* asset_labels[];
 	extern double paper_initials[ASSET_TYPE_COUNT][2];
 	extern unsigned int backtest_intervals[ASSET_TYPE_COUNT][3];
 
 	class Asset
 	{
-		//function pointer to things like nothing, sell, buy, etc...
 	protected:
-		bool paper = PAPER_TRADING, live = false;
-		unsigned tick = 0, interval = 0, window = 0, type = 0;
+		bool paper = true, live = false;
+		int tick = 0, interval = 0, candle_count = 0, type = 0;
 		double maxRisk = 0.9;
 		std::string ticker;
-		asset_data data;
+		algorithm_data data;
 		
 		TradeClient* client;
 		TradeAlgorithm* algo;
-		//basePaperAccount will be a pointer holding a default copy of an unused paper account
-		//papaerAccount is the current paperAccount
 		PaperAccount paperAccount;
 		
 	public:
-
-		Asset(unsigned int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
-			unsigned int interval, unsigned int window);
+		Asset(int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
+			int interval, const std::vector<int>& _ranges, bool _paper);
 
 		void update();
 
-		inline asset_data getData() const { return data; }
+		inline algorithm_data getData() const { return data; }
 		inline TradeAlgorithm* getAlgorithm() const { return algo; }
 		inline std::string getTicker() const { return ticker; }
-		inline unsigned int getInterval() const { return interval; }
-		inline unsigned getType() const { return type; }
+		inline int getInterval() const { return interval; }
+		inline int getType() const { return type; }
 		inline bool isLive() const { return live; }
-		
-		inline void setLive(bool _live) { live = _live; }
 	};
 }

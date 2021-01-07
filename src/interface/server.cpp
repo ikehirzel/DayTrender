@@ -151,23 +151,23 @@ namespace daytrender
 
 		void get_watch(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("Server GET @ %s", req.path);
+			debugf("Server: GET @ %s", req.path);
 
-			unsigned index;
+			int index;
 			std::string ticker;
-			asset_data data;
+			algorithm_data data;
 			json response;
 			const Asset* asset;
 
-			index = std::stoul(req.get_param_value("index"));
+			index = std::stoi(req.get_param_value("index"));
 			asset = getAsset(index);
 			data = asset->getData();
 
-			response["interval"] = data.candle_data.interval;
+			response["interval"] = data.candles.interval;
 			response["ticker"] = asset->getTicker();
 
-			const candleset& c = data.candle_data.candles;
-			for (unsigned i = 0; i < c.size(); i++)
+			const candleset& c = data.candles;
+			for (unsigned i = 0; i < c.size; i++)
 			{
 				response["x"][i] = i;
 				response["open"][i] = c[i].open;
@@ -178,16 +178,18 @@ namespace daytrender
 			}
 
 			unsigned indi_index = 0;
-			// for (std::pair<std::string, indicator_data> p : data.algo_data.dataset)
-			// {
-			// 	response["indicators"][indi_index]["label"] = p.first;
-			// 	const std::vector<double>& d = p.second.data;
-			// 	for (unsigned i = 0; i < d.size(); i++)
-			// 	{
-			// 		response["indicators"][indi_index]["data"][i] = d[i];
-			// 	}
-			// 	indi_index++;
-			// }
+			const std::vector<indicator_data>& dataset = data.dataset;
+	
+			for (int i = 0; i < dataset.size(); i++)
+			{
+				json& indi = response["indicators"][i];
+				indi["type"] = dataset[i].type;
+				indi["label"] = dataset[i].label;
+				for (int j = 0; j < dataset[i].data.size(); j++)
+				{
+					indi["data"][j] = dataset[i].data[j];
+				}
+			}
 			res.set_content(response.dump(), "application/json");
 		}
 

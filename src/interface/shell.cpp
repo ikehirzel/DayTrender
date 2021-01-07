@@ -61,6 +61,7 @@ namespace daytrender
 				bool build = true;
 				std::string filename;
 				bool print = false;
+				
 				for(unsigned int i = 1; i < tokens.size(); i++)
 				{
 					infof("Tok[%d]: %s", i, tokens[i]);
@@ -98,6 +99,7 @@ namespace daytrender
 						}
 					}
 				}
+
 				if (build)
 				{
 					build = buildAlgorithm(filename, print);

@@ -11,23 +11,29 @@ namespace daytrender
 {
 	const char* asset_labels[] = ASSET_LABELS;
 	double paper_initials[ASSET_TYPE_COUNT][2] = PAPER_INITIALS;
-	unsigned int backtest_intervals[ASSET_TYPE_COUNT][3] = BACKTEST_INTERVALS;
+	unsigned backtest_intervals[ASSET_TYPE_COUNT][3] = BACKTEST_INTERVALS;
 
-	Asset::Asset(unsigned int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
-		unsigned int interval, unsigned int window)
+	Asset::Asset(int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
+		int interval, const std::vector<int>& _ranges, bool _paper)
 	{
-		if(client && algo)
+		if (client && algo && !_ranges.empty())
 		{
 			live = true;
+		}
+		else
+		{
+			warningf("Arguments were not sufficient, asset '%s' cannot go live", ticker);
 		}
 
 		this->client = client;
 		this->algo = algo;
 		this->ticker = ticker;
 		this->interval = interval;
-		this->window = window;
+		candle_count = _ranges[0];
 		type = assetIndex;
-		paperAccount = PaperAccount(PAPER_ACCOUNT_INITIAL, paper_initials[type][0], paper_initials[type][1], interval, window);
+		data.ranges = _ranges;
+		paper = _paper;
+		paperAccount = PaperAccount(PAPER_ACCOUNT_INITIAL, paper_initials[type][0], paper_initials[type][1], interval, _ranges);
 	}
 	
 	void Asset::update()
@@ -36,27 +42,33 @@ namespace daytrender
 
 		if (shouldUpdate)
 		{
-			candleset candles = client->getCandles(ticker, interval, window);
-			if(!algo)
+			if (!algo)
 			{
-				warningf("%s: Algorithm has not been initialized!", ticker);
+				warningf("%s: Algorithm has not been initialized! Update cannot continue.", ticker);
 				return;
 			}
-			algorithm_data algodata = algo->process(candles);
-			data.candle_data.candles = candles;
-			data.candle_data.interval = interval;
-			data.algo_data = algodata;
 
-			// paper trading
-			if(paper)
+			data.candles.clear();
+			data.candles = client->getCandles(ticker, interval, candle_count);
+
+			if (!algo->process(data))
 			{
-				paper_actions[algodata.action](paperAccount, maxRisk);
+				errorf("Failed to process algorithm for %s", ticker);
 			}
-			// live trading
 			else
 			{
-				actions[algodata.action](client, maxRisk);
+				// paper trading
+				if (paper)
+				{
+					paper_actions[data.action](paperAccount, maxRisk);
+				}
+				// live trading
+				else
+				{
+					actions[data.action](client, maxRisk);
+				}
 			}
+
 		}
 	}
 }

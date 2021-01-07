@@ -38,11 +38,13 @@ namespace daytrender
 	void update();
 	void initClients();
 	void initAssets();
+	
 
 	void init(const std::string& execpath)
 	{
 		mtx.lock();
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
+		
 		// NOTE: functions must be called in this order
 
 		// loads the credentials of the clients and creates them
@@ -52,10 +54,6 @@ namespace daytrender
 		// sets the callbacks for the server
 
 
-		/*
-			future idea:
-			change shouldrun to should_abort and set it with |= to simplify error tracking
-		*/
 		if(!server::init(dtdir))
 		{
 			errorf("Failed to initialize server!");
@@ -158,21 +156,8 @@ namespace daytrender
 		// maybe this needs to be optimized with some kind of flag
 		if(!algorithms[filename])
 		{
-			//compile algorithm
-			bool success = false;
-			#ifdef JIT_COMPILE_ALGORITHMS
-			success = buildAlgorithm(filename, false);
-			#else
-			std::string binpath = dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION;
-			hirzel::printf("binpath: %s\n", binpath);
-			if(!hirzel::file_exists(binpath))
-			{
-				success = buildAlgorithm(filename);
-			}
-			#endif
-			// load algorithm into memory
 			algorithms[filename] = new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION);
-			if(!success || !algorithms[filename]->isBound())
+			if(!algorithms[filename]->isBound())
 			{
 				return false;
 			}
@@ -185,40 +170,55 @@ namespace daytrender
 	{
 		infof("Initializing assets...");
 		// Loading asset info
+
 		std::string assetStr = file::read_file_as_string(dtdir + CONFIG_FOLDER "assets.json");
 		if (assetStr.empty())
 		{
-			fatalf("Failed to load ." CONFIG_FOLDER "assets.json!");
-			shouldrun = false;
+			errorf("Failed to load ." CONFIG_FOLDER "assets.json! Creating blank file...");
+			assetStr = "{\n\t\"Forex\": [],\n\t\"Stocks\": []\n}\n";
+			file::write_file(dtdir + CONFIG_FOLDER "assets.json", assetStr);
 			return;
 		}
 		successf("Successfully loaded ." CONFIG_FOLDER "assets.json");
 
 		json assetInfo = json::parse(assetStr);
 
+		if (!assets.empty()) assets.clear();
+
 		// creating assets
-		for (unsigned int i = 0; i < ASSET_TYPE_COUNT; i++)
+		for (int i = 0; i < ASSET_TYPE_COUNT; i++)
 		{
 			for (json asset : assetInfo[asset_labels[i]])
 			{
-				unsigned int interval, window;
+				int interval, window;
 				std::string ticker, algo_filename;
+				bool paper;
 
 				ticker = asset["ticker"].get<std::string>();
 				algo_filename = asset["algorithm"].get<std::string>();
 				interval = asset["interval"].get<int>();
-				window = asset["window"].get<int>();
+				paper = asset["paper"].get<bool>();
+				json& jranges = asset["ranges"];
 
+				std::vector<int> ranges(jranges.size());
+				for (int j = 0; j < jranges.size(); j++)
+				{
+					ranges[j] = jranges[j];
+				}
+
+				// if algo failed to load
 				if(!loadAlgorithm(algo_filename))
 				{
-					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, window));
+					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, ranges, paper));
 				}
 				else
 				{
-					assets.push_back(new Asset(i, clients[i], ticker, algorithms[algo_filename], interval, window));
+					assets.push_back(new Asset(i, clients[i], ticker, algorithms[algo_filename], interval, ranges, paper));
 				}
 			}
 		}
+
+		std::cout << "Assets: " << assets.size() << std::endl;
 
 		// if the algorithm plugin failed to load, it will clear the memory to avoid assets attempting to use it
 		for (std::pair<std::string, TradeAlgorithm*> p : algorithms)
@@ -267,11 +267,11 @@ namespace daytrender
 		if (timeout < 10000)
 		{
 			msg += ": Resting...";
-			infof(msg.c_str());
+			infof(msg);
 		}
 		else
 		{
-			infof(msg.c_str());
+			infof(msg);
 			update();
 		}
 
@@ -333,7 +333,7 @@ namespace daytrender
 		TradeClient* client = nullptr;
 		TradeAlgorithm* algo = nullptr;
 		std::vector<candleset> candles_vec;
-		unsigned int asset_index = 0;
+		int asset_index = 0;
 		double paper_initial, paper_minimum, paper_fee;
 
 		// getting algorithm pointer
@@ -368,17 +368,14 @@ namespace daytrender
 			return {};
 		}
 
-		candles_vec.resize(3);
 		out.resize(3);
 
-		candles_vec[0] = client->getCandles(ticker, backtest_intervals[asset_index][0]);
-		candles_vec[1] = client->getCandles(ticker, backtest_intervals[asset_index][1]);
-		candles_vec[2] = client->getCandles(ticker, backtest_intervals[asset_index][2]);
-		
-
-		for(const candleset& c : candles_vec)
+		candles_vec.resize(3);
+		for (int i = 0; i < 3; i++)
 		{
-			if (c.empty())
+			candles_vec[i] = client->getCandles(ticker, backtest_intervals[asset_index][i]);
+
+			if (candles_vec[i].empty())
 			{
 				errorf("Cannot continue backtest as not all candles were received!");
 				return {};
@@ -387,39 +384,96 @@ namespace daytrender
 
 		infof("Backtesting algorithm...");
 
-		for (unsigned int c = 0; c < candles_vec.size(); c++)
+		//***********************************
+		// new and improved forloop structure
+		//***********************************
+
+		// calculating lops
+		std::vector<int> ranges(algo->arg_count(), MIN_ALGORITHM_WINDOW);
+		#define SKIP_AMT 5
+		long long permutations = 1;
+		int possible_vals = ((MAX_ALGORITHM_WINDOW + 1) - MIN_ALGORITHM_WINDOW) / SKIP_AMT;
+		for (int i = 0; i < algo->arg_count(); i++) permutations *= possible_vals;
+		
+		// for every candleset in the bunch
+		for (int i = 0; i < 3; i++)
 		{
 			PaperAccount best;
-			for (unsigned int window = MIN_ALGORITHM_WINDOW; window <= MAX_ALGORITHM_WINDOW; window += 5)
+			double bahnr = 0.0;
+			// re-init with minimum range for each arg
+			ranges = std::vector<int>(algo->arg_count(), MIN_ALGORITHM_WINDOW);
+
+			// for every possible permutation of ranges for indicators/algorithm
+			for (int j = 0; j < permutations; j++)
 			{
-				candleset candles;
-				candles.resize(window);
-				PaperAccount acc(paper_initial, paper_fee, paper_minimum, backtest_intervals[asset_index][c], window);
+				// storing activity and performance data
+				algorithm_data data;
+				PaperAccount acc(PAPER_ACCOUNT_INITIAL, paper_fee, paper_minimum, backtest_intervals[asset_index][i], ranges);
 
-				for (unsigned int i = 0; i < candles_vec[c].size() - window; i++)
+				data.ranges = ranges;
+
+				// calculating size of candles
+				int candle_count = 0;
+				int longest_indi = 0;
+				if (ranges.size() > 1)
 				{
-					//setting value of candles to be passed to algorithm
-					unsigned int index = 0;
-					
-					for (unsigned int j = i; j < i + window; j++)
+					for (int v = 1; v < ranges.size(); v++)
 					{
-
-						candles[index] = candles_vec[c][j];
-						index++;
+						if (ranges[v] > longest_indi) longest_indi = ranges[v];
 					}
-					acc.setPrice(candles.back().close);
-					algorithm_data data = algo->process(candles);
-					paper_actions[data.action](acc, 0.9);
+				}
+				candle_count = ranges[0] + longest_indi;
+				//std::cout << "candle count: " << candle_count << std::endl;
+
+				// walk through every step of candles_vec[i]
+				for (int k = 0; k < candles_vec[i].size - candle_count; k++)
+				{
+					data.candles = candles_vec[i].get_slice(k, candle_count);
+					acc.setPrice(data.candles.back().close);
+
+					if (!algo->process(data))
+					{
+						std::cout << "Error while backtesting: " << data.err << std::endl;
+					}
+					else
+					{
+						paper_actions[data.action](acc, 0.9);
+					}
 				}
 
-				// check if account is better than best
-				if (acc.avgHourNetReturn() > out[c].avgHourNetReturn())
+				// comparing account to previous, potentially storing account
+
+				double ahnr = acc.avgHourNetReturn();
+				
+				if (ahnr > bahnr)
 				{
+					bahnr = ahnr;
 					best = acc;
 				}
+
+				// incrementing the permutation
+
+				int pos = 0;
+				ranges[pos] += SKIP_AMT;
+				while (ranges[pos] > MAX_ALGORITHM_WINDOW)
+				{
+					ranges[pos] = MIN_ALGORITHM_WINDOW;
+					pos++;
+					ranges[pos] += SKIP_AMT;
+				}
 			}
-			out[c] = best;
+
+			std::cout << "Done\n";
+			out[i] = best;
+			// this makes it so it only happens once (for testing purposes)
+			break;
 		}
+
+		for (int i = 0; i < candles_vec.size(); i++)
+		{
+			candles_vec[i].clear();
+		}
+
 		return out;
 	}
 
@@ -439,6 +493,7 @@ namespace daytrender
 		{
 			out[index].first = p.first; 
 			out[index].second = p.second->getName();
+			std::cout << "Filename: " << out[index].second << std::endl;
 			index++;
 		}
 

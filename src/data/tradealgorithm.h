@@ -5,8 +5,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "candle.h"
-#include "algodefs.h"
+#include "algotypes.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define ALGORITHM_EXTENSION ".dll"
@@ -27,14 +26,16 @@ namespace daytrender
 	protected:
 		bool bound = false;
 		hirzel::Plugin* handle = nullptr;
-		std::string name, filename;
+		std::string filename;
+		int args = 0;
 		
 	public:
 		TradeAlgorithm(const std::string& filename);
 		~TradeAlgorithm();
 
-		algorithm_data process(const candleset& candles);
-		inline std::string getName() const { return name; }
+		bool process(algorithm_data& data);
+		inline const std::string& getName() const { return filename; };
+		inline int arg_count() const { return args; }
 		inline bool isBound()
 		{
 			return bound;
