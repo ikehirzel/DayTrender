@@ -236,10 +236,7 @@ namespace daytrender
 			}
 		}
 
-		std::cout << "Assets: " << assets.size() << std::endl;
-
 		// if the algorithm plugin failed to load, it will clear the memory to avoid assets attempting to use it
-
 		for (int i = 0; i < algorithms.size(); i++)
 		{
 			if (!algorithms[i]->is_bound())
@@ -254,8 +251,6 @@ namespace daytrender
 	void start()
 	{
 		mtx.lock();
-
-		std::cout << "ALGORITHMS: " << algorithms.size() << std::endl;
 
 		if (running)
 		{

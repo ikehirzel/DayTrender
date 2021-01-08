@@ -29,7 +29,14 @@ namespace daytrender
 		this->algo = algo;
 		this->ticker = ticker;
 		this->interval = interval;
-		candle_count = _ranges[0];
+		if (_ranges.size() > 1)
+		{
+			for (int i = 1; i < _ranges.size(); i++)
+			{
+				if (_ranges[i] > candle_count) candle_count = _ranges[i];
+			}
+		}
+		candle_count += _ranges[0];
 		type = assetIndex;
 		data.ranges = _ranges;
 		paper = _paper;

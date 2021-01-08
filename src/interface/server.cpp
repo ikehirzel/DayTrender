@@ -14,6 +14,9 @@
 
 #define SERVER_CONFIG_FILENAME CONFIG_FOLDER "serverinfo.json"
 
+#define JSON_FORMAT	"application/json"
+#define TEXT_FORMAT "text/plain"
+
 using nlohmann::json;
 
 namespace daytrender
@@ -150,7 +153,7 @@ namespace daytrender
 			}
 
 			// sending json object to client
-			res.set_content(response.dump(), "application/json");
+			res.set_content(response.dump(), JSON_FORMAT);
 		}
 
 		void get_watch(const httplib::Request& req,  httplib::Response& res)
@@ -194,20 +197,57 @@ namespace daytrender
 					indi["data"][j] = dataset[i].data[j];
 				}
 			}
-			res.set_content(response.dump(), "application/json");
+			res.set_content(response.dump(), JSON_FORMAT);
 		}
 
 		void get_backtest(const httplib::Request& req,  httplib::Response& res)
 		{
 			debugf("Server GET @ %s", req.path);
 			
+			int asset_index, algo_index;
+			json response;
+			algo_index = std::stoi(req.get_param_value("algorithm"));
+			asset_index = std::stoi(req.get_param_value("asset"));
 			
+			printfmt("Asset index gotten: %d\nAlgo index gotten: %d\n", asset_index, algo_index);
+
+			auto results = daytrender::backtest(algo_index, asset_index);
+
+			for (int i = 0; i < results.size(); i++)
+			{
+				json& curr = response[i];
+
+				curr["buys"] = results[i].getBuys();
+				curr["sells"] = results[i].getSells();
+				curr["interval"] = results[i].getInterval();
+
+				auto ranges = results[i].getRanges();
+				for (int j = 0; j < ranges.size(); j++)
+				{
+					curr["ranges"][j] = ranges[j];
+				}
+
+				curr["elapsedhrs"] = results[i].elapsedHours();
+				curr["initial"] = results[i].getInitial();
+				curr["shares"] = results[i].getShares();
+				curr["balance"] = results[i].getBalance();
+				curr["equity"] = results[i].equity();
+				curr["netreturn"] = results[i].netReturn();
+				curr["preturn"] = results[i].percentReturn();
+				curr["hrreturn"] = results[i].avgHourNetReturn();
+				curr["phrreturn"] = results[i].avgHourPercentReturn();
+				curr["winrate"] = results[i].winRate();
+				curr["bwinrate"] = results[i].buyWinRate();
+				curr["swinrate"] = results[i].sellWinRate();
+			}
+
+			res.set_content(response.dump(), JSON_FORMAT);
 		}
 
 		void get_shutdown(const httplib::Request& req,  httplib::Response& res)
 		{
 			debugf("Server GET @ %s", req.path);
-			res.set_content("Shutting down...", "text/plain");
+			res.set_content("Shutting down...", TEXT_FORMAT);
 			daytrender::stop();
 		}
 	}
