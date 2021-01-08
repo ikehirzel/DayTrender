@@ -39,7 +39,7 @@ $("document").ready(() =>
 			for (let i = 0; i < data.algorithms.length; i++)
 			{
 				algorithms[i] = data.algorithms[i];
-				algoSelect.append(`<option value="${algorithms[i].name}">${algorithms[i].name}</option>`);
+				algoSelect.append(`<option value="${i}">${algorithms[i]}</option>`);
 			}
 		}
 	});

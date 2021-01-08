@@ -7,13 +7,6 @@
 
 #include "algotypes.h"
 
-#if defined(_WIN32) || defined(_WIN64)
-#define ALGORITHM_EXTENSION ".dll"
-#elif defined(linux) || defined(__unix__)
-#define ALGORITHM_EXTENSION ".so"
-#endif
-
-
 namespace hirzel
 {
 	class Plugin;

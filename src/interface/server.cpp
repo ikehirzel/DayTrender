@@ -125,7 +125,7 @@ namespace daytrender
 			{
 				for (int i = 0; i < algo_info.size(); i++)
 				{
-					response["algorithms"][i]["filename"] = algo_info[i];
+					response["algorithms"][i] = algo_info[i];
 				}
 			}
 

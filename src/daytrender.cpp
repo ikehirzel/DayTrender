@@ -161,13 +161,12 @@ namespace daytrender
 		{
 			if (algorithms[i]->get_filename() == filename)
 			{
-
 				return i;
 			}
 		}
 
 		// attempts to push back new algorithm
-		algorithms.push_back(new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION));
+		algorithms.push_back(new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename));
 
 		// if algorithm did not bind, pop back and return failure
 		if(!algorithms.back()->is_bound())
@@ -255,6 +254,9 @@ namespace daytrender
 	void start()
 	{
 		mtx.lock();
+
+		std::cout << "ALGORITHMS: " << algorithms.size() << std::endl;
+
 		if (running)
 		{
 			warningf("DayTrender has already started!");
