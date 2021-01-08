@@ -1,124 +1,180 @@
 #include "shell.h"
 
 #include "../daytrender.h"
+
 #include <vector>
+#include <iostream>
+#include <unordered_map>
 
 #include <hirzel/fountain.h>
 #include <hirzel/strutil.h>
-#include <iostream>
 
 namespace daytrender
 {
-	void shell_getInput()
+	namespace shell
 	{
-		std::string input;
+		std::unordered_map<std::string, void(*)(const std::vector<std::string>&)> shell_funcs;
 
-		while (isRunning())
+		void exit(const std::vector<std::string>& tokens)
 		{
-			std::getline(std::cin, input);
-			infof("$ %s", input);
-			if(input.empty())
+			if (tokens.size() > 1)
 			{
-				continue;
+				errorf("exit: invalid use of command. exit does not take arguments");
 			}
+			else
+			{
+				daytrender::stop();
+			}
+		}
 
-			std::vector<std::string> tokens = hirzel::str::tokenize(input, " \t");
-			/************************************************************
-			 * Exit
-			 ***********************************************************/
-			if(tokens[0] == "exit")
+		void build(const std::vector<std::string>& tokens)
+		{
+			bool build = true;
+			std::string filename;
+			bool print = false;
+			
+			for(unsigned int i = 1; i < tokens.size(); i++)
 			{
-				stop();
-				break;
-				// call daytrender stop();
-			}
-			/************************************************************
-			 *	Backtest
-			 ************************************************************/
-			else if (tokens[0] == "backtest")
-			{
-				bool found = false;
-				
-				if (tokens.size() == 4)
+				infof("Tok[%d]: %s", i, tokens[i]);
+				if(tokens[i][0] == '-')
 				{
-					auto result = backtest(tokens[1], tokens[2], tokens[3]);
-					for (const PaperAccount& p : result)
+					if(tokens[i].size() == 1)
 					{
-						std::cout << p << std::endl;
+						warningf("'-' is used to denote options!");
 					}
+					for (unsigned c = 1; c < tokens[i].size(); c++)
+					{
+						switch (tokens[i][c])
+						{
+							case 'p':
+							case 'P':
+								print = true;
+								break;
 
+							default:
+								warningf("Unknown option '%c' used in command", tokens[i][c]);
+								break;
+						}
+					}
 				}
 				else
 				{
-					errorf("Incorrect usage of command: correct usage is backtest <algorithm> <asset-type> <ticker>");
-				}
-			}
-			/************************************************************
-			 *	Build
-			 ************************************************************/
-			else if (tokens[0] == "build")
-			{
-				bool build = true;
-				std::string filename;
-				bool print = false;
-				
-				for(unsigned int i = 1; i < tokens.size(); i++)
-				{
-					infof("Tok[%d]: %s", i, tokens[i]);
-					if(tokens[i][0] == '-')
+					if (filename.empty())
 					{
-						if(tokens[i].size() == 1)
-						{
-							warningf("'-' is used to denote options!");
-						}
-						for (unsigned c = 1; c < tokens[i].size(); c++)
-						{
-							switch (tokens[i][c])
-							{
-								case 'p':
-								case 'P':
-									print = true;
-									break;
-
-								default:
-									warningf("Unknown option '%c' used in command", tokens[i][c]);
-									break;
-							}
-						}
+						filename = tokens[i];
 					}
 					else
 					{
-						if (filename.empty())
-						{
-							filename = tokens[i];
-						}
-						else
-						{
-							errorf("Only one input file should be specified! Aborting...");
-							build = false;
-						}
+						errorf("Only one input file should be specified! Aborting...");
+						build = false;
 					}
 				}
+			}
 
+			if (build)
+			{
+				build = buildAlgorithm(filename, print);
 				if (build)
 				{
-					build = buildAlgorithm(filename, print);
-					if (build)
-					{
-						successf("Successfully compiled %s", tokens[1]);
-					}
-					else
-					{
-						errorf("Failed to compile %s", tokens[1]);
-					}
+					successf("Successfully compiled %s", tokens[1]);
+				}
+				else
+				{
+					errorf("Failed to compile %s", tokens[1]);
 				}
 			}
-			/************************************************************
-			 *	Default
-			 ************************************************************/
+		}
+
+		void backtest(const std::vector<std::string>& tokens)
+		{
+			if (tokens.size() == 3)
+			{
+				int algo_index = -1;
+				int asset_index = -1;
+
+				// tokens[1] should be algo name and 2 should be ticker
+				auto algo_filenames = getAlgoInfo();
+
+				for (int i = 0; i < algo_filenames.size(); i++)
+				{
+					if (tokens[1] == algo_filenames[i])
+					{
+						algo_index = i;
+						break;
+					}
+				}
+
+				if (algo_index < 0)
+				{
+					errorf("backtest: invalid algorithm name given!");
+					return;
+				}
+
+				auto asset_info = getAssetInfo();
+
+				for (int i = 0; i < asset_info.size(); i++)
+				{
+					if (tokens[2] == asset_info[i].first)
+					{
+						asset_index = i;
+						break;
+					}
+				}
+
+				if (asset_index < 0)
+				{
+					errorf("backtest: invalid ticker given!");
+					return;
+				}
+
+				auto result = daytrender::backtest(algo_index, asset_index);
+
+				for (const PaperAccount& p : result)
+				{
+					std::cout << p << std::endl;
+				}
+
+			}
 			else
 			{
-				warningf("dtshell: Command not found");
+				errorf("backtest: incorrect usage of command! correct usage is backtest <algorithm> <asset-type> <ticker>");
+			}
+		}
+
+		void init()
+		{
+			shell_funcs["backtest"] = backtest;
+			shell_funcs["build"] = build;
+			shell_funcs["exit"] = exit;
+		}
+
+		void get_input()
+		{
+			std::string input;
+
+			while (daytrender::isRunning())
+			{
+				std::getline(std::cin, input);
+				infof("$ %s", input);
+
+				if(input.empty())
+				{
+					continue;
+				}
+
+				void (*func)(const std::vector<std::string>&) = nullptr;
+				std::vector<std::string> tokens = hirzel::str::tokenize(input, " \t");
+
+				func = shell_funcs[tokens[0]];
+
+				if (!func)
+				{
+					errorf("shell: invalid command!");
+				}
+				else
+				{
+					func(tokens);
+				}
 			}
 		}
 	}

@@ -3,47 +3,80 @@
 var assets = [];
 var algorithms = [];
 
-$("document").ready(function () 
+var algoSelect = $("#algo-select");
+var tickerSelect = $("#ticker-select");
+var typeSelect = $("#type-select");
+
+var watchButton = $("#watch-button");
+var backtestButton = $("#backtest-button");
+var shutdownButton = $("#shutdown-button");
+
+$("document").ready(() => 
 {
 	$.get(
+	{
+		url: "/data",
+		success: function (data, status) 
 		{
-			url: "/data",
-			success: function (data, status) 
-			{
-				console.log("Data:", data);
-				
-				let tickerSelect = $("#ticker-select");
-				let algoSelect = $("#algo-type-select");
-				
-				for (let i = 0; i < data.assets.length; i++) 
-				{
-					assets[i] = data.assets[i];
-					tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
-				}
-				
-				for (let i = 0; i < data.algorithms.length; i++)
-				{
-					algorithms[i] = data.algorithms[i];
-					algoSelect.append(`<option value=${i}>${algorithms[i].name}</option>`);
-				}
-			}
-		});
+			console.log("Data:", data);
+			
+			// default setting is to show all in a large pool
+			// the user can then organize by type if desired
+			assets = data.assets;
 
-	$("#asset-type-select").change(() => {
-		let assetType = $("#asset-type-select").val();
-		let tickerSelect = $("#ticker-select");
-		tickerSelect.empty();
-		for (let i = 0; i < assets[assetType].length; i++) {
-			let ticker = assets[assetType][i];
-			tickerSelect.append(`<option value=${ticker}>${ticker}</option>`);
+			
+			typeSelect.append(`<option value=-1>All</option>`);
+			for (let i = 0; i < data.types.length; i++)
+			{
+				typeSelect.append(`<option value=${i}>${data.types[i]}</option>`);
+			}
+
+			for (let i = 0; i < assets.length; i++) 
+			{
+				tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
+			}
+			
+			for (let i = 0; i < data.algorithms.length; i++)
+			{
+				algorithms[i] = data.algorithms[i];
+				algoSelect.append(`<option value="${algorithms[i].name}">${algorithms[i].name}</option>`);
+			}
 		}
 	});
 
-	$("#shutdown-button").click(() => {
+	// callback for organizing assets
+	typeSelect.change(() =>
+	{
+		let val = typeSelect.val();
+		tickerSelect.empty();
+
+		// if it is set to all, then put all of them
+		if (val == -1)
+		{
+			for (let i = 0; i < assets.length; i++)
+			{
+				tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
+			}
+		}
+		// otherwise put all that match the type
+		else
+		{
+			for (let i = 0; i < assets.length; i++)
+			{
+				if (assets[i].type == val)
+				{
+					tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
+				}
+			}
+		}
+	});
+
+	// callback for shutting down server
+	shutdownButton.click(() => {
 		$.get(
 			{
 				url: "/shutdown",
-				success: function (data, status, jqxhr) {
+				success: function (data, status) {
 					console.log(data);
 					/*
 					setTimeout(()=>{
@@ -60,7 +93,7 @@ $("document").ready(function ()
 
 	function get_watch()
 	{
-		let index = $("#ticker-select").val();
+		let index = tickerSelect.val();
 		console.log("Asset index:", index);
 
 		$.get({
@@ -148,7 +181,7 @@ $("document").ready(function ()
 		});
 	}
 
-	$("#watch-button").click(() => {
+	watchButton.click(() => {
 		if (watching) {
 			clearInterval(watching_interval);
 			watching = false;
@@ -163,87 +196,33 @@ $("document").ready(function ()
 		}
 	});
 
-	$("#backtest-button").click(() => {
+	backtestButton.click(() => {
 		console.log("backtesting...");
-		var assetType = parseInt($("#asset-type-select").val());
-		var ticker = $("#ticker-select").val();
-		var algoType = parseInt($("#algo-type-select").val());
-		var interval = parseInt($("#interval-select").val());
-		var window = parseInt($("#window-field").val());
-		if (Number.isNaN(window)) {
-			window = 0;
-		}
-		console.log("assetType:", assetType);
+
+		var type = tickerSelect.val();
+		var ticker = $("#ticker-select option:selected").text();
+		var algo = algoSelect.val();
+
+		console.log("Type:", type);
 		console.log("Ticker:", ticker);
-		console.log("algoType:", algoType);
-		console.log("Interval:", interval);
-		console.log("Window:", window);
+		console.log("Algorithm:", algo);
 
 		$.get(
+		{
+			url: "/backtest",
+			dataType: "json",
+			data: {
+				"type": type,
+				"ticker": ticker,
+				"algorithm": algo
+			},
+			success: function (data, status)
 			{
-				url: "/backtest",
-				dataType: "json",
-				data: {
-					"assetType": assetType,
-					"ticker": ticker,
-					"algoType": algoType,
-					"interval": interval,
-					"window": 300
-				},
-				success: function (data, status) {
-					console.log("Response:", data);
+				console.log("Response:", data);
 
-					var maxVolume = data.volume[0];
-					for (let i = 0; i < data.low.length; i++) {
-						maxVolume = (data.volume[i] > maxVolume) ? data.volume[i] : maxVolume;
-					}
 
-					var priceTrace = {
-						type: "candlestick",
-						open: data.open,
-						high: data.high,
-						low: data.low,
-						close: data.close,
-						x: data.x,
-						yaxis: "y2",
-						name: "ohlc",
-						increasing: { line: { color: '#00CC00' } },
-						decreasing: { line: { color: '#CC0000' } }
-					};
 
-					var volumeTrace = {
-						x: data.x,
-						y: data.volume,
-						type: "bar",
-						yaxis: "y",
-						name: "volume"
-					};
-
-					var chartdata = [priceTrace, volumeTrace];
-
-					var layout = {
-						xaxis:
-						{
-							title: "Time",
-							type: "linear"
-						},
-						yaxis:
-						{
-							title: "Volume",
-							type: "linear",
-							range: [0, maxVolume * 2],
-							side: "right"
-						},
-						yaxis2:
-						{
-							title: "Price",
-							overlaying: "y1",
-							type: "linear"
-						}
-					};
-
-					Plotly.newPlot("chart-window", chartdata, layout);
-				}
-			});
+			}
+		});
 	});
 });

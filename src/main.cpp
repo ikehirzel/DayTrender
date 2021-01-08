@@ -9,5 +9,6 @@ int main(int argc, char *argv[])
 	daytrender::init(hirzel::str::get_folder(argv[0]));
 	daytrender::start();
 	infof("DayTrender has stopped");
+	daytrender::free();
 	return 0;
 }

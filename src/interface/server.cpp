@@ -123,10 +123,9 @@ namespace daytrender
 			}
 			else
 			{
-				for (unsigned i = 0; i < algo_info.size(); i++)
+				for (int i = 0; i < algo_info.size(); i++)
 				{
-					response["algorithms"][i]["filename"] = algo_info[i].first;
-					response["algorithms"][i]["name"] = algo_info[i].second;
+					response["algorithms"][i]["filename"] = algo_info[i];
 				}
 			}
 
@@ -138,11 +137,16 @@ namespace daytrender
 			}
 			else
 			{
-				for (unsigned i = 0; i < asset_data.size(); i++)
+				for (int i = 0; i < asset_data.size(); i++)
 				{
 					response["assets"][i]["ticker"] = asset_data[i].first;
 					response["assets"][i]["type"] = asset_data[i].second;
 				}
+			}
+
+			for (int i = 0; i < ASSET_TYPE_COUNT; i++)
+			{
+				response["types"][i] = asset_labels[i];
 			}
 
 			// sending json object to client
@@ -196,8 +200,8 @@ namespace daytrender
 		void get_backtest(const httplib::Request& req,  httplib::Response& res)
 		{
 			debugf("Server GET @ %s", req.path);
-			warningf("'/backtest' callback is not yet implemented");
-			// TODO: Implement /backtest
+			
+			
 		}
 
 		void get_shutdown(const httplib::Request& req,  httplib::Response& res)

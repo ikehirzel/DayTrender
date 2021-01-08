@@ -18,27 +18,14 @@
 		<div id="panel" class="row p-2 text-dark bg-light">
 			<div class="col">
 				<div class="row">
+					<div class="col"><select class="form-control" id="type-select"></select></div>
+					<div class="col"><select class="form-control" id="ticker-select"></select></div>
 
-					<div class="col">
-						<select class="form-control" id="ticker-select"></select>
-					</div>
-					<div class="col">
-						<button type="button" class="btn btn-info" id="watch-button">Watch Live</button>
-					</div>
-					<div class="col">
-						<select class="form-control" id="algo-type-select">
-						</select>
-					</div>
-					<div class="col">
-						<select class="form-control" id="interval-select">
-							<option value=0>Test Several</option>
-							<option value=300>5 Minute</option>
-						</select>
-					</div>
-					<div class="col">
-						<button type="button" class="btn btn-info" id="backtest-button">Backtest</button>
-					</div>
-					
+					<div class="col"><button type="button" class="btn btn-info" id="watch-button">Watch Live</button></div>
+
+					<div class="col"><select class="form-control" id="algo-select"></select></div>
+
+					<div class="col"><button type="button" class="btn btn-info" id="backtest-button">Backtest</button></div>
 				</div>
 			</div>
 			

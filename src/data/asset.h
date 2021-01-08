@@ -43,7 +43,7 @@
 #define CRYPTO_INDEX		2U
 #define CRYPTO_LABEL		"Crypto"
 
-//temporarily set to just forex for testing
+// The amount of asset types there are. Currently only forex and stocks
 #define ASSET_TYPE_COUNT	2
 
 #define ASSET_LABELS		{ FOREX_LABEL, STOCK_LABEL }

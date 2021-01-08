@@ -30,7 +30,7 @@ namespace daytrender
 
 	// data containers
 	std::vector<Asset*> assets;
-	std::unordered_map<std::string, TradeAlgorithm*> algorithms;
+	std::vector<TradeAlgorithm*> algorithms;
 	std::vector<TradeClient*> clients;
 
 	std::mutex mtx;
@@ -43,17 +43,18 @@ namespace daytrender
 	void init(const std::string& execpath)
 	{
 		mtx.lock();
+
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
-		
-		// NOTE: functions must be called in this order
 
 		// loads the credentials of the clients and creates them
 		initClients();
 		// loads the asset data and creates assets and their respective algorithms
 		initAssets();
+
+		// setting the functions for inputs
+		shell::init();
+
 		// sets the callbacks for the server
-
-
 		if(!server::init(dtdir))
 		{
 			errorf("Failed to initialize server!");
@@ -63,6 +64,7 @@ namespace daytrender
 		{
 			successf("Successfully initialized server");
 		}
+
 		mtx.unlock();
 	}
 
@@ -70,7 +72,8 @@ namespace daytrender
 	void free()
 	{
 		mtx.lock();
-		for (unsigned i = 0; i < clients.size(); i++)
+
+		for (int i = 0; i < clients.size(); i++)
 		{
 			if (!clients[i])
 			{
@@ -82,29 +85,26 @@ namespace daytrender
 			}
 		}
 
-		unsigned int count = 0;
-		for (unsigned i = 0; i < assets.size(); i++)
+		int count = 0;
+		for (int i = 0; i < assets.size(); i++)
 		{
-			count = 0;
-			for (Asset *asset : assets)
-			{
-				count++;
-				delete asset;
-			}
-			if (!count) warningf("No %s assets were initialized!", asset_labels[i]);
+			delete assets[i];
+			count++;
+			
 		}
+		if (!count) warningf("No assets were initialized!");
 
 		count = 0;
-		for (std::pair<std::string, TradeAlgorithm *> p : algorithms)
+		for (TradeAlgorithm * algo : algorithms)
 		{
-			if(p.second)
+			if (algo)
 			{
-				delete p.second;
+				delete algo;
 				count++;
 			}
 		}
 		if(!count) warningf("No algorithms were initialized!");
-		infof("End of destructor");
+
 		mtx.unlock();
 	}
 
@@ -128,15 +128,21 @@ namespace daytrender
 		// Setting Alpaca credentials
 		json alpacaCredentials = credentials["Alpaca"];
 
-		clients[STOCK_INDEX] = new AlpacaClient({alpacaCredentials["key"],
-								   alpacaCredentials["secret"]});
+		clients[STOCK_INDEX] = new AlpacaClient(
+		{
+			alpacaCredentials["key"],
+			alpacaCredentials["secret"]
+		});
 
 		// Setting oanda credentials
 		json oandaCredentials = credentials["Oanda"];
 		
-		clients[FOREX_INDEX] = new OandaClient({oandaCredentials["username"].get<std::string>(),
-								 oandaCredentials["accountid"].get<std::string>(),
-								 oandaCredentials["token"].get<std::string>()});
+		clients[FOREX_INDEX] = new OandaClient(
+		{
+			oandaCredentials["username"].get<std::string>(),
+			oandaCredentials["accountid"].get<std::string>(),
+			oandaCredentials["token"].get<std::string>()
+		});
 	}
 
 	bool buildAlgorithm(const std::string& filename, bool print)
@@ -148,21 +154,30 @@ namespace daytrender
 		return !std::system(cmd.c_str());
 	}
 
-	bool loadAlgorithm(const std::string& filename)
-	{
-		infof("Loading %s...", filename);
-		// initializing algorithm
-		// if an algo failed to load and another one uses it,it will try to load it again
-		// maybe this needs to be optimized with some kind of flag
-		if(!algorithms[filename])
+	int loadAlgorithm(const std::string& filename)
+	{	
+		// checks to see if algorithm has been loaded already and returns its index if it has
+		for (int i = 0; i < algorithms.size(); i++)
 		{
-			algorithms[filename] = new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION);
-			if(!algorithms[filename]->isBound())
+			if (algorithms[i]->get_filename() == filename)
 			{
-				return false;
+
+				return i;
 			}
 		}
-		return true;
+
+		// attempts to push back new algorithm
+		algorithms.push_back(new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename + ALGORITHM_EXTENSION));
+
+		// if algorithm did not bind, pop back and return failure
+		if(!algorithms.back()->is_bound())
+		{
+			algorithms.pop_back();
+			return -1;
+		}
+
+		// return last element, as it was just pushed to the back
+		return algorithms.size() - 1;
 	}
 
 	// loads asset info, creates assets, and loads algorithm names
@@ -206,14 +221,18 @@ namespace daytrender
 					ranges[j] = jranges[j];
 				}
 
-				// if algo failed to load
-				if(!loadAlgorithm(algo_filename))
+				// getting index of algorithm
+				int ret = loadAlgorithm(algo_filename);
+
+				// if algorithm is bound, create asset with it
+				if(ret >= 0)
 				{
-					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, ranges, paper));
+					assets.push_back(new Asset(i, clients[i], ticker, algorithms[ret], interval, ranges, paper));
 				}
+				// if algorithm failed to bind, give it a null algorithm
 				else
 				{
-					assets.push_back(new Asset(i, clients[i], ticker, algorithms[algo_filename], interval, ranges, paper));
+					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, ranges, paper));
 				}
 			}
 		}
@@ -221,13 +240,14 @@ namespace daytrender
 		std::cout << "Assets: " << assets.size() << std::endl;
 
 		// if the algorithm plugin failed to load, it will clear the memory to avoid assets attempting to use it
-		for (std::pair<std::string, TradeAlgorithm*> p : algorithms)
+
+		for (int i = 0; i < algorithms.size(); i++)
 		{
-			if (!p.second->isBound())
+			if (!algorithms[i]->is_bound())
 			{
-				warningf("Disposing of uninitialized algorithm '%s'", p.first);
-				delete p.second;
-				algorithms[p.first] = nullptr;
+				warningf("Disposing of uninitialized algorithm '%s'", algorithms[i]->get_filename());
+				delete algorithms[i];
+				algorithms[i] = nullptr;
 			}
 		}
 	}
@@ -253,7 +273,7 @@ namespace daytrender
 		running = true;
 		mtx.unlock();
 
-		std::thread shellInputThread(shell_getInput);
+		std::thread shellInputThread(shell::get_input);
 		std::thread serverThread(server::start);
 
 		long long time, last, elapsed, timeout;
@@ -327,50 +347,28 @@ namespace daytrender
 		}
 	}
 
-	std::vector<PaperAccount> backtest(const std::string& algoname, const std::string& clientname, const std::string& ticker)
+	std::vector<PaperAccount> backtest(int algo_index, int asset_index)
 	{
 		std::vector<PaperAccount> out;
+
+		std::string ticker;
 		TradeClient* client = nullptr;
 		TradeAlgorithm* algo = nullptr;
+
 		std::vector<candleset> candles_vec;
-		int asset_index = 0;
 		double paper_initial, paper_minimum, paper_fee;
 
-		// getting algorithm pointer
-		algo = algorithms[algoname];
+		ticker = assets[asset_index]->getTicker();
+		client = clients[assets[asset_index]->getType()];
+		algo = algorithms[algo_index];
 
-		if(!algo)
-		{
-			errorf("Invalid algorithm name!");
-			return {};
-		}
-
-		// setting paper account information and getting client
 		paper_initial = PAPER_ACCOUNT_INITIAL;
-		if(clientname == "forex")
-		{
-			client = clients[FOREX_INDEX];
-			paper_minimum = FOREX_MINIMUM;
-			paper_fee = FOREX_FEE;
-			asset_index = FOREX_INDEX;
-		}
-		else if (clientname == "stocks")
-		{
-			client = clients[STOCK_INDEX];
-			paper_minimum = STOCK_MINIMUM;
-			paper_fee = STOCK_FEE;
-			asset_index = STOCK_INDEX;
-		}
-
-		if(!client)
-		{
-			errorf("Invalid asset type!");
-			return {};
-		}
+		paper_fee = paper_initials[asset_index][0];
+		paper_minimum = paper_initials[asset_index][1];
 
 		out.resize(3);
-
 		candles_vec.resize(3);
+
 		for (int i = 0; i < 3; i++)
 		{
 			candles_vec[i] = client->getCandles(ticker, backtest_intervals[asset_index][i]);
@@ -466,7 +464,7 @@ namespace daytrender
 			std::cout << "Done\n";
 			out[i] = best;
 			// this makes it so it only happens once (for testing purposes)
-			break;
+			//break;
 		}
 
 		for (int i = 0; i < candles_vec.size(); i++)
@@ -482,30 +480,23 @@ namespace daytrender
 		return running;
 	}
 
-	std::vector<std::pair<std::string, std::string>> getAlgoInfo()
+	std::vector<std::string> getAlgoInfo()
 	{
-		std::vector<std::pair<std::string, std::string>> out;
-		out.resize(algorithms.size());
+		std::vector<std::string> out(algorithms.size());
 
-		unsigned index = 0;
-
-		for (std::pair<std::string, TradeAlgorithm*> p : algorithms)
+		for (int i = 0; i < algorithms.size(); i++)
 		{
-			out[index].first = p.first; 
-			out[index].second = p.second->getName();
-			std::cout << "Filename: " << out[index].second << std::endl;
-			index++;
+			out[i] = algorithms[i]->get_filename(); 
 		}
 
 		return out;
 	}
 
-	std::vector<std::pair<std::string, unsigned>> getAssetInfo()
+	std::vector<std::pair<std::string, int>> getAssetInfo()
 	{
-		std::vector<std::pair<std::string, unsigned>> out;
-		out.resize(assets.size());
+		std::vector<std::pair<std::string, int>> out(assets.size());
 
-		for (unsigned i = 0; i < assets.size(); i++)
+		for (int i = 0; i < assets.size(); i++)
 		{
 			out[i] = { assets[i]->getTicker(), assets[i]->getType() };
 		}
@@ -513,7 +504,7 @@ namespace daytrender
 		return out;
 	}
 
-	const Asset* getAsset(unsigned index)
+	const Asset* getAsset(int index)
 	{
 		return assets[index];
 	}

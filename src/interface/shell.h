@@ -2,5 +2,9 @@
 
 namespace daytrender
 {
-	void shell_getInput();
+	namespace shell
+	{
+		void init();
+		void get_input();
+	}
 }

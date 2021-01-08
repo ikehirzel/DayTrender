@@ -30,15 +30,12 @@ namespace daytrender
 		int args = 0;
 		
 	public:
-		TradeAlgorithm(const std::string& filename);
+		TradeAlgorithm(const std::string& _filepath);
 		~TradeAlgorithm();
 
 		bool process(algorithm_data& data);
-		inline const std::string& getName() const { return filename; };
+		inline const std::string& get_filename() const { return filename; };
 		inline int arg_count() const { return args; }
-		inline bool isBound()
-		{
-			return bound;
-		}
+		inline bool is_bound() const { return bound; }
 	};
 }

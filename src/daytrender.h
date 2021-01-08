@@ -22,13 +22,13 @@
 #define CONFIG_FOLDER			"/config/"
 #define RESOURCES_FOLDER		"/resources/"
 #define SCRIPT_FOLDER			"/algorithms/"
-#define ALGORITHM_BIN_FOLDER	RESOURCES_FOLDER"bin/"
-#define HTML_FOLDER				RESOURCES_FOLDER"html/"
+#define ALGORITHM_BIN_FOLDER	RESOURCES_FOLDER "bin/"
+#define HTML_FOLDER				RESOURCES_FOLDER "html/"
 
 namespace daytrender
 {
 	bool buildAlgorithm(const std::string& filename, bool print);
-	std::vector<PaperAccount> backtest(const std::string& algoname, const std::string& clientname, const std::string& ticker);
+	std::vector<PaperAccount> backtest(int algo_index, int asset_index);
 	void init(const std::string& execpath);
 	void free();
 
@@ -37,7 +37,7 @@ namespace daytrender
 
 	bool isRunning();
 
-	std::vector<std::pair<std::string, std::string>> getAlgoInfo();
-	std::vector<std::pair<std::string, unsigned>> getAssetInfo();
-	const Asset* getAsset(unsigned index);
+	std::vector<std::string> getAlgoInfo();
+	std::vector<std::pair<std::string, int>> getAssetInfo();
+	const Asset* getAsset(int index);
 }

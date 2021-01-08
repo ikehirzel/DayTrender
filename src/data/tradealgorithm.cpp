@@ -10,10 +10,10 @@
 
 namespace daytrender
 {
-	TradeAlgorithm::TradeAlgorithm(const std::string& filepath)
+	TradeAlgorithm::TradeAlgorithm(const std::string& _filepath)
 	{
-		filename = hirzel::str::get_filename(filepath);
-		handle = new hirzel::Plugin(filepath, { ALGO_FUNCTION, COUNT_FUNCTION });
+		filename = hirzel::str::get_filename(_filepath);
+		handle = new hirzel::Plugin(_filepath, { ALGO_FUNCTION, COUNT_FUNCTION });
 		args = handle->execute_return<int>(COUNT_FUNCTION);
 		if (!args)
 		{
