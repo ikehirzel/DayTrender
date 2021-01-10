@@ -173,4 +173,10 @@ namespace daytrender
 		successf("Received %d candles @ %dsec interval", candles.size, interval);
 		return candles;
 	}
+
+	account_info OandaClient::getAccountInfo() const
+	{
+		account_info out;
+		return out;
+	}
 }

@@ -14,12 +14,14 @@ namespace daytrender
 	{
 		filename = hirzel::str::get_filename(_filepath);
 		handle = new hirzel::Plugin(_filepath, { ALGO_FUNCTION, COUNT_FUNCTION });
-		args = handle->execute_return<int>(COUNT_FUNCTION);
-		if (!args)
+		//args = handle->execute_return<int>(COUNT_FUNCTION);
+		if (!handle->is_func_bound(ALGO_FUNCTION) || !handle->is_func_bound(COUNT_FUNCTION))
 		{
-			errorf("Failed to retrieve argument count from algorithm!");
+			errorf(handle->get_error());
 			return;
 		}
+		args = handle->execute<int>(COUNT_FUNCTION);
+		algo = (algorithm_func)handle->get_func(ALGO_FUNCTION);
 		bound = true;
 		successf("Successfully loaded algorithm: %s", filename);
 	}
@@ -36,7 +38,7 @@ namespace daytrender
 		data.dataset.clear();
 		data.action = ACTION_NOTHING;
 
-		if (!handle->execute_return<bool, algorithm_data&>(ALGO_FUNCTION, data))
+		if (!algo(data))
 		{
 			std::string args_glob;
 			for (int i = 0; i < data.ranges.size(); i++)

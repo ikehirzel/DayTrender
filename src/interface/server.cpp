@@ -34,6 +34,7 @@ namespace daytrender
 		void get_shutdown(const httplib::Request& req,  httplib::Response& res);
 		void get_watch(const httplib::Request& req,  httplib::Response& res);
 		void get_backtest(const httplib::Request& req,  httplib::Response& res);
+		void get_accinfo(const httplib::Request& req,  httplib::Response& res);
 
 		bool init(const std::string& dir)
 		{
@@ -64,6 +65,7 @@ namespace daytrender
 			server.Get("/shutdown", get_shutdown);
 			server.Get("/watch", get_watch);
 			server.Get("/backtest", get_backtest);
+			server.Get("/accinfo", get_accinfo);
 			return true;
 		}
 
@@ -156,6 +158,26 @@ namespace daytrender
 			res.set_content(response.dump(), JSON_FORMAT);
 		}
 
+		void get_accinfo(const httplib::Request& req,  httplib::Response& res)
+		{
+			debugf("Server: GET @ %s", req.path);
+
+			int asset_type;
+			account_info accinfo;
+			const TradeClient* client;
+			json response;
+
+			asset_type = std::stoi(req.get_param_value("asset_type"));
+
+			client = getClient(asset_type);
+			accinfo = client->getAccountInfo();
+			response["balance"] = accinfo.balance;
+			response["buying_power"] = accinfo.buying_power;
+			response["equity"] = accinfo.equity;
+
+			res.set_content(response.dump(), JSON_FORMAT);
+		}
+
 		void get_watch(const httplib::Request& req,  httplib::Response& res)
 		{
 			debugf("Server: GET @ %s", req.path);
@@ -163,12 +185,20 @@ namespace daytrender
 			int index;
 			std::string ticker;
 			algorithm_data data;
+			asset_info ainfo;
 			json response;
 			const Asset* asset;
 
 			index = std::stoi(req.get_param_value("index"));
 			asset = getAsset(index);
 			data = asset->getData();
+			ainfo = asset->getAssetInfo();
+
+			json& jacc = response["asset"];
+			jacc["risk"] = ainfo.risk;
+			jacc["shares"] = ainfo.shares;
+			jacc["live"] = ainfo.live;
+			jacc["paper"] = ainfo.paper;
 
 			response["interval"] = data.candles.interval;
 			response["ticker"] = asset->getTicker();

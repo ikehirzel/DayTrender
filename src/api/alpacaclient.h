@@ -42,9 +42,9 @@ namespace daytrender
 		~AlpacaClient();
 
 		std::string toInterval(unsigned int interval);
-		
 		candleset getCandles(const std::string& ticker, unsigned int interval,
 			unsigned int max = ALPACA_MAX_CANDLES);
+		virtual account_info getAccountInfo() const;
 			
 		std::string server_time();
 		bool market_open();

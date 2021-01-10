@@ -73,7 +73,7 @@ namespace daytrender
 
 			if (build)
 			{
-				build = buildAlgorithm(filename, print);
+				build = buildAlgorithm(filename);
 				if (build)
 				{
 					successf("Successfully compiled %s", tokens[1]);

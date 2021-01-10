@@ -32,19 +32,23 @@ namespace daytrender
 	std::vector<Asset*> assets;
 	std::vector<TradeAlgorithm*> algorithms;
 	std::vector<TradeClient*> clients;
+	std::string compiler, buildflags;
 
 	std::mutex mtx;
 
 	void update();
 	void initClients();
 	void initAssets();
-	
+	void initBuilder();
 
 	void init(const std::string& execpath)
 	{
 		mtx.lock();
 
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
+
+		// loads the settings for compiling algorithms
+		initBuilder();
 
 		// loads the credentials of the clients and creates them
 		initClients();
@@ -118,7 +122,7 @@ namespace daytrender
 		std::string credentialStr = file::read_file_as_string(dtdir + CONFIG_FOLDER "keys.json");
 		if (credentialStr.empty())
 		{
-			fatalf("Failed to load '." CONFIG_FOLDER "'!");
+			fatalf("Failed to load '." CONFIG_FOLDER "keys.json'!");
 			shouldrun = false;
 			return;
 		}
@@ -145,12 +149,37 @@ namespace daytrender
 		});
 	}
 
-	bool buildAlgorithm(const std::string& filename, bool print)
+	void initBuilder()
 	{
+		std::string buildstr = hirzel::file::read_file_as_string(dtdir + CONFIG_FOLDER "buildinfo.json");
+		if (buildstr.empty())
+		{
+			fatalf("Failed to load '." CONFIG_FOLDER "buildinfo.json'!");
+			shouldrun = false;
+			return;
+		}
+		successf("Successfully loaded '." CONFIG_FOLDER "buildinfo.json'!");
+		json build_info = json::parse(buildstr);
+		compiler = build_info["compiler"];
+
+		json& flags = build_info["flags"];
+		for (int i = 0; i < flags.size(); i++)
+		{
+			buildflags += flags[i].get<std::string>() + ' ';
+		}
+	}
+
+	bool buildAlgorithm(const std::string& filename)
+	{
+		#if defined(_WIN32) || defined(_WIN64)
+		#define OUTPUT_EXTENSION ".dll"
+		#elif defined(linux) || defined(__unix__)
+		#define OUTPUT_EXTENSION ".so"
+		#endif
 		infof("Compiling %s...", filename);
-		std::string cmd = dtdir + "/dtbuild " + dtdir + SCRIPT_FOLDER + filename + ".alg -o ";
-		if (print) cmd += "-p ";
-		cmd += dtdir + ALGORITHM_BIN_FOLDER ".";
+		std::string basename = hirzel::str::get_basename(filename);
+		std::string cmd = compiler + ' ' + dtdir + SCRIPT_FOLDER + basename + ".cpp " + buildflags + "-I" + dtdir + SCRIPT_FOLDER "/include -o " + dtdir + ALGORITHM_BIN_FOLDER + basename + OUTPUT_EXTENSION;\
+		//std::cout << "BUILD_CMD: " << cmd << "\n=====\n";
 		return !std::system(cmd.c_str());
 	}
 
@@ -164,7 +193,7 @@ namespace daytrender
 				return i;
 			}
 		}
-
+		buildAlgorithm(filename);
 		// attempts to push back new algorithm
 		algorithms.push_back(new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename));
 
@@ -205,6 +234,7 @@ namespace daytrender
 			for (json asset : assetInfo[asset_labels[i]])
 			{
 				int interval, window;
+				double risk;
 				std::string ticker, algo_filename;
 				bool paper;
 
@@ -212,6 +242,8 @@ namespace daytrender
 				algo_filename = asset["algorithm"].get<std::string>();
 				interval = asset["interval"].get<int>();
 				paper = asset["paper"].get<bool>();
+				risk = asset["risk"].get<double>();
+
 				json& jranges = asset["ranges"];
 
 				std::vector<int> ranges(jranges.size());
@@ -226,12 +258,12 @@ namespace daytrender
 				// if algorithm is bound, create asset with it
 				if(ret >= 0)
 				{
-					assets.push_back(new Asset(i, clients[i], ticker, algorithms[ret], interval, ranges, paper));
+					assets.push_back(new Asset(i, clients[i], ticker, algorithms[ret], interval, risk, ranges, paper));
 				}
 				// if algorithm failed to bind, give it a null algorithm
 				else
 				{
-					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, ranges, paper));
+					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, risk, ranges, paper));
 				}
 			}
 		}
@@ -354,21 +386,24 @@ namespace daytrender
 
 		std::vector<candleset> candles_vec;
 		double paper_initial, paper_minimum, paper_fee;
-
+		int asset_type;
+		
+		asset_type = assets[asset_index]->getType();
+		client = clients[asset_type];
 		ticker = assets[asset_index]->getTicker();
-		client = clients[assets[asset_index]->getType()];
 		algo = algorithms[algo_index];
 
 		paper_initial = PAPER_ACCOUNT_INITIAL;
-		paper_fee = paper_initials[asset_index][0];
-		paper_minimum = paper_initials[asset_index][1];
+		paper_fee = paper_initials[asset_type][0];
+		std::cout << "ASSET TYPE: " << asset_type << std::endl;
+		paper_minimum = paper_initials[asset_type][1];
 
 		out.resize(3);
 		candles_vec.resize(3);
 
 		for (int i = 0; i < 3; i++)
 		{
-			candles_vec[i] = client->getCandles(ticker, backtest_intervals[asset_index][i]);
+			candles_vec[i] = client->getCandles(ticker, backtest_intervals[asset_type][i]);
 
 			if (candles_vec[i].empty())
 			{
@@ -403,7 +438,7 @@ namespace daytrender
 			{
 				// storing activity and performance data
 				algorithm_data data;
-				PaperAccount acc(PAPER_ACCOUNT_INITIAL, paper_fee, paper_minimum, backtest_intervals[asset_index][i], ranges);
+				PaperAccount acc(PAPER_ACCOUNT_INITIAL, paper_fee, paper_minimum, backtest_intervals[asset_type][i], ranges);
 
 				data.ranges = ranges;
 
@@ -458,10 +493,8 @@ namespace daytrender
 				}
 			}
 
-			std::cout << "Done\n";
+			std::cout << "Completed backtest " << i << '\n';
 			out[i] = best;
-			// this makes it so it only happens once (for testing purposes)
-			//break;
 		}
 
 		for (int i = 0; i < candles_vec.size(); i++)
@@ -504,5 +537,10 @@ namespace daytrender
 	const Asset* getAsset(int index)
 	{
 		return assets[index];
+	}
+
+	const TradeClient* getClient(int type)
+	{
+		return clients[type];
 	}
 }

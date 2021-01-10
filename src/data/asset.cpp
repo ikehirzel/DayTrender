@@ -13,10 +13,10 @@ namespace daytrender
 	double paper_initials[ASSET_TYPE_COUNT][2] = PAPER_INITIALS;
 	unsigned backtest_intervals[ASSET_TYPE_COUNT][3] = BACKTEST_INTERVALS;
 
-	Asset::Asset(int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
-		int interval, const std::vector<int>& _ranges, bool _paper)
+	Asset::Asset(int _assetIndex, TradeClient *_client, const std::string &_ticker, TradeAlgorithm* _algo,
+		int _interval, double _risk, const std::vector<int>& _ranges, bool _paper)
 	{
-		if (client && algo && !_ranges.empty())
+		if (_client && _algo && !_ranges.empty())
 		{
 			live = true;
 		}
@@ -25,10 +25,10 @@ namespace daytrender
 			warningf("Arguments were not sufficient, asset '%s' cannot go live", ticker);
 		}
 
-		this->client = client;
-		this->algo = algo;
-		this->ticker = ticker;
-		this->interval = interval;
+		client = _client;
+		algo = _algo;
+		ticker = _ticker;
+		interval = _interval;
 		if (_ranges.size() > 1)
 		{
 			for (int i = 1; i < _ranges.size(); i++)
@@ -37,9 +37,10 @@ namespace daytrender
 			}
 		}
 		candle_count += _ranges[0];
-		type = assetIndex;
+		type = _assetIndex;
 		data.ranges = _ranges;
 		paper = _paper;
+		risk = _risk;
 		paperAccount = PaperAccount(PAPER_ACCOUNT_INITIAL, paper_initials[type][0], paper_initials[type][1], interval, _ranges);
 	}
 	
@@ -67,15 +68,37 @@ namespace daytrender
 				// paper trading
 				if (paper)
 				{
-					paper_actions[data.action](paperAccount, maxRisk);
+					paper_actions[data.action](paperAccount, risk);
 				}
 				// live trading
 				else
 				{
-					actions[data.action](client, maxRisk);
+					actions[data.action](client, risk);
 				}
 			}
 
 		}
+	}
+
+	asset_info Asset::getAssetInfo() const
+	{
+		asset_info out;
+		if (live)
+		{
+			out.live = live;
+			out.paper = paper;
+			out.risk = risk;
+			if (paper)
+			{
+				out.shares = paperAccount.getShares();
+			}
+			else
+			{
+				errorf("Get asset info not yet implemented");
+				//out = client->get
+				out.shares = 0.0;
+			}
+		}
+		return out;
 	}
 }

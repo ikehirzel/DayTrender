@@ -5,7 +5,6 @@ set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 
 file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp ./src/interface/*.cpp)
-file(GLOB DTBUILD_SRCS ./src/dtbuild/*.cpp)
 file(COPY src/data/algodefs.h src/data/algotypes.h src/data/candle.h DESTINATION ../algorithms/include)
 
 file(CREATE_LINK ../resources resources SYMBOLIC)
@@ -13,11 +12,9 @@ file(CREATE_LINK ../config config SYMBOLIC)
 file(CREATE_LINK ../algorithms algorithms SYMBOLIC)
 
 add_executable(daytrender ${DAYTRENDER_SRCS})
-add_executable(dtbuild ${DTBUILD_SRCS})
 
 # setting properties
 set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)
-set_target_properties(dtbuild PROPERTIES CXX_STANDARD 17)
 
 if(UNIX)
 	target_link_libraries(daytrender PRIVATE pthread dl)
@@ -38,16 +35,12 @@ add_library(hxutils SHARED IMPORTED)
 set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION ../lib/hxutils/build/libhxutils.so)
 file(COPY lib/hxutils/build/libhxutils.so DESTINATION .)
 target_include_directories(daytrender PRIVATE lib/hxutils/build/include)
-target_include_directories(dtbuild PRIVATE lib/hxutils/build/include)
 
 # setting up cpphttplib
 target_include_directories(daytrender PRIVATE lib/cpp-httplib/include)
 
 # setting up pluginlib
-target_include_directories(daytrender PRIVATE lib/pluginlib/include)
+target_include_directories(daytrender PRIVATE lib/pluginlib/build/include)
 
 # linking daytrender libraries
 target_link_libraries(daytrender PRIVATE fountain hxutils nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
-
-# linking dtbuild libraries
-target_link_libraries(dtbuild PRIVATE hxutils)

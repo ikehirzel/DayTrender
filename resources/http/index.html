@@ -13,19 +13,19 @@
 	<div id="main-container" class="container-fluid bg-dark">
 
 		<div id="header" class="row text-light p-3 bg-secondary">
-				<h1>DayTrender Dashboard</h1>
+				<div class="col"><h1>DayTrender</h1></div>
+				<div id="accinfo-field" class="col"></div>
 		</div>
 		<div id="panel" class="row p-2 text-dark bg-light">
 			<div class="col">
 				<div class="row">
 					<div class="col"><select class="form-control" id="type-select"></select></div>
 					<div class="col"><select class="form-control" id="ticker-select"></select></div>
-
-					<div class="col"><button type="button" class="btn btn-info" id="watch-button">Watch Live</button></div>
-
+					<div class="col-1"></div>
 					<div class="col"><select class="form-control" id="algo-select"></select></div>
-
+					<div class="col"><textarea class="form-control" id="ranges-field" rows="1"></textarea></div>
 					<div class="col"><button type="button" class="btn btn-info" id="backtest-button">Backtest</button></div>
+					
 				</div>
 			</div>
 			
@@ -35,9 +35,7 @@
 			
 		</div>
 
-		<div id="content" class="row p-5 bg-dark justify-content-center h-100">
-			<div id="chart-window" class="w-100"></div>
-		</div>
+		<div id="content" class="row p-5 bg-dark justify-content-center h-100"></div>
 
 		<div id="footer" class="row text-light p-2 justify-content-center bg-secondary">
 			<h5>Copyright Ike Hirzel 2020</h5>

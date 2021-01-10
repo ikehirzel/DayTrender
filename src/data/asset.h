@@ -8,6 +8,7 @@
 #include "action.h"
 #include "paperaccount.h"
 #include "tradealgorithm.h"
+#include "../api/tradeclient.h"
 
 // algorithm constants
 #define MAX_ALGORITHM_WINDOW	50
@@ -49,26 +50,30 @@
 #define ASSET_LABELS		{ FOREX_LABEL, STOCK_LABEL }
 
 #define FOREX_INTERVALS		{ MIN5, MIN15, HOUR1 }
-#define STOCK_INTERVALS		{ MIN5, MIN15, HOUR1 }
+#define STOCK_INTERVALS		{ MIN5, MIN15, DAY }
 #define CRYPTO_INTERVALS	{ MIN5, MIN15, HOUR1 }
 #define BACKTEST_INTERVALS	{ FOREX_INTERVALS, STOCK_INTERVALS }
 
 namespace daytrender
 {
-	class TradeClient;
-	class OandaClient;
-	class AlpacaClient;
-
 	extern const char* asset_labels[];
 	extern double paper_initials[ASSET_TYPE_COUNT][2];
 	extern unsigned int backtest_intervals[ASSET_TYPE_COUNT][3];
+
+	struct asset_info
+	{
+		double shares = 0.0;
+		double risk = 0.0;
+		bool live = false;
+		bool paper = true;
+	};
 
 	class Asset
 	{
 	protected:
 		bool paper = true, live = false;
 		int tick = 0, interval = 0, candle_count = 0, type = 0;
-		double maxRisk = 0.9;
+		double risk = 0.9;
 		std::string ticker;
 		algorithm_data data;
 		
@@ -77,14 +82,16 @@ namespace daytrender
 		PaperAccount paperAccount;
 		
 	public:
-		Asset(int assetIndex, TradeClient *client, const std::string &ticker, TradeAlgorithm* algo,
-			int interval, const std::vector<int>& _ranges, bool _paper);
+		Asset(int _assetIndex, TradeClient *_client, const std::string &_ticker, TradeAlgorithm* _algo,
+			int _interval, double _risk, const std::vector<int>& _ranges, bool _paper);
 
 		void update();
 
+		asset_info getAssetInfo() const;
 		inline algorithm_data getData() const { return data; }
 		inline TradeAlgorithm* getAlgorithm() const { return algo; }
 		inline std::string getTicker() const { return ticker; }
+		inline TradeClient* getClient() const { return client; }
 		inline int getInterval() const { return interval; }
 		inline int getType() const { return type; }
 		inline bool isLive() const { return live; }

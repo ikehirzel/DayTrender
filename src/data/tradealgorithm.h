@@ -14,14 +14,18 @@ namespace hirzel
 
 namespace daytrender
 {
+	typedef bool(*algorithm_func)(algorithm_data&);
+
 	class TradeAlgorithm
 	{
-	protected:
+	private:
 		bool bound = false;
 		hirzel::Plugin* handle = nullptr;
 		std::string filename;
 		int args = 0;
-		
+		// functions from 
+		algorithm_func algo;
+
 	public:
 		TradeAlgorithm(const std::string& _filepath);
 		~TradeAlgorithm();

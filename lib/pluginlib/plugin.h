@@ -7,8 +7,7 @@
 #pragma once
 
 #include <string>
-#include <iostream>
-#include <map>
+#include <unordered_map>
 #include <vector>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -32,33 +31,26 @@ namespace hirzel
 	// Stored handle of library
 	void *lib = nullptr;
 	// Stores pointers to the functions
-	std::map<std::string, func_ptr> functions;
+	std::string filename, err_glob;
+	std::unordered_map<std::string, func_ptr> functions;
 
 	public:
 		Plugin() = default;
-
-		// Constructor that will load library on creation
-		Plugin(const std::string& filename)
+		Plugin(const std::string& _filename, const std::vector<std::string>& funcnames = {})
 		{
-			loadLibrary(filename);
-		}
-
-		Plugin(const std::string& filename, const std::vector<std::string>& funcnames)
-		{
-			loadLibrary(filename);
+			filename = _filename;
+			bind_library(filename);
 
 			if(lib)
 			{
-				for(std::string s : funcnames)
+				for(const std::string& s : funcnames)
 				{
-					bindFunction(s);
+					bind_function(s);
 				}
 			}
 			else
 			{
-				#ifdef PLUGINLIB_DEBUG
-				std::cout << "Plugin::Plugin() : Binding of functions cannot continue!\n";
-				#endif
+				err_glob += filename + ": binding of functions could not continue!\n";
 			}
 		}
 
@@ -76,13 +68,11 @@ namespace hirzel
 		}
 
 		// Loads library handle from local dynamic library
-		void loadLibrary(const std::string& filename)
+		void bind_library(const std::string& filename)
 		{
 			if(lib)
 			{
-				#ifdef PLUGINLIB_DEBUG
-				std::cout << "Plugin::loadLibrary() : A library is already loaded! aborting..." << std::endl;
-				#endif
+				err_glob += "plugin: a library is already loaded! overwriting is not alllowed.\n";
 				return;
 			}
 
@@ -94,14 +84,17 @@ namespace hirzel
 
 			if(!lib)
 			{
-				#ifdef PLUGINLIB_DEBUG
-				std::cout << "Plugin::loadLibrary() : Failed to load library: '" << filename << "'\n";
+				#if OS_IS_WINDOWS
+				err_glob += GetLastError();
+				#else
+				err_glob += dlerror();
 				#endif
+				err_glob += '\n';
 			}
 		}
 
 		// loads function into function pointer map
-		void bindFunction(const std::string& funcname)
+		void bind_function(const std::string& funcname)
 		{
 			// function pointer that will be stored
 			func_ptr func;
@@ -109,9 +102,7 @@ namespace hirzel
 			//guard against unloaded library
 			if(!lib)
 			{
-				#ifdef PLUGINLIB_DEBUG
-				std::cout << "Plugin::bindFunction() : Library has not been loaded! Cannot continue with loading function: '" + funcname + "()'\n";
-				#endif
+				err_glob += filename + ": lib has not been bound! cannot continue with binding function: '" + funcname + "()'.\n";
 				return;
 			}
 
@@ -125,51 +116,45 @@ namespace hirzel
 			// guard against unbound function
 			if(!func)
 			{
-				#ifdef PLUGINLIB_DEBUG
-				std::cout << "Plugin::bindFunction() : Failed to bind to function: '" << funcname << "()'\n";
+				#if OS_IS_WINDOWS
+				err_glob += GetLastError();
+				#else
+				err_glob += dlerror();
 				#endif
+				err_glob += '\n';
 			}
 
 			// putting function into map
 			functions[funcname] = func;
 		}
 
-		template <typename ...Args>
-		void execute_void(const std::string& funcname, Args... a)
-		{
-			void (*func)(Args...) = (void(*)(Args...))functions[funcname];
-			// guard against function
-			if(!func)
-			{
-				#ifdef PLUGINLIB_DEBUG
-				std::cout << "Plugin::execute() : Failed to find function: '" + funcname + "()'\n";
-				#endif
-			}
-			else
-			{
-				(*func)(a...);
-			}
-		}
-
 		// calls function from plugin's map
 		template <typename T, typename ...Args>
-		T execute_return(const std::string& funcname, Args... a)
+		T execute(const std::string& funcname, Args... a)
 		{
-			T out;
 			T(*func)(Args...) = (T(*)(Args...))functions[funcname];
 			// guard against function
 			if(!func)
 			{
-				#ifdef PLUGINLIB_DEBUG
-				std::cout << "Plugin::execute() : Failed to find function: '" + funcname + "()'\n";
-				#endif
-				return out;
+				err_glob += filename + ": function '" + funcname + "()' is not bound!\n";
+				return T();
 			}
 			else
 			{
-				out = (*func)(a...);
-				return out;
+				return func(a...);
 			}
+		}
+		inline bool is_lib_bound() const { return (lib != nullptr); }
+		inline bool is_func_bound(const std::string& funcname) const { return functions.count(funcname); }
+		inline func_ptr get_func(const std::string& funcname)
+		{
+			return functions[funcname];
+		}
+		inline std::string get_error()
+		{
+			std::string out = err_glob;
+			err_glob.clear();
+			return out;
 		}
 	};
 }

@@ -67,5 +67,6 @@ namespace daytrender
 		std::string toInterval(unsigned int interval);
 		candleset getCandles(const std::string& ticker, unsigned int interval,
 			unsigned int max = OANDA_MAX_CANDLES);
+		virtual account_info getAccountInfo() const;
 	};
 }

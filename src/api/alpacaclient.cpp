@@ -91,16 +91,26 @@ namespace daytrender
 	{
 		switch(interval)
 		{
-			case MIN1:
-				return ALPACA_1_MIN;
-			case MIN5:
-				return ALPACA_5_MIN;
-			case MIN15:
-				return ALPACA_15_MIN;
-			case DAY:
-				return ALPACA_1_DAY;
-			default:
-				return ALPACA_1_MIN;
+		case MIN1:
+			return ALPACA_1_MIN;
+		case MIN5:
+			return ALPACA_5_MIN;
+		case MIN15:
+			return ALPACA_15_MIN;
+		case DAY:
+			return ALPACA_1_DAY;
+		default:
+			return ALPACA_5_MIN;
 		}
+	}
+
+	account_info AlpacaClient::getAccountInfo() const
+	{
+		account_info out;
+		json res = trade->get("/v2/account");
+		out.balance = std::stod(res["cash"].get<std::string>());
+		out.balance = std::stod(res["buying_power"].get<std::string>());
+		out.balance = std::stod(res["equity"].get<std::string>());
+		return out;
 	}
 }

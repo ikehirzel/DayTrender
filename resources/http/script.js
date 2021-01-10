@@ -2,6 +2,9 @@
 
 var assets = [];
 var algorithms = [];
+var asset_labels = [];
+var current_account = -1;
+
 
 var algoSelect = $("#algo-select");
 var tickerSelect = $("#ticker-select");
@@ -11,7 +14,8 @@ var watchButton = $("#watch-button");
 var backtestButton = $("#backtest-button");
 var shutdownButton = $("#shutdown-button");
 
-var chartWindow = $("#chart-window");
+var contentWindow = $("#content");
+var accinfoField = $("#accinfo-field");
 
 $("document").ready(() => 
 {
@@ -25,6 +29,7 @@ $("document").ready(() =>
 			// default setting is to show all in a large pool
 			// the user can then organize by type if desired
 			assets = data.assets;
+			asset_labels = data.types;
 			
 			typeSelect.append(`<option value=-1>All</option>`);
 			for (let i = 0; i < data.types.length; i++)
@@ -42,6 +47,9 @@ $("document").ready(() =>
 				algorithms[i] = data.algorithms[i];
 				algoSelect.append(`<option value="${i}">${algorithms[i]}</option>`);
 			}
+
+			get_accinfo();
+			toggle_watch();
 		}
 	});
 
@@ -70,6 +78,15 @@ $("document").ready(() =>
 				}
 			}
 		}
+
+		get_accinfo();
+		toggle_watch();
+	});
+
+	tickerSelect.change(() => 
+	{
+		get_accinfo();
+		toggle_watch();
 	});
 
 	// callback for shutting down server
@@ -89,8 +106,38 @@ $("document").ready(() =>
 	});
 
 
-	var watching = false;
+	var watching = -1;
 	var watching_interval;
+
+	function get_accinfo()
+	{
+		if (current_account == assets[tickerSelect.val()].type)
+		{
+			return;
+		}
+		current_account = assets[tickerSelect.val()].type;
+		$.get(
+		{
+			url: "/accinfo",
+			dataType: "json",
+			data: {
+				"asset_type": current_account,
+			},
+			success: function (data, status)
+			{
+				accinfoField.empty();
+				accinfoField.append(
+				`
+					<div class="row border bg-light text-dark p-3 font-weight-bold">
+						<div class="col">${asset_labels[current_account]} Account:</div>
+						<div class="col">Balance: $${data.balance.toFixed(2)}</div>
+						<div class="col">Buying Power: $${data.buying_power.toFixed(2)}</div>
+						<div class="col">Equity: $${data.equity.toFixed(2)}</div>
+					</div>
+				`);
+			}
+		});
+	}
 
 	function get_watch()
 	{
@@ -105,9 +152,30 @@ $("document").ready(() =>
 			},
 			success: function (data, status)
 			{
-	
 				console.log("Watch data:", data);
-				chartWindow.empty();
+
+				contentWindow.empty();
+				contentWindow.append(
+				`
+					<div id="lwindow" class="col-2 bg-light p-5"></div>
+					<div id="rwindow" class="col-10"></div>
+				`);
+				
+
+				// handling acc data
+
+				$("#lwindow").append(`
+					Live: ${data.asset.live}
+					<hr>
+					Paper: ${data.asset.paper}
+					<hr>
+					Shares: ${data.asset.shares}
+					<hr>
+					Risk: ${data.asset.risk}
+					<hr>
+				`);
+
+				// handling plot data
 				var i_traces = [];
 
 				var maxVolume = data.volume[0];
@@ -178,7 +246,7 @@ $("document").ready(() =>
 					}
 				};
 
-				Plotly.newPlot("chart-window", chartdata, layout);
+				Plotly.newPlot("rwindow", chartdata, layout);
 
 			}
 		});
@@ -203,21 +271,27 @@ $("document").ready(() =>
 				success: function (data, status)
 				{
 					console.log("Response:", data);
-					chartWindow.empty();
-					chartWindow.append(`<div class="row bg-light p-4" id="res-row"></div>`);
+
+					contentWindow.empty();
+					//contentWindow.append(`<div class="row bg-light p-4" id="res-row"></div>`);
 					for (let i = 0; i < data.length; i++)
 					{
 
 						let ranges_str = "";
+						if (data[i].ranges == undefined)
+						{
+							console.error(`Failed to get result[${i}] from server`);
+							continue;
+						}
 						for (let j = 0; j < data[i].ranges.length; j++)
 						{
 							if (j > 0) ranges_str += ", ";
 							ranges_str += data[i].ranges[j].toString();
 						}
 
-						$("#res-row").append(
+						contentWindow.append(
 						`
-							<div class="col border m-1 p-3">
+							<div class="col border m-1 p-3 bg-light">
 								Buys        :    ${data[i].buys}<br>
 								Sells       :    ${data[i].sells}<br>
 								Interval    :    ${data[i].interval}<br>
@@ -246,7 +320,23 @@ $("document").ready(() =>
 			});
 	}
 
-	watchButton.click(() =>
+	function toggle_watch()
+	{
+		if (watching == tickerSelect.val())
+		{
+			return;
+		}
+		clearInterval(watching_interval);
+		console.log(`Stopped watching ${watching}!`);
+		// Stopping observation
+
+		get_watch();
+		watching_interval = setInterval(get_watch, 60000);
+		watching = tickerSelect.val();
+		console.log(`Now watching ${watching}...`);
+	}
+
+	backtestButton.click(() =>
 	{
 		if (watching)
 		{
@@ -254,18 +344,7 @@ $("document").ready(() =>
 			watching = false;
 			console.log("Stopped watching...");
 		}
-		else
-		{
-			get_watch();
-			watching_interval = setInterval(get_watch, 60000);
-			watching = true;
-			console.log("Now watching...");
-		}
-	});
-
-	backtestButton.click(() =>
-	{
-		console.log("backtesting...");
+		console.log("Backtesting...");
 		get_backtest();
 	});
 });
