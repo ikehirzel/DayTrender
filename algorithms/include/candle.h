@@ -33,11 +33,8 @@ namespace daytrender
 
 		void clear()
 		{
-			if (candles)
-			{
-				delete[] candles;
-				candles = nullptr;
-			}
+			delete[] candles;
+			candles = nullptr;
 			size = 0;
 			interval = 0;
 		}

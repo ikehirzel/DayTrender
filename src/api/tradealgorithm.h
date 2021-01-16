@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include "algotypes.h"
+#include "../data/algotypes.h"
 
 namespace hirzel
 {
@@ -14,7 +14,7 @@ namespace hirzel
 
 namespace daytrender
 {
-	typedef bool(*algorithm_func)(algorithm_data&);
+	typedef void(*algorithm_func)(algorithm_data&);
 
 	class TradeAlgorithm
 	{
@@ -22,7 +22,7 @@ namespace daytrender
 		bool bound = false;
 		hirzel::Plugin* handle = nullptr;
 		std::string filename;
-		int args = 0;
+		int ranges_count = 0;
 		// functions from 
 		algorithm_func algo;
 
@@ -30,9 +30,9 @@ namespace daytrender
 		TradeAlgorithm(const std::string& _filepath);
 		~TradeAlgorithm();
 
-		bool process(algorithm_data& data);
+		algorithm_data process(const candleset& candles, const std::vector<int>& ranges);
 		inline const std::string& get_filename() const { return filename; };
-		inline int arg_count() const { return args; }
+		inline int get_ranges_count() const { return ranges_count; }
 		inline bool is_bound() const { return bound; }
 	};
 }

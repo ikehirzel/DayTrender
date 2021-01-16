@@ -13,7 +13,14 @@ namespace daytrender
 {
 	namespace shell
 	{
-		std::unordered_map<std::string, void(*)(const std::vector<std::string>&)> shell_funcs;
+		void backtest(const std::vector<std::string>& tokens);
+		void exit(const std::vector<std::string>& tokens);
+
+		std::unordered_map<std::string, void(*)(const std::vector<std::string>&)> shell_funcs =
+		{
+			{ "backtest", backtest},
+			{ "exit", exit }
+		};
 
 		void exit(const std::vector<std::string>& tokens)
 		{
@@ -24,64 +31,6 @@ namespace daytrender
 			else
 			{
 				daytrender::stop();
-			}
-		}
-
-		void build(const std::vector<std::string>& tokens)
-		{
-			bool build = true;
-			std::string filename;
-			bool print = false;
-			
-			for(unsigned int i = 1; i < tokens.size(); i++)
-			{
-				infof("Tok[%d]: %s", i, tokens[i]);
-				if(tokens[i][0] == '-')
-				{
-					if(tokens[i].size() == 1)
-					{
-						warningf("'-' is used to denote options!");
-					}
-					for (unsigned c = 1; c < tokens[i].size(); c++)
-					{
-						switch (tokens[i][c])
-						{
-							case 'p':
-							case 'P':
-								print = true;
-								break;
-
-							default:
-								warningf("Unknown option '%c' used in command", tokens[i][c]);
-								break;
-						}
-					}
-				}
-				else
-				{
-					if (filename.empty())
-					{
-						filename = tokens[i];
-					}
-					else
-					{
-						errorf("Only one input file should be specified! Aborting...");
-						build = false;
-					}
-				}
-			}
-
-			if (build)
-			{
-				build = buildAlgorithm(filename);
-				if (build)
-				{
-					successf("Successfully compiled %s", tokens[1]);
-				}
-				else
-				{
-					errorf("Failed to compile %s", tokens[1]);
-				}
 			}
 		}
 
@@ -127,7 +76,7 @@ namespace daytrender
 					return;
 				}
 
-				auto result = daytrender::backtest(algo_index, asset_index);
+				auto result = daytrender::backtest(algo_index, asset_index, {});
 
 				for (const PaperAccount& p : result)
 				{
@@ -139,13 +88,6 @@ namespace daytrender
 			{
 				errorf("backtest: incorrect usage of command! correct usage is backtest <algorithm> <asset-type> <ticker>");
 			}
-		}
-
-		void init()
-		{
-			shell_funcs["backtest"] = backtest;
-			shell_funcs["build"] = build;
-			shell_funcs["exit"] = exit;
 		}
 
 		void get_input()

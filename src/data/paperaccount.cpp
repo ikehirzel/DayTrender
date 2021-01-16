@@ -1,7 +1,7 @@
 #include "paperaccount.h"
 
 #include "../data/interval.h"
-#include "../data/action.h"
+#include "../api/action.h"
 #include <cmath>
 #include <hirzel/fountain.h>
 

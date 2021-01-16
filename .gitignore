@@ -2,3 +2,5 @@
 .vscode/
 
 resources/bin/
+
+config.json

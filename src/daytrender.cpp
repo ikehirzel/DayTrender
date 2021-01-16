@@ -6,13 +6,12 @@
 #include <hirzel/fountain.h>
 
 #include "data/candle.h"
-#include "data/action.h"
 #include "data/asset.h"
-#include "data/tradealgorithm.h"
 #include "data/interval.h"
 
-#include "api/alpacaclient.h"
-#include "api/oandaclient.h"
+#include "api/action.h"
+#include "api/tradeclient.h"
+#include "api/tradealgorithm.h"
 
 #include "interface/shell.h"
 #include "interface/server.h"
@@ -33,13 +32,15 @@ namespace daytrender
 	std::vector<TradeAlgorithm*> algorithms;
 	std::vector<TradeClient*> clients;
 	std::string compiler, buildflags;
+	json config;
 
 	std::mutex mtx;
 
 	void update();
-	void initClients();
-	void initAssets();
-	void initBuilder();
+	bool initClients();
+	bool initAssets();
+	bool initBuilder();
+	bool loadConfig();
 
 	void init(const std::string& execpath)
 	{
@@ -47,21 +48,159 @@ namespace daytrender
 
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
 
-		// loads the settings for compiling algorithms
-		initBuilder();
+		//**************************************************
 
-		// loads the credentials of the clients and creates them
-		initClients();
-		// loads the asset data and creates assets and their respective algorithms
-		initAssets();
+		infof("Initializing clients...");
+		// loading credentials for apis
 
-		// setting the functions for inputs
-		shell::init();
+		std::string config_str = file::read_file_as_string(dtdir + "/config.json");
 
-		// sets the callbacks for the server
-		if(!server::init(dtdir))
+		if (config_str.empty())
 		{
-			errorf("Failed to initialize server!");
+			fatalf("Failed to load config.json! aborting...");
+			shouldrun = false;
+			mtx.unlock();
+			return;
+		}
+		else
+		{
+			successf("Successfully loaded config.json");
+		}
+
+		config = json::parse(config_str);
+
+		std::cout << "config size: " << config.size() << std::endl;
+		json& clients_json = config["clients"];
+
+		std::cout << "clients json size: " << clients_json.size() << std::endl;
+
+		for (int i = 0; i < clients_json.size(); i++)
+		{
+			json& client_json = clients_json[i];
+			json& credentials = client_json["keys"];
+			std::string label = client_json["label"];
+			std::string filename = client_json["filename"];
+			std::vector<std::string> args(credentials.begin(), credentials.end());
+			
+			if (label.empty())
+			{
+				errorf("No label given for client[%d]!");
+				continue;
+			}
+			
+			if (filename.empty())
+			{
+				errorf("No filename given for %s client in config.json!", label);
+				continue;
+			}
+
+			if (args.empty())
+			{
+				warningf("No credentials were passed to %s client in config.json", label);
+			}
+
+			TradeClient* client = new TradeClient(label, filename, args);
+
+			if (!client->all_bound())
+			{
+				delete client;
+				errorf("%s client %s failed to bind!", label, filename);
+				continue;
+			}
+			else
+			{
+				clients[i] = client;
+			}
+
+			// allocating all the assets for the client;
+
+			json& assets_json = client_json["assets"];
+
+			for (int j = 0; j < assets_json.size(); i++)
+			{
+				json& asset_json = assets_json[j];
+
+				std::string ticker = asset_json["ticker"];
+				std::string algorithm = asset_json["algorithm"];
+				bool paper = asset_json.get<bool>();
+				int interval = asset_json.get<int>();
+				double risk = asset_json.get<double>();
+				std::vector<int> ranges(asset_json["ranges"].begin(), asset_json["ranges"].end());
+
+				if (ticker.empty())
+				{
+					errorf("No ticker defined for asset[%d] of %s client", j, label);
+					continue;
+				}
+
+				if (algorithm.empty())
+				{
+					errorf("No algorithm defined for %s of %s client", ticker, label);
+					continue;
+				}
+
+				if (interval == 0)
+				{
+					errorf("No interval defined for %s of %s client", ticker, label);
+					continue;
+				}
+
+				if (risk == 0.0)
+				{
+					errorf("No risk defined for %s of %s client", ticker, label);
+					continue;
+				}
+
+				if (ranges.empty())
+				{
+					errorf("No ranges defined for %s of %s client", ticker, label);
+					continue;
+				}
+
+				TradeAlgorithm* algo = nullptr;
+
+				for (int k = 0; k < algorithms.size(); i++)
+				{
+					if (algorithms[k]->get_filename() == algorithm)
+					{
+						algo = algorithms[k];
+						break;
+					}
+				}
+
+				if (!algo)
+				{
+					algo = new TradeAlgorithm(dtdir + algorithm);
+					algorithms.push_back(algo);
+				}
+
+				if (!algo->is_bound())
+				{
+					errorf("Algorithm '%s' did not bind correctly. '%s' cannot be initialized.", algorithm, ticker);
+				}
+				else
+				{
+					assets.push_back(new Asset(i, client, ticker, algo, interval, risk, ranges, paper));
+				}
+			}
+
+		}
+
+		// frees unused algorithms
+		for (int i = algorithms.size() - 1; i >= 0; i--)
+		{
+			if (!algorithms[i]->is_bound())
+			{
+				delete algorithms[i];
+				algorithms.erase(algorithms.begin() + i);
+			}
+		}
+
+		//**************************************************
+		// sets the callbacks for the server
+		if(!server::init(config["Server"], dtdir))
+		{
+			errorf("Failed to initialize server! aborting...");
 			shouldrun = false;
 		}
 		else
@@ -79,14 +218,7 @@ namespace daytrender
 
 		for (int i = 0; i < clients.size(); i++)
 		{
-			if (!clients[i])
-			{
-				warningf("%s client was never initialized", asset_labels[i]);
-			}
-			else
-			{
-				delete clients[i];
-			}
+			delete clients[i];
 		}
 
 		int count = 0;
@@ -110,174 +242,6 @@ namespace daytrender
 		if(!count) warningf("No algorithms were initialized!");
 
 		mtx.unlock();
-	}
-
-	// loads clients credentials and creates clients
-	void initClients()
-	{
-		infof("Initializing clients...");
-		// loading credentials for apis
-		clients.resize(ASSET_TYPE_COUNT);
-
-		std::string credentialStr = file::read_file_as_string(dtdir + CONFIG_FOLDER "keys.json");
-		if (credentialStr.empty())
-		{
-			fatalf("Failed to load '." CONFIG_FOLDER "keys.json'!");
-			shouldrun = false;
-			return;
-		}
-		successf("Successfully loaded ." CONFIG_FOLDER "keys.json");
-		json credentials = json::parse(credentialStr);
-
-		// Setting Alpaca credentials
-		json alpacaCredentials = credentials["Alpaca"];
-
-		clients[STOCK_INDEX] = new AlpacaClient(
-		{
-			alpacaCredentials["key"],
-			alpacaCredentials["secret"]
-		});
-
-		// Setting oanda credentials
-		json oandaCredentials = credentials["Oanda"];
-		
-		clients[FOREX_INDEX] = new OandaClient(
-		{
-			oandaCredentials["username"].get<std::string>(),
-			oandaCredentials["accountid"].get<std::string>(),
-			oandaCredentials["token"].get<std::string>()
-		});
-	}
-
-	void initBuilder()
-	{
-		std::string buildstr = hirzel::file::read_file_as_string(dtdir + CONFIG_FOLDER "buildinfo.json");
-		if (buildstr.empty())
-		{
-			fatalf("Failed to load '." CONFIG_FOLDER "buildinfo.json'!");
-			shouldrun = false;
-			return;
-		}
-		successf("Successfully loaded '." CONFIG_FOLDER "buildinfo.json'!");
-		json build_info = json::parse(buildstr);
-		compiler = build_info["compiler"];
-
-		json& flags = build_info["flags"];
-		for (int i = 0; i < flags.size(); i++)
-		{
-			buildflags += flags[i].get<std::string>() + ' ';
-		}
-	}
-
-	bool buildAlgorithm(const std::string& filename)
-	{
-		#if defined(_WIN32) || defined(_WIN64)
-		#define OUTPUT_EXTENSION ".dll"
-		#elif defined(linux) || defined(__unix__)
-		#define OUTPUT_EXTENSION ".so"
-		#endif
-		infof("Compiling %s...", filename);
-		std::string basename = hirzel::str::get_basename(filename);
-		std::string cmd = compiler + ' ' + dtdir + SCRIPT_FOLDER + basename + ".cpp " + buildflags + "-I" + dtdir + SCRIPT_FOLDER "/include -o " + dtdir + ALGORITHM_BIN_FOLDER + basename + OUTPUT_EXTENSION;\
-		//std::cout << "BUILD_CMD: " << cmd << "\n=====\n";
-		return !std::system(cmd.c_str());
-	}
-
-	int loadAlgorithm(const std::string& filename)
-	{	
-		// checks to see if algorithm has been loaded already and returns its index if it has
-		for (int i = 0; i < algorithms.size(); i++)
-		{
-			if (algorithms[i]->get_filename() == filename)
-			{
-				return i;
-			}
-		}
-		buildAlgorithm(filename);
-		// attempts to push back new algorithm
-		algorithms.push_back(new TradeAlgorithm(dtdir + ALGORITHM_BIN_FOLDER + filename));
-
-		// if algorithm did not bind, pop back and return failure
-		if(!algorithms.back()->is_bound())
-		{
-			algorithms.pop_back();
-			return -1;
-		}
-
-		// return last element, as it was just pushed to the back
-		return algorithms.size() - 1;
-	}
-
-	// loads asset info, creates assets, and loads algorithm names
-	void initAssets()
-	{
-		infof("Initializing assets...");
-		// Loading asset info
-
-		std::string assetStr = file::read_file_as_string(dtdir + CONFIG_FOLDER "assets.json");
-		if (assetStr.empty())
-		{
-			errorf("Failed to load ." CONFIG_FOLDER "assets.json! Creating blank file...");
-			assetStr = "{\n\t\"Forex\": [],\n\t\"Stocks\": []\n}\n";
-			file::write_file(dtdir + CONFIG_FOLDER "assets.json", assetStr);
-			return;
-		}
-		successf("Successfully loaded ." CONFIG_FOLDER "assets.json");
-
-		json assetInfo = json::parse(assetStr);
-
-		if (!assets.empty()) assets.clear();
-
-		// creating assets
-		for (int i = 0; i < ASSET_TYPE_COUNT; i++)
-		{
-			for (json asset : assetInfo[asset_labels[i]])
-			{
-				int interval, window;
-				double risk;
-				std::string ticker, algo_filename;
-				bool paper;
-
-				ticker = asset["ticker"].get<std::string>();
-				algo_filename = asset["algorithm"].get<std::string>();
-				interval = asset["interval"].get<int>();
-				paper = asset["paper"].get<bool>();
-				risk = asset["risk"].get<double>();
-
-				json& jranges = asset["ranges"];
-
-				std::vector<int> ranges(jranges.size());
-				for (int j = 0; j < jranges.size(); j++)
-				{
-					ranges[j] = jranges[j];
-				}
-
-				// getting index of algorithm
-				int ret = loadAlgorithm(algo_filename);
-
-				// if algorithm is bound, create asset with it
-				if(ret >= 0)
-				{
-					assets.push_back(new Asset(i, clients[i], ticker, algorithms[ret], interval, risk, ranges, paper));
-				}
-				// if algorithm failed to bind, give it a null algorithm
-				else
-				{
-					assets.push_back(new Asset(i, clients[i], ticker, nullptr, interval, risk, ranges, paper));
-				}
-			}
-		}
-
-		// if the algorithm plugin failed to load, it will clear the memory to avoid assets attempting to use it
-		for (int i = 0; i < algorithms.size(); i++)
-		{
-			if (!algorithms[i]->is_bound())
-			{
-				warningf("Disposing of uninitialized algorithm '%s'", algorithms[i]->get_filename());
-				delete algorithms[i];
-				algorithms[i] = nullptr;
-			}
-		}
 	}
 
 	void start()
@@ -361,6 +325,7 @@ namespace daytrender
 	{
 		infof("Updating assets...");
 		unsigned int count = 0;
+
 		for (Asset *a : assets)
 		{
 			if(a->isLive())
@@ -374,36 +339,41 @@ namespace daytrender
 		{
 			warningf("No assets were live for updating");
 		}
+		else
+		{
+			successf("Updated %d assets", count);
+		}
 	}
 
-	std::vector<PaperAccount> backtest(int algo_index, int asset_index)
+	std::vector<PaperAccount> backtest(int algo_index, int asset_index, const std::vector<int>& test_ranges)
 	{
 		std::vector<PaperAccount> out;
-
 		std::string ticker;
 		TradeClient* client = nullptr;
 		TradeAlgorithm* algo = nullptr;
 
 		std::vector<candleset> candles_vec;
-		double paper_initial, paper_minimum, paper_fee;
+		std::vector<int> intervals;
+		double paper_initial, paper_minimum, paper_fee, risk;
 		int asset_type;
 		
 		asset_type = assets[asset_index]->getType();
+		risk = assets[asset_index]->getRisk();
 		client = clients[asset_type];
 		ticker = assets[asset_index]->getTicker();
 		algo = algorithms[algo_index];
 
 		paper_initial = PAPER_ACCOUNT_INITIAL;
-		paper_fee = paper_initials[asset_type][0];
-		std::cout << "ASSET TYPE: " << asset_type << std::endl;
-		paper_minimum = paper_initials[asset_type][1];
+		paper_fee = client->paper_fee();
+		paper_minimum = client->paper_minimum();
+		intervals = client->backtest_intervals();
 
-		out.resize(3);
-		candles_vec.resize(3);
+		out.resize(intervals.size());
 
-		for (int i = 0; i < 3; i++)
+		candles_vec.resize(intervals.size());
+		for (int i = 0; i < candles_vec.size(); i++)
 		{
-			candles_vec[i] = client->getCandles(ticker, backtest_intervals[asset_type][i]);
+			candles_vec[i] = client->get_candles(ticker, intervals[i]);
 
 			if (candles_vec[i].empty())
 			{
@@ -414,33 +384,64 @@ namespace daytrender
 
 		infof("Backtesting algorithm...");
 
-		//***********************************
-		// new and improved forloop structure
-		//***********************************
-
 		// calculating lops
-		std::vector<int> ranges(algo->arg_count(), MIN_ALGORITHM_WINDOW);
+		std::vector<int> ranges, start_ranges;
 		#define SKIP_AMT 5
 		long long permutations = 1;
 		int possible_vals = ((MAX_ALGORITHM_WINDOW + 1) - MIN_ALGORITHM_WINDOW) / SKIP_AMT;
-		for (int i = 0; i < algo->arg_count(); i++) permutations *= possible_vals;
-		
-		// for every candleset in the bunch
-		for (int i = 0; i < 3; i++)
+		// if no ranges are passed in
+		if (test_ranges.empty())
+		{
+			// setting default ranges
+			start_ranges.resize(algo->get_ranges_count(), MIN_ALGORITHM_WINDOW);
+
+			// calculate the amount of permutations of ranges
+			for (int i = 0; i < algo->get_ranges_count(); i++) permutations *= possible_vals;
+		}
+		else
+		{
+			// setting default ranges to the given ones
+			start_ranges = test_ranges;
+
+			// verify ranges size
+			if (start_ranges.size() !=  algo->get_ranges_count())
+			{
+				errorf("Passed in %d ranges to backtest but %d were expected! resizing ranges...", start_ranges.size(), algo->get_ranges_count());
+				start_ranges.resize(algo->get_ranges_count());
+			}
+
+			// verify minimums and maximums
+			for (int i = 0; i < ranges.size(); i++)
+			{
+				if (start_ranges[i] < MIN_ALGORITHM_WINDOW)
+				{
+					start_ranges[i] = MIN_ALGORITHM_WINDOW;
+					warningf("test_ranges[%d] was less than the minimum (%d). Readjusting...", start_ranges[i], MIN_ALGORITHM_WINDOW);
+				}
+				else if (start_ranges[i] > MAX_ALGORITHM_WINDOW)
+				{
+					start_ranges[i] = MAX_ALGORITHM_WINDOW;
+					warningf("test_ranges[%d] was greater than the maximum (%d). Readjusting...", start_ranges[i], MIN_ALGORITHM_WINDOW);
+				}
+			}
+		}
+
+		// for every intervals
+		for (int i = 0; i < intervals.size(); i++)
 		{
 			PaperAccount best;
 			double bahnr = 0.0;
 			// re-init with minimum range for each arg
-			ranges = std::vector<int>(algo->arg_count(), MIN_ALGORITHM_WINDOW);
+			ranges = start_ranges;
 
 			// for every possible permutation of ranges for indicators/algorithm
 			for (int j = 0; j < permutations; j++)
 			{
 				// storing activity and performance data
-				algorithm_data data;
-				PaperAccount acc(PAPER_ACCOUNT_INITIAL, paper_fee, paper_minimum, backtest_intervals[asset_type][i], ranges);
+				algorithm_data data;  
+				PaperAccount acc(PAPER_ACCOUNT_INITIAL, paper_fee, paper_minimum, intervals[i], ranges);
 
-				data.ranges = ranges;
+				data.ranges = ranges.data();
 
 				// calculating size of candles
 				int candle_count = 0;
@@ -458,16 +459,17 @@ namespace daytrender
 				// walk through every step of candles_vec[i]
 				for (int k = 0; k < candles_vec[i].size - candle_count; k++)
 				{
-					data.candles = candles_vec[i].get_slice(k, candle_count);
-					acc.setPrice(data.candles.back().close);
+					candleset candles = candles_vec[i].get_slice(k, candle_count);
+					acc.setPrice(candles.back().close);
+					algorithm_data data = algo->process(candles, ranges);
 
-					if (!algo->process(data))
+					if (data.err)
 					{
-						std::cout << "Error while backtesting: " << data.err << std::endl;
+						errorf("Backtest: %s", data.err);
 					}
 					else
 					{
-						paper_actions[data.action](acc, 0.9);
+						action::paper_actions[data.action](acc, risk);
 					}
 				}
 
@@ -508,6 +510,18 @@ namespace daytrender
 	bool isRunning()
 	{
 		return running;
+	}
+
+	std::vector<std::string> getClientInfo()
+	{
+		std::vector<std::string> out;
+
+		for (int i = 0; i < clients.size(); i++)
+		{
+			out[i] = clients[i]->get_label();
+		}
+
+		return out;
 	}
 
 	std::vector<std::string> getAlgoInfo()

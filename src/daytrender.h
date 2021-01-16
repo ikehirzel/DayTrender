@@ -13,7 +13,6 @@
 #include "data/paperaccount.h"
 
 #include "data/asset.h"
-#include "data/tradealgorithm.h"
 #include "api/tradeclient.h"
 
 
@@ -21,16 +20,13 @@
 #define BACKTESTING
 #define JIT_COMPILE_ALGORITHMS
 
-#define CONFIG_FOLDER			"/config/"
-#define RESOURCES_FOLDER		"/resources/"
-#define SCRIPT_FOLDER			"/algorithms/"
-#define ALGORITHM_BIN_FOLDER	SCRIPT_FOLDER "bin/"
-#define HTML_FOLDER				RESOURCES_FOLDER "html/"
+#define ALGORITHM_FOLDER	"/algorithms/"
+#define CLIENTS_FOLDER		"/clients/"
 
 namespace daytrender
 {
-	bool buildAlgorithm(const std::string& filename);
-	std::vector<PaperAccount> backtest(int algo_index, int asset_index);
+	std::vector<PaperAccount> backtest(int algo_index, int asset_index, const std::vector<int>& ranges);
+
 	void init(const std::string& execpath);
 	void free();
 
@@ -39,6 +35,7 @@ namespace daytrender
 
 	bool isRunning();
 
+	std::vector<std::string> getClientInfo();
 	std::vector<std::string> getAlgoInfo();
 	std::vector<std::pair<std::string, int>> getAssetInfo();
 	const Asset* getAsset(int index);

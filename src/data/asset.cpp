@@ -1,19 +1,15 @@
 #include "asset.h"
 
 #include "candle.h"
-#include "action.h"
 #include "interval.h"
-#include "../api/oandaclient.h"
-#include "../api/alpacaclient.h"
+
+#include "../api/action.h"
+#include "../api/tradeclient.h"
 #include <hirzel/fountain.h>
 
 namespace daytrender
 {
-	const char* asset_labels[] = ASSET_LABELS;
-	double paper_initials[ASSET_TYPE_COUNT][2] = PAPER_INITIALS;
-	unsigned backtest_intervals[ASSET_TYPE_COUNT][3] = BACKTEST_INTERVALS;
-
-	Asset::Asset(int _assetIndex, TradeClient *_client, const std::string &_ticker, TradeAlgorithm* _algo,
+	Asset::Asset(int _type, TradeClient *_client, const std::string &_ticker, TradeAlgorithm* _algo,
 		int _interval, double _risk, const std::vector<int>& _ranges, bool _paper)
 	{
 		if (_client && _algo && !_ranges.empty())
@@ -29,6 +25,7 @@ namespace daytrender
 		algo = _algo;
 		ticker = _ticker;
 		interval = _interval;
+
 		if (_ranges.size() > 1)
 		{
 			for (int i = 1; i < _ranges.size(); i++)
@@ -36,12 +33,13 @@ namespace daytrender
 				if (_ranges[i] > candle_count) candle_count = _ranges[i];
 			}
 		}
+
 		candle_count += _ranges[0];
-		type = _assetIndex;
-		data.ranges = _ranges;
+		type = _type;
+		ranges = _ranges;
 		paper = _paper;
 		risk = _risk;
-		paperAccount = PaperAccount(PAPER_ACCOUNT_INITIAL, paper_initials[type][0], paper_initials[type][1], interval, _ranges);
+		paperAccount = PaperAccount(PAPER_ACCOUNT_INITIAL, client->paper_fee(), client->paper_minimum(), interval, _ranges);
 	}
 	
 	void Asset::update()
@@ -56,27 +54,31 @@ namespace daytrender
 				return;
 			}
 
+			candleset candles = client->get_candles(ticker, interval, candle_count);
+	
+			data.clear();
 			data.candles.clear();
-			data.candles = client->getCandles(ticker, interval, candle_count);
 
-			if (!algo->process(data))
+			data = algo->process(candles, ranges);
+
+			if (data.err)
 			{
-				errorf("Failed to process algorithm for %s", ticker);
+				errorf("Action could not be handled %s", ticker);
 			}
 			else
 			{
 				// paper trading
 				if (paper)
 				{
-					paper_actions[data.action](paperAccount, risk);
+					paperAccount.setPrice(candles.back().close);
+					action::paper_actions[data.action](paperAccount, risk);
 				}
 				// live trading
 				else
 				{
-					actions[data.action](client, risk);
+					action::actions[data.action](client, risk);
 				}
 			}
-
 		}
 	}
 

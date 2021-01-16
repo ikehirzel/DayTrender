@@ -1,9 +1,14 @@
 #pragma once
 
-#include "restclient.h"
+#include "../data/candle.h"
 
 #include <string>
 #include <vector>
+
+namespace hirzel
+{
+	class Plugin;
+}
 
 namespace daytrender
 {
@@ -16,13 +21,38 @@ namespace daytrender
 
 	class TradeClient
 	{
-	protected:
+	private:
+		bool bound;
+		hirzel::Plugin* handle = nullptr;
+		std::string filename, label;
 		std::vector<std::string> credentials;
+
+		void (*to_interval_ptr)(std::string&, int);
+		void (*get_candles_ptr)(candleset&, const std::string&, int, int);
+		void (*get_account_info_ptr)(account_info&);
+		double (*paper_fee_ptr)();
+		double (*paper_minimum_ptr)();
+		void (*backtest_intervals_ptr)(std::vector<int>&);
+
 	public:
-		TradeClient(const std::vector<std::string>& credentials);
-		virtual std::string toInterval(unsigned int interval) = 0;
-		virtual candleset getCandles(const std::string& ticker,
-			unsigned int interval, unsigned int max = 0) = 0;
-		virtual account_info getAccountInfo() const = 0;
+		TradeClient(const std::string& _label, const std::string& _filepath, const std::vector<std::string>& _credentials);
+
+		// getters for client functions
+
+		std::string to_interval(int interval) const;
+		candleset get_candles(const std::string& ticker, int interval, int max = 0) const;
+		account_info get_account_info() const;
+
+		// getters for constants
+
+		double paper_fee() const;
+		double paper_minimum() const;
+		std::vector<int> backtest_intervals() const;
+
+		// inline getter functions
+
+		inline bool all_bound() const { return bound; }
+		inline const std::string& get_label() const { return label; }
+		inline const std::string& get_filename() const { return filename; }
 	};
 }

@@ -1,17 +1,53 @@
 cmake_minimum_required(VERSION 3.14)
-project(DayTrender)
+project("DayTrender")
 
 set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 
-file(GLOB DAYTRENDER_SRCS ./src/*.cpp ./src/api/*.cpp ./src/data/*.cpp ./src/interface/*.cpp)
-file(COPY src/data/algodefs.h src/data/algotypes.h src/data/candle.h DESTINATION ../algorithms/include)
+# globbing sources for daytrender
+
+file(GLOB DAYTRENDER_SRCS src/*.cpp src/api/*.cpp src/data/*.cpp src/interface/*.cpp)
+
+# creating symlinks so files can be shared between build folder and project folder
 
 file(CREATE_LINK ../resources resources SYMBOLIC)
-file(CREATE_LINK ../config config SYMBOLIC)
+file(CREATE_LINK ../config.json config.json SYMBOLIC)
 file(CREATE_LINK ../algorithms algorithms SYMBOLIC)
 
+# creating main executable of project
 add_executable(daytrender ${DAYTRENDER_SRCS})
+
+# stops cmake from prepending lib before plugin names
+set(CMAKE_SHARED_LIBRARY_PREFIX "")
+
+# compiling each algorithm plugin
+file(GLOB ALGO_SRCS "ext/algorithms/*.cpp")
+
+foreach(ALGO ${ALGO_SRCS})
+	# get filename without folder or extension
+	get_filename_component(FILENAME ${ALGO} NAME_WE)
+	# create shared object for it
+	add_library(${FILENAME} SHARED ${ALGO})
+	# tell it to go to algorithms folder
+	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/algorithms)
+endforeach()
+
+# compiling each client plugin
+file(GLOB CLIENT_SRCS "ext/clients/*.cpp")
+
+foreach(CLIENT ${CLIENT_SRCS})
+	# get filename without folder or extension
+	get_filename_component(FILENAME ${CLIENT} NAME_WE)
+	# create shared object for it
+	add_library(${FILENAME} SHARED ${CLIENT})
+	# tell it to go to algorithms folder
+	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
+endforeach()
+
+# copying over the website source
+file(READ src/interface/webinterface.html WEBINTERFACE_HTML)
+string(CONCAT WEBINTERFACE_INC "R\"=====(" ${WEBINTERFACE_HTML} ")=====\"")
+file(WRITE src/interface/webinterface.inc ${WEBINTERFACE_INC})
 
 # setting properties
 set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)

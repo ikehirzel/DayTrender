@@ -6,7 +6,7 @@
 #define DAYTRENDER_ALGO_DIR "./res/algorithms/"
 
 #define ALGO_FUNCTION	"algorithm"
-#define COUNT_FUNCTION	"arg_count"
+#define COUNT_FUNCTION	"ranges_size"
 
 namespace daytrender
 {
@@ -14,13 +14,14 @@ namespace daytrender
 	{
 		filename = hirzel::str::get_filename(_filepath);
 		handle = new hirzel::Plugin(_filepath, { ALGO_FUNCTION, COUNT_FUNCTION });
-		//args = handle->execute_return<int>(COUNT_FUNCTION);
-		if (!handle->is_func_bound(ALGO_FUNCTION) || !handle->is_func_bound(COUNT_FUNCTION))
+		
+		if (!handle->all_bound())
 		{
 			errorf(handle->get_error());
 			return;
 		}
-		args = handle->execute<int>(COUNT_FUNCTION);
+
+		ranges_count = handle->execute<int>(COUNT_FUNCTION);
 		algo = (algorithm_func)handle->get_func(ALGO_FUNCTION);
 		bound = true;
 		successf("Successfully loaded algorithm: %s", filename);
@@ -31,28 +32,26 @@ namespace daytrender
 		delete handle;
 	}
 	
-	bool TradeAlgorithm::process(algorithm_data& data)
+	algorithm_data TradeAlgorithm::process(const candleset& candles, const std::vector<int>& ranges)
 	{
 		//printfmt("Executing algorithm...\n");
-		if (!data.err.empty()) data.err.clear();
-		data.dataset.clear();
-		data.action = ACTION_NOTHING;
+		algorithm_data data;
+		data.create(ranges.data(), ranges_count);
+		data.candles = candles;
 
-		if (!algo(data))
+		algo(data);
+
+		if (data.err)
 		{
 			std::string args_glob;
-			for (int i = 0; i < data.ranges.size(); i++)
+			for (int i = 0; i < data.ranges_size; i++)
 			{
 				if (i > 0) args_glob += ", ";
 				args_glob += std::to_string(data.ranges[i]);
 			}
-			errorf("Error in Algorithm: %s(%s): %s", data.label, args_glob, data.err);
+			errorf("%s(%s): %s", data.label, args_glob, data.err);
+		}
 
-			return false;
-		}
-		else
-		{
-			return true;
-		}
+		return data;
 	}
 }

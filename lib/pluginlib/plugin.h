@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 #if defined(_WIN32) || defined(_WIN64)
 
@@ -29,17 +30,17 @@ namespace hirzel
 	{
 	private:
 	// Stored handle of library
-	void *lib = nullptr;
+	void* lib = nullptr;
+	bool bound = false;
 	// Stores pointers to the functions
-	std::string filename, err_glob;
+	std::string filepath, error;
 	std::unordered_map<std::string, func_ptr> functions;
 
 	public:
 		Plugin() = default;
-		Plugin(const std::string& _filename, const std::vector<std::string>& funcnames = {})
+		Plugin(const std::string& _filepath, const std::vector<std::string>& funcnames = {})
 		{
-			filename = _filename;
-			bind_library(filename);
+			bind_library(_filepath);
 
 			if(lib)
 			{
@@ -50,7 +51,7 @@ namespace hirzel
 			}
 			else
 			{
-				err_glob += filename + ": binding of functions could not continue!\n";
+				error = filepath + ": binding of functions could not continue!\n";
 			}
 		}
 
@@ -68,33 +69,40 @@ namespace hirzel
 		}
 
 		// Loads library handle from local dynamic library
-		void bind_library(const std::string& filename)
+		void bind_library(const std::string& _filepath)
 		{
 			if(lib)
 			{
-				err_glob += "plugin: a library is already loaded! overwriting is not alllowed.\n";
+				error = _filepath + ": a library is already bound! overwriting is not allowed.";
 				return;
 			}
 
+			filepath = _filepath;
+
 			#if OS_IS_WINDOWS
-			lib = (void*)LoadLibrary(filename.c_str());
+			lib = (void*)LoadLibrary(filepath.c_str());
 			#else
-			lib = dlopen(filename.c_str(), RTLD_NOW);
+			lib = dlopen(filepath.c_str(), RTLD_NOW);
 			#endif
 
 			if(!lib)
 			{
 				#if OS_IS_WINDOWS
-				err_glob += GetLastError();
+				error = GetLastError();
 				#else
-				err_glob += dlerror();
+				error = dlerror();
 				#endif
-				err_glob += '\n';
+
+				bound = false;
+			}
+			else
+			{
+				bound = true;
 			}
 		}
 
 		// loads function into function pointer map
-		void bind_function(const std::string& funcname)
+		func_ptr bind_function(const std::string& funcname)
 		{
 			// function pointer that will be stored
 			func_ptr func;
@@ -102,8 +110,8 @@ namespace hirzel
 			//guard against unloaded library
 			if(!lib)
 			{
-				err_glob += filename + ": lib has not been bound! cannot continue with binding function: '" + funcname + "()'.\n";
-				return;
+				error = filepath + ": lib has not been bound! cannot continue with binding function: '" + funcname + "()'.";
+				return nullptr;
 			}
 
 			//loading function from library
@@ -117,15 +125,20 @@ namespace hirzel
 			if(!func)
 			{
 				#if OS_IS_WINDOWS
-				err_glob += GetLastError();
+				error = GetLastError();
 				#else
-				err_glob += dlerror();
+				error = dlerror();
 				#endif
-				err_glob += '\n';
+				
+				bound = false;
+				return nullptr;
 			}
-
-			// putting function into map
-			functions[funcname] = func;
+			else
+			{
+				// putting function into map
+				functions[funcname] = func;
+				return func;
+			}
 		}
 
 		// calls function from plugin's map
@@ -136,7 +149,7 @@ namespace hirzel
 			// guard against function
 			if(!func)
 			{
-				err_glob += filename + ": function '" + funcname + "()' is not bound!\n";
+				error = filepath + ": function '" + funcname + "()' is not bound!";
 				return T();
 			}
 			else
@@ -144,16 +157,23 @@ namespace hirzel
 				return func(a...);
 			}
 		}
+
 		inline bool is_lib_bound() const { return (lib != nullptr); }
-		inline bool is_func_bound(const std::string& funcname) const { return functions.count(funcname); }
+		inline bool is_func_bound(const std::string& funcname) const
+		{
+			return functions.count(funcname); 
+		}
+		inline bool all_bound() const { return bound; }
+
 		inline func_ptr get_func(const std::string& funcname)
 		{
 			return functions[funcname];
 		}
+
 		inline std::string get_error()
 		{
-			std::string out = err_glob;
-			err_glob.clear();
+			std::string out = error;
+			error.clear();
 			return out;
 		}
 	};

@@ -1,8 +1,0 @@
-
-
-
-int bam()
-{
-	int tt = 102;
-	string testinc = "testinc.dt";
-}

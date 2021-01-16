@@ -5,61 +5,20 @@
 #include <unordered_map>
 
 #include "candle.h"
-#include "action.h"
+#include "../api/action.h"
 #include "paperaccount.h"
-#include "tradealgorithm.h"
+#include "../api/tradealgorithm.h"
 #include "../api/tradeclient.h"
 
 // algorithm constants
 #define MAX_ALGORITHM_WINDOW	50
 #define MIN_ALGORITHM_WINDOW	4
 
-// interval constants
-	
-// PaperAccount constants
-#define PAPER_ACCOUNT_INITIAL	500
-	
-#define FOREX_FEE				0.00007
-#define FOREX_MINIMUM			0.01
-#define FOREX_INITIALS			{ FOREX_FEE, FOREX_MINIMUM }
 
-#define STOCK_FEE				0.0
-#define STOCK_MINIMUM			1.0
-#define STOCK_INITIALS			{ STOCK_FEE, STOCK_MINIMUM }
-
-#define CRYPTO_FEE				0.0025
-#define CRYPTO_MINIMUM			0.001
-#define CRYPTO_INITIALS			{ CRYPTO_FEE, CRYPTO_MINIMUM }
-
-#define PAPER_INITIALS			{ FOREX_INITIALS }
-
-// Asset constants
-
-#define FOREX_INDEX			0U
-#define FOREX_LABEL			"Forex"
-
-#define STOCK_INDEX			1U
-#define STOCK_LABEL			"Stocks"
-
-#define CRYPTO_INDEX		2U
-#define CRYPTO_LABEL		"Crypto"
-
-// The amount of asset types there are. Currently only forex and stocks
-#define ASSET_TYPE_COUNT	2
-
-#define ASSET_LABELS		{ FOREX_LABEL, STOCK_LABEL }
-
-#define FOREX_INTERVALS		{ MIN5, MIN15, HOUR1 }
-#define STOCK_INTERVALS		{ MIN5, MIN15, DAY }
-#define CRYPTO_INTERVALS	{ MIN5, MIN15, HOUR1 }
-#define BACKTEST_INTERVALS	{ FOREX_INTERVALS, STOCK_INTERVALS }
+#define PAPER_ACCOUNT_INITIAL 500.0
 
 namespace daytrender
 {
-	extern const char* asset_labels[];
-	extern double paper_initials[ASSET_TYPE_COUNT][2];
-	extern unsigned int backtest_intervals[ASSET_TYPE_COUNT][3];
-
 	struct asset_info
 	{
 		double shares = 0.0;
@@ -76,13 +35,14 @@ namespace daytrender
 		double risk = 0.9;
 		std::string ticker;
 		algorithm_data data;
+		std::vector<int> ranges;
 		
 		TradeClient* client;
 		TradeAlgorithm* algo;
 		PaperAccount paperAccount;
 		
 	public:
-		Asset(int _assetIndex, TradeClient *_client, const std::string &_ticker, TradeAlgorithm* _algo,
+		Asset(int _type, TradeClient *_client, const std::string &_ticker, TradeAlgorithm* _algo,
 			int _interval, double _risk, const std::vector<int>& _ranges, bool _paper);
 
 		void update();
@@ -95,5 +55,6 @@ namespace daytrender
 		inline int getInterval() const { return interval; }
 		inline int getType() const { return type; }
 		inline bool isLive() const { return live; }
+		inline int getRisk() const { return risk; }
 	};
 }

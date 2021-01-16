@@ -1,3 +1,74 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<title>DayTrender</title>
+
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+	<style>
+		body html {
+			width: 100vh;
+			height: 100vh;
+		}
+
+		#main-container {
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			align-items: stretch;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="main-container" class="container-fluid bg-dark">
+
+		<div id="header" class="row text-light p-3 bg-secondary">
+				<div class="col"><h1>DayTrender</h1></div>
+				<div id="accinfo-field" class="col"></div>
+		</div>
+		<div id="panel" class="row p-2 text-dark bg-light">
+			<div class="col">
+				<div class="row">
+					<div class="col"><select class="form-control" id="type-select"></select></div>
+					<div class="col"><select class="form-control" id="ticker-select"></select></div>
+					<div class="col-1"></div>
+					<div class="col"><select class="form-control" id="algo-select"></select></div>
+					<div class="col"><textarea class="form-control" id="ranges-field" rows="1"></textarea></div>
+					<div class="col"><button type="button" class="btn btn-info" id="backtest-button">Backtest</button></div>
+
+				</div>
+			</div>
+
+			<div class="col d-flex justify-content-end">
+				<button type="button" class="btn btn-danger" id="shutdown-button">Shut Down</button>
+			</div>
+
+		</div>
+
+		<div id="content" class="row p-5 bg-dark justify-content-center h-100"></div>
+
+		<div id="footer" class="row text-light p-2 justify-content-center bg-secondary">
+			<h5>Copyright Ike Hirzel 2020</h5>
+		</div>
+	</div>
+
+	<!-- jQuery -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<!-- Popper -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+		integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+		crossorigin="anonymous"></script>
+	<!-- Bootstrap -->
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+		integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+		crossorigin="anonymous"></script>
+	<!-- Plotly -->
+	<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+	<!-- User defined scripts -->
+<script>
 'use strict';
 
 var assets = [];
@@ -17,31 +88,31 @@ var shutdownButton = $("#shutdown-button");
 var contentWindow = $("#content");
 var accinfoField = $("#accinfo-field");
 
-$("document").ready(() => 
+$("document").ready(() =>
 {
 	$.get(
 	{
 		url: "/data",
-		success: function (data, status) 
+		success: function (data, status)
 		{
 			console.log("Data:", data);
-			
+
 			// default setting is to show all in a large pool
 			// the user can then organize by type if desired
 			assets = data.assets;
 			asset_labels = data.types;
-			
+
 			typeSelect.append(`<option value=-1>All</option>`);
 			for (let i = 0; i < data.types.length; i++)
 			{
 				typeSelect.append(`<option value=${i}>${data.types[i]}</option>`);
 			}
 
-			for (let i = 0; i < assets.length; i++) 
+			for (let i = 0; i < assets.length; i++)
 			{
 				tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
 			}
-			
+
 			for (let i = 0; i < data.algorithms.length; i++)
 			{
 				algorithms[i] = data.algorithms[i];
@@ -83,7 +154,7 @@ $("document").ready(() =>
 		toggle_watch();
 	});
 
-	tickerSelect.change(() => 
+	tickerSelect.change(() =>
 	{
 		get_accinfo();
 		toggle_watch();
@@ -160,7 +231,7 @@ $("document").ready(() =>
 					<div id="lwindow" class="col-2 bg-light p-5"></div>
 					<div id="rwindow" class="col-10"></div>
 				`);
-				
+
 
 				// handling acc data
 
@@ -254,19 +325,18 @@ $("document").ready(() =>
 
 	function get_backtest()
 	{
-		var asset_index = tickerSelect.val();
-		var algo_index = algoSelect.val();
-
-		console.log("Asset:", asset_index);
-		console.log("Algorithm:", algo_index);
-
+		let asset_index = tickerSelect.val();
+		let algo_index = algoSelect.val();
+		let ranges = $("#ranges-field").val();
+		console.log("ranges:", ranges);
 		$.get(
 			{
 				url: "/backtest",
 				dataType: "json",
 				data: {
 					"asset": asset_index,
-					"algorithm": algo_index
+					"algorithm": algo_index,
+					"ranges": ranges
 				},
 				success: function (data, status)
 				{
@@ -315,7 +385,7 @@ $("document").ready(() =>
 							</div>
 						`);
 					}
-	
+
 				}
 			});
 	}
@@ -348,3 +418,6 @@ $("document").ready(() =>
 		get_backtest();
 	});
 });
+</script>
+</body>
+</html>

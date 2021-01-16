@@ -25,6 +25,9 @@ namespace daytrender
 	{
 		httplib::Server server;
 		std::string ip, username, password;
+		std::string html{
+			#include "webinterface.inc"
+		};
 		unsigned short port;
 		bool running = false;
 		std::mutex mtx;
@@ -36,29 +39,12 @@ namespace daytrender
 		void get_backtest(const httplib::Request& req,  httplib::Response& res);
 		void get_accinfo(const httplib::Request& req,  httplib::Response& res);
 
-		bool init(const std::string& dir)
+		bool init(const json& config, const std::string& dir)
 		{
-			std::string data;
-
-			infof("Loading server data...");
-
-			data = hirzel::file::read_file_as_string(dir + SERVER_CONFIG_FILENAME);
-
-			if(data.empty())
-			{
-				fatalf("Failed to read ." SERVER_CONFIG_FILENAME "!");
-				return false;
-			}
-
-			successf("Successfully loaded ." SERVER_CONFIG_FILENAME);
-
-			json serverInfo = json::parse(data);
-			ip = serverInfo["ip"].get<std::string>();
-			port = serverInfo["port"].get<unsigned short>();
-			username = serverInfo["username"].get<std::string>();
-			password = serverInfo["password"].get<std::string>();
-
-			server.set_mount_point("/", std::string(dir + RESOURCES_FOLDER "http").c_str());
+			ip = config["ip"].get<std::string>();
+			port = config["port"].get<unsigned short>();
+			username = config["username"].get<std::string>();
+			password = config["password"].get<std::string>();
 
 			server.Get("/", get_root);
 			server.Get("/data", get_data);
@@ -110,7 +96,8 @@ namespace daytrender
 		void get_root(const httplib::Request& req,  httplib::Response& res)
 		{
 			debugf("Server GET @ %s", req.path);
-			warningf("'/' callback is not yet implemented");
+
+			res.set_content(html, "text/html");
 			// TODO: Implement /
 		}
 
@@ -149,9 +136,10 @@ namespace daytrender
 				}
 			}
 
-			for (int i = 0; i < ASSET_TYPE_COUNT; i++)
+			auto client_data = getClientInfo();
+			for (int i = 0; i < client_data.size(); i++)
 			{
-				response["types"][i] = asset_labels[i];
+				response["types"][i] = client_data[i];
 			}
 
 			// sending json object to client
@@ -170,7 +158,7 @@ namespace daytrender
 			asset_type = std::stoi(req.get_param_value("asset_type"));
 
 			client = getClient(asset_type);
-			accinfo = client->getAccountInfo();
+			accinfo = client->get_account_info();
 			response["balance"] = accinfo.balance;
 			response["buying_power"] = accinfo.buying_power;
 			response["equity"] = accinfo.equity;
@@ -215,16 +203,16 @@ namespace daytrender
 			}
 
 			unsigned indi_index = 0;
-			const std::vector<indicator_data>& dataset = data.dataset;
+			const indicator* dataset = data.dataset;
 	
-			for (int i = 0; i < dataset.size(); i++)
+			for (int i = 0; i < data.ranges_size - 1; i++)
 			{
 				json& indi = response["indicators"][i];
 				indi["type"] = dataset[i].type;
 				indi["label"] = dataset[i].label;
-				for (int j = 0; j < dataset[i].data.size(); j++)
+				for (int j = 0; j < dataset[i].size; j++)
 				{
-					indi["data"][j] = dataset[i].data[j];
+					indi["data"][j] = dataset[i].front(j);
 				}
 			}
 			res.set_content(response.dump(), JSON_FORMAT);
@@ -238,10 +226,42 @@ namespace daytrender
 			json response;
 			algo_index = std::stoi(req.get_param_value("algorithm"));
 			asset_index = std::stoi(req.get_param_value("asset"));
+			std::string sranges = req.get_param_value("ranges");
+			std::vector<PaperAccount> results;
 			
-			printfmt("Asset index gotten: %d\nAlgo index gotten: %d\n", asset_index, algo_index);
+			if (sranges.empty())
+			{
+				results = daytrender::backtest(algo_index, asset_index, {});
+			}
+			else
+			{	
+				std::cout << "ranges were gotten!\n";
+				std::vector<int> ranges;
+				std::string tmp;
 
-			auto results = daytrender::backtest(algo_index, asset_index);
+				for (int i = 0; i < sranges.size(); i++)
+				{
+					if (sranges[i] == ',' || sranges[i] == ' ')
+					{
+						if (!tmp.empty())
+						{
+							ranges.push_back(std::stoi(tmp));
+							tmp.clear();
+						}
+						continue;
+					}
+					tmp += sranges[i];
+				}
+
+				if (!tmp.empty())
+				{
+					ranges.push_back(std::stoi(tmp));
+				}
+
+				std::cout << "Ranges: " << ranges.size() << std::endl;
+				results = daytrender::backtest(algo_index, asset_index, ranges);
+			}
+			std::cout << "Got result!\n";
 
 			for (int i = 0; i < results.size(); i++)
 			{

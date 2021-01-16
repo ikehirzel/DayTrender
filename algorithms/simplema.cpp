@@ -1,11 +1,11 @@
+#define INDICATORS 2
+
 #include <candle.h>
 #include <algodefs.h>
 #include <iostream>
 
-indicator EMA(const candleset& candles, int range)
+void EMA(indicator& data, const candleset& candles, int range)
 {
-	indicator data(candles.size);
-	
 	double multiplier = 2.0 / (double)(range + 1);
 
 	double sum = 0.0;
@@ -18,34 +18,31 @@ indicator EMA(const candleset& candles, int range)
 
 	data[0] = sum / (double)initLength;
 
-	for (int i = 1; i < candles.size; i++)
+	for (int i = 1; i < data.size; i++)
 	{
 		data[i] = candles[i].close * multiplier + data[i - 1] * (1.0 - multiplier);
 	}
-
-	return data;
 }
 
-int arg_count() { return 3; }
-
-bool algorithm (algorithm_data& out)
+void algorithm (algorithm_data& out)
 {
-	// initializing algorithm data
-	if (!init_algorithm(out, "Simple MA")) return false;
+	init_algorithm(out, "Simple MA");
+	std::cout << "Start of the algorithm\n";
 
-	const indicator& longma = add_indicator(out, 0, EMA, "EMA", "long");
-	const indicator& shortma = add_indicator(out, 1, EMA, "EMA", "short");
-	// processing algorithm
-	//std::cout << "Longma: " << longma.size() << std::endl;
+	const indicator& longma = add_indicator(out, EMA, "long");
+	std::cout << "Added longma\n";
 
-	if (shortma.back() > longma.back() && shortma[shortma.size() - 2] < longma[longma.size() - 2])
+	const indicator& shortma = add_indicator(out, EMA, "short");
+	std::cout << "Added shortma\n";
+
+	if (shortma.back() > longma.back() && shortma.back(1) < longma.back(1))
 	{
 		out.buy();
 	}
-	else if (shortma.back() < longma.back() && shortma[shortma.size() - 2] > longma[longma.size() - 2])
+	else if (shortma.back() < longma.back() && shortma.back(1) > longma.back(1))
 	{
 		out.sell();
 	}
 
-	return true;
+	std::cout << "end of algorithm\n";
 }

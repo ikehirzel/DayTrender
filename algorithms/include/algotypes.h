@@ -1,8 +1,6 @@
 #pragma once
 
-#define ACTION_NOTHING	0U
-#define ACTION_SELL		1U
-#define ACTION_BUY		2U
+#include "actionenum.h"
 
 #include <string>
 #include <vector>
@@ -11,22 +9,89 @@
 
 namespace daytrender
 {
-	struct indicator_data
+	struct indicator
 	{
-		std::string type, label;
-		std::vector<double> data;
+		const char* type = nullptr;
+		const char* label = nullptr;
+		double* data;
+		int size;
+
+		void create(int _size)
+		{
+			size = _size;
+			data = new double[size];
+		}
+
+		void clear()
+		{
+			size = 0;
+			delete[] data;
+			data = nullptr;
+		}
+
+		double& operator[](unsigned pos)
+		{
+			if (pos >= size)
+			{
+				throw std::out_of_range("attempt to access indicator element outside of range");
+			}
+		
+			return data[pos];
+		}
+
+		double back(unsigned pos = 0) const
+		{
+			if (pos >= size)
+			{
+				throw std::out_of_range("attempt to access indicator element outside of range");
+			}
+			return data[(size - 1) - pos];
+		}
+
+		double front(unsigned pos = 0) const
+		{
+			if (pos >= size)
+			{
+				throw std::out_of_range("attempt to access indicator element outside of range");
+			}
+			return data[pos];
+		}
 	};
 	
 	struct algorithm_data
 	{
-		std::string type, label, err;
-		std::vector<int> ranges;
+		const char* type = nullptr;
+		const char* label = nullptr;
+		const char* err = nullptr;
+		const int *ranges = nullptr;
 		candleset candles;
-		std::vector<indicator_data> dataset;
-		int action;
+		indicator* dataset = nullptr;
+		int ranges_size = 0;
+		int action = 0;
 		
-		void do_nothing() { action = ACTION_NOTHING; }
-		void sell() { action = ACTION_SELL; }
-		void buy() { action = ACTION_BUY; }
+		inline void do_nothing() { action = Action::NOTHING; }
+		inline void sell() { action = Action::SELL; }
+		inline void buy() { action = Action::BUY; }
+
+		inline void create(const int* _ranges, int _ranges_size)
+		{
+			ranges_size = _ranges_size;
+			ranges = _ranges;
+
+			dataset = new indicator[ranges_size - 1];
+			for (int i = 0; i < ranges_size - 1; i++)
+			{
+				dataset[i].create(ranges[0]);
+			}
+		}
+
+		inline void clear()
+		{
+			for (int i = 0; i < ranges_size - 1; i++)
+			{
+				dataset[i].clear();
+			}
+			delete[] dataset;
+		}
 	};
 }
