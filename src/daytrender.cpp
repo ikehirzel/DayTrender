@@ -241,7 +241,42 @@ namespace daytrender
 	void free()
 	{
 		mtx.lock();
-		
+		if (clients.empty())
+		{
+			warningf("No clients were initialized");
+		}
+		else
+		{
+			for (int i = 0; i < clients.size(); i++)
+			{
+				delete clients[i];
+			}
+		}
+
+		if (assets.empty())
+		{
+			warningf("No assets were initialized");
+		}
+		else
+		{
+			for (int i = 0; i < assets.size(); i++)
+			{
+				delete assets[i];	
+			}
+		}
+
+		if (algorithms.empty())
+		{
+			warningf("No algorithms were initialized");
+		}
+		else
+		{
+			for (int i = 0; i < algorithms.size(); i++)
+			{
+				delete algorithms[i];
+			}
+		}
+
 		mtx.unlock();
 	}
 
