@@ -1,7 +1,6 @@
 #include "asset.h"
 
 #include "candle.h"
-#include "interval.h"
 
 #include "../api/action.h"
 #include "../api/client.h"

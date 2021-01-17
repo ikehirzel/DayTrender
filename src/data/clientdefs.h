@@ -66,6 +66,8 @@ extern "C"
 	void get_candles(candleset& candles, const std::string& ticker);
 	void get_account_info(account_info& info);
 	bool market_order(const std::string& ticker, double amount);
+	double get_shares(const std::string& ticker);
+	bool close_all_positions();
 
 	void backtest_intervals(std::vector<int>& out)
 	{

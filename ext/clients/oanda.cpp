@@ -70,9 +70,8 @@ void get_account_info(account_info& info)
 	{
 		json res_json = json::parse(res->body);
 		json& acc = res_json["account"];
-		std::cout << "Acc:\n" << acc.dump() << std::endl;
 		info.balance = std::stod(acc["balance"].get<std::string>());
-		info.buying_power = info.balance + std::stod(acc["marginAvailable"].get<std::string>());
+		info.buying_power = std::stod(acc["marginAvailable"].get<std::string>());
 		info.equity = std::stod(acc["NAV"].get<std::string>());
 	}
 }
@@ -85,10 +84,99 @@ bool market_order(const std::string& ticker, double amount)
 	order["type"] = "MARKET";
 	order["instrument"] = ticker;
 	order["units"] = std::to_string(amount);
-	std::cout << "The request: " << req.dump() << std::endl;
+
 	auto res = client.Post(url.c_str(), req.dump(), JSON_FORMAT);
 	if (res_ok(res))
 	{
+		json res_json = json::parse(res->body);
+
+		if (res_json["orderCreateTransaction"].is_null())
+		{
+			error = "order was not created correctly";
+			return false;
+		}
+
+		if (!res_json["orderCancelTransaction"].is_null())
+		{
+			error = "order was canceled";
+			return false;
+		}
+
+		if (res_json["orderFillTransaction"].is_null())
+		{
+			error = "order was not fulfilled";
+			return false;
+		}
+
+		return true;
+	}
+	return false;
+}
+
+double get_shares(const std::string& ticker)
+{
+	std::string url = "/v3/accounts/" + accountid + "/positions/" + ticker;
+	auto res = client.Get(url.c_str());
+	if (res_ok(res))
+	{
+		json res_json = json::parse(res->body);
+		double longu = std::stod(res_json["position"]["long"]["units"].get<std::string>());
+		double shortu = std::stod(res_json["position"]["short"]["units"].get<std::string>());
+		
+		return longu + shortu;
+	}
+	return 0.0;
+}
+
+bool close_all_positions()
+{
+	std::string url =  "/v3/accounts/" + accountid + "/positions";
+
+	auto res = client.Get(url.c_str());
+	if (res_ok(res))
+	{
+		std::string error_glob;
+		std::vector<std::string> failed_tickers;
+		json res_json = json::parse(res->body);
+		json& pos_json = res_json["positions"];
+		for (int i = 0; i < pos_json.size(); i++)
+		{
+			json& position = pos_json[i];
+
+			// getting total units
+			double longu = std::stod(position["long"]["units"].get<std::string>());
+			double shortu = std::stod(position["short"]["units"].get<std::string>());
+			double shares = longu + shortu;
+
+			// if the position is still open
+			if (shares != 0.0)
+			{
+				// get rid of the shares
+				std::string ticker = position["instrument"].get<std::string>();
+				// if failed, log the error 
+				if (!market_order(ticker, -shares))
+				{
+					error_glob += ticker + ": " + error + ". ";
+					failed_tickers.push_back(ticker);
+				}
+			}
+		}
+
+		// globbing all errors from trying to close all positions
+		if (!failed_tickers.empty())
+		{
+			error = "failed to close assets: ";
+			for (int i = 0; i < failed_tickers.size(); i++)
+			{
+				if (i > 0)
+				{
+					error += ", ";
+				}
+				error += failed_tickers[i];
+			}
+			error += " ::: " + error_glob;
+			return false;
+		}
 		return true;
 	}
 

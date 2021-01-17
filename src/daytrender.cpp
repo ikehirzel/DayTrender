@@ -209,22 +209,27 @@ namespace daytrender
 
 		mtx.unlock();
 
-		//printfmt("Order successful: %b\n", clients[0]->market_order("EUR_USD", 3));
-		json test = json::parse(R"===({"orderCreateTransaction":{"id":"10","accountID":"101-001-16095116-001","userID":16095116,"batchID":"10","requestID":"42785319189581476","time":"2021-01-17T10:46:55.470968477Z","type":"MARKET_ORDER","instrument":"EUR_USD","units":"3","timeInForce":"FOK","positionFill":"DEFAULT","reason":"CLIENT_ORDER"},"orderCancelTransaction":{"id":"11","accountID":"101-001-16095116-001","userID":16095116,"batchID":"10","requestID":"42785319189581476","time":"2021-01-17T10:46:55.470968477Z","type":"ORDER_CANCEL","orderID":"10","reason":"MARKET_HALTED"},"relatedTransactionIDs":["10","11"],"lastTransactionID":"11"})===");
-		std::cout << "Json size: " << test.size() << std::endl;
-		if (test["orderCreateTransaction"].is_null())
-		{
-			std::cout << "Order was not created correctly!\n";
-		}
-		if (test["orderFillTransaction"].is_null() || !test["orderCancelTransaction"].is_null())
-		{
-			std::cout << "Order was not fulfilled!\n";
-		}
-		/*
-		account_info info = clients[0]->get_account_info();
-		printfmt("Account Info:\n\tbalance: %f\n\tbuying_power: %f\n\tequity: %f\n", info.balance, info.buying_power, info.equity);
-		candleset candles = clients[0]->get_candles("EUR_USD", 300, 15);
+		bool ord = clients[0]->market_order("EUR_USD", 3);
+		printfmt("Order successful: %b\n", ord);
 
+		if (ord)
+		{
+			account_info info = clients[0]->get_account_info();
+			double shares = clients[0]->get_shares("EUR_USD");
+			printfmt("Account Info:\n\tbalance: %f\n\tbuying_power: %f\n\tequity: %f\n\tshares: %f\n", info.balance, info.buying_power, info.equity, shares);
+		}
+
+		bool close = clients[0]->close_all_positions();
+		printfmt("Close successful: %b\n", close);
+		if (close)
+		{
+			account_info info = clients[0]->get_account_info();
+			double shares = clients[0]->get_shares("EUR_USD");
+			printfmt("Account Info:\n\tbalance: %f\n\tbuying_power: %f\n\tequity: %f\n\tshares: %f\n", info.balance, info.buying_power, info.equity, shares);
+		}
+
+		/*
+		candleset candles = clients[0]->get_candles("EUR_USD", 300, 15);
 		for (int i = 0; i < candles.size; i++)
 		{
 			std::cout << "open: " << candles[i].close << std::endl;
@@ -236,7 +241,7 @@ namespace daytrender
 	void free()
 	{
 		mtx.lock();
-
+		
 		mtx.unlock();
 	}
 

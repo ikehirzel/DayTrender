@@ -2,10 +2,8 @@
 
 #include <string>
 #include <vector>
-#include <unordered_map>
 
 #include "candle.h"
-#include "../api/action.h"
 #include "paperaccount.h"
 #include "../api/algorithm.h"
 #include "../api/client.h"

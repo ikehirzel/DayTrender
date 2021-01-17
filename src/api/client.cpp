@@ -43,6 +43,12 @@ namespace daytrender
 		market_order_ptr = (market_order_func)handle->bind_function("market_order");
 		if (!market_order_ptr) errorf(handle->get_error());
 
+		get_shares_ptr = (get_shares_func)handle->bind_function("get_shares");
+		if (!get_shares_ptr) errorf(handle->get_error());
+
+		close_all_positions_ptr = (close_all_positions_func)handle->bind_function("close_all_positions");
+		if (!close_all_positions_ptr) errorf(handle->get_error());
+
 		// getters
 
 		to_interval_ptr = (to_interval_func)handle->bind_function(TO_INTERVAL_FUNC);
@@ -157,6 +163,43 @@ namespace daytrender
 			errorf("%s: %s", filename, error);
 		}
 
+		return res;
+	}
+
+	double Client::get_shares(const std::string& ticker) const
+	{
+		if (!get_shares_ptr)
+		{
+			errorf("%s: get_shares is not bound and cannot be executed!", filename);
+			return 0.0;
+		}
+
+		double shares = get_shares_ptr(ticker);
+
+		std::string error = get_error();
+		if (!error.empty())
+		{
+			errorf("%s: %s", filename, error);
+		}
+
+		return shares;
+	}
+
+	bool Client::close_all_positions() const
+	{
+		if (!close_all_positions_ptr)
+		{
+			errorf("%s: close_all_positions is not bound and cannot be executed!", filename);
+			return false;
+		}
+
+		bool res = close_all_positions_ptr();
+
+		std::string error = get_error();
+		if(!error.empty())
+		{
+			errorf("%s: %s", filename, error);
+		}
 		return res;
 	}
 

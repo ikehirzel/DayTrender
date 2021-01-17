@@ -1,8 +1,5 @@
 #include "paperaccount.h"
 
-#include "../data/interval.h"
-#include "../api/action.h"
-#include <cmath>
 #include <hirzel/fountain.h>
 
 namespace daytrender

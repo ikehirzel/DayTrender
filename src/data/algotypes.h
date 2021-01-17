@@ -1,11 +1,9 @@
 #pragma once
 
 #include "actionenum.h"
-
-#include <string>
-#include <vector>
-#include <unordered_map>
 #include "candle.h"
+
+#include <stdexcept>
 
 namespace daytrender
 {

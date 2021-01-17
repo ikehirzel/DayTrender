@@ -37,6 +37,12 @@ namespace daytrender
 		typedef bool (*market_order_func)(const std::string&, double);
 		market_order_func market_order_ptr = nullptr;
 
+		typedef double (*get_shares_func)(const std::string&);
+		get_shares_func get_shares_ptr = nullptr;
+
+		typedef bool (*close_all_positions_func)();
+		close_all_positions_func close_all_positions_ptr = nullptr;
+
 		// getters
 
 		typedef const char* (*to_interval_func)(int);
@@ -66,6 +72,8 @@ namespace daytrender
 		candleset get_candles(const std::string& ticker, int interval, int max = 0) const;
 		account_info get_account_info() const;
 		bool market_order(const std::string& ticker, double amount) const;
+		double get_shares(const std::string& ticker) const;
+		bool close_all_positions() const;
 
 		// getters for constants
 
