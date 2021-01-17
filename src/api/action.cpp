@@ -7,10 +7,10 @@ namespace daytrender
 {
 	namespace action
 	{
-		bool nothing(TradeClient* client, double risk) { return true; }
+		bool nothing(const Client* client, double risk) { return true; }
 		bool paper_nothing(PaperAccount& account, double risk) { return true; }
 
-		bool buy(TradeClient* client, double risk) 
+		bool buy(const Client* client, double risk) 
 		{
 			errorf("Live buying is not implemented yet!");
 			return false;
@@ -27,7 +27,7 @@ namespace daytrender
 			return true;
 		}
 
-		bool sell(TradeClient* client, double risk)
+		bool sell(const Client* client, double risk)
 		{
 			errorf("Live selling is not implemented yet!");
 			return false;

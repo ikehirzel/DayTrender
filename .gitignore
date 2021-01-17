@@ -3,4 +3,5 @@
 
 resources/bin/
 
-config.json
+clients.json
+server.json

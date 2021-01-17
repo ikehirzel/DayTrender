@@ -61,12 +61,4 @@ namespace daytrender
 		inline const candle& back() const { return candles[size - 1]; }
 		inline bool empty() const { return size == 0; }
 	};
-
-
-	struct candleset_data
-	{
-		candleset candles;
-		unsigned interval;
-	};
-
 }

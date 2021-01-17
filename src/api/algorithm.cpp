@@ -1,4 +1,4 @@
-#include "tradealgorithm.h"
+#include "algorithm.h"
 #include <hirzel/plugin.h>
 #include <hirzel/fountain.h>
 #include <hirzel/strutil.h>
@@ -10,7 +10,7 @@
 
 namespace daytrender
 {
-	TradeAlgorithm::TradeAlgorithm(const std::string& _filepath)
+	Algorithm::Algorithm(const std::string& _filepath)
 	{
 		filename = hirzel::str::get_filename(_filepath);
 		handle = new hirzel::Plugin(_filepath, { ALGO_FUNCTION, COUNT_FUNCTION });
@@ -24,15 +24,15 @@ namespace daytrender
 		ranges_count = handle->execute<int>(COUNT_FUNCTION);
 		algo = (algorithm_func)handle->get_func(ALGO_FUNCTION);
 		bound = true;
-		successf("Successfully loaded algorithm: %s", filename);
+		successf("Successfully loaded algorithm: '%s'", filename);
 	}
 
-	TradeAlgorithm::~TradeAlgorithm()
+	Algorithm::~Algorithm()
 	{
 		delete handle;
 	}
 	
-	algorithm_data TradeAlgorithm::process(const candleset& candles, const std::vector<int>& ranges)
+	algorithm_data Algorithm::process(const candleset& candles, const std::vector<int>& ranges) const
 	{
 		//printfmt("Executing algorithm...\n");
 		algorithm_data data;

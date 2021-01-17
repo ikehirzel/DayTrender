@@ -10,9 +10,10 @@ file(GLOB DAYTRENDER_SRCS src/*.cpp src/api/*.cpp src/data/*.cpp src/interface/*
 
 # creating symlinks so files can be shared between build folder and project folder
 
-file(CREATE_LINK ../resources resources SYMBOLIC)
-file(CREATE_LINK ../config.json config.json SYMBOLIC)
+file(CREATE_LINK ../clients.json clients.json SYMBOLIC)
+file(CREATE_LINK ../server.json server.json SYMBOLIC)
 file(CREATE_LINK ../algorithms algorithms SYMBOLIC)
+file(CREATE_LINK ../clients clients SYMBOLIC)
 
 # creating main executable of project
 add_executable(daytrender ${DAYTRENDER_SRCS})
@@ -30,6 +31,7 @@ foreach(ALGO ${ALGO_SRCS})
 	add_library(${FILENAME} SHARED ${ALGO})
 	# tell it to go to algorithms folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/algorithms)
+	target_include_directories(${FILENAME} PRIVATE src/data)
 endforeach()
 
 # compiling each client plugin
@@ -42,6 +44,8 @@ foreach(CLIENT ${CLIENT_SRCS})
 	add_library(${FILENAME} SHARED ${CLIENT})
 	# tell it to go to algorithms folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
+	target_include_directories(${FILENAME} PRIVATE src/data lib/cpp-httplib/include lib/)
+	target_link_libraries(${FILENAME} PRIVATE nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
 endforeach()
 
 # copying over the website source

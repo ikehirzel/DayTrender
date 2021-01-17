@@ -12,8 +12,6 @@
 #include <hirzel/fileutil.h>
 #include <hirzel/fountain.h>
 
-#define SERVER_CONFIG_FILENAME CONFIG_FOLDER "serverinfo.json"
-
 #define JSON_FORMAT	"application/json"
 #define TEXT_FORMAT "text/plain"
 
@@ -152,12 +150,12 @@ namespace daytrender
 
 			int asset_type;
 			account_info accinfo;
-			const TradeClient* client;
+			;
 			json response;
 
 			asset_type = std::stoi(req.get_param_value("asset_type"));
 
-			client = getClient(asset_type);
+			const Client* client = getClient(asset_type);
 			accinfo = client->get_account_info();
 			response["balance"] = accinfo.balance;
 			response["buying_power"] = accinfo.buying_power;
@@ -175,10 +173,9 @@ namespace daytrender
 			algorithm_data data;
 			asset_info ainfo;
 			json response;
-			const Asset* asset;
 
 			index = std::stoi(req.get_param_value("index"));
-			asset = getAsset(index);
+			const Asset* asset = getAsset(index);
 			data = asset->getData();
 			ainfo = asset->getAssetInfo();
 

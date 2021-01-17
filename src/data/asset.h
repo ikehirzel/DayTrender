@@ -7,8 +7,8 @@
 #include "candle.h"
 #include "../api/action.h"
 #include "paperaccount.h"
-#include "../api/tradealgorithm.h"
-#include "../api/tradeclient.h"
+#include "../api/algorithm.h"
+#include "../api/client.h"
 
 // algorithm constants
 #define MAX_ALGORITHM_WINDOW	50
@@ -37,21 +37,21 @@ namespace daytrender
 		algorithm_data data;
 		std::vector<int> ranges;
 		
-		TradeClient* client;
-		TradeAlgorithm* algo;
+		const Client* client;
+		const Algorithm* algo;
 		PaperAccount paperAccount;
 		
 	public:
-		Asset(int _type, TradeClient *_client, const std::string &_ticker, TradeAlgorithm* _algo,
+		Asset(int _type, const Client* _client, const std::string &_ticker, const Algorithm* _algo,
 			int _interval, double _risk, const std::vector<int>& _ranges, bool _paper);
 
 		void update();
 
 		asset_info getAssetInfo() const;
 		inline algorithm_data getData() const { return data; }
-		inline TradeAlgorithm* getAlgorithm() const { return algo; }
-		inline std::string getTicker() const { return ticker; }
-		inline TradeClient* getClient() const { return client; }
+		inline const Algorithm& getAlgorithm() const { return *algo; }
+		inline const Client& getClient() const { return *client; }
+		inline const std::string& getTicker() const { return ticker; }
 		inline int getInterval() const { return interval; }
 		inline int getType() const { return type; }
 		inline bool isLive() const { return live; }

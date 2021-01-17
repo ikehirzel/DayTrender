@@ -3,13 +3,13 @@
 #include "../data/actionenum.h"
 #include "../data/paperaccount.h"
 
-#include "tradeclient.h"
+#include "client.h"
 
 namespace daytrender
 {
 	namespace action
 	{
-		typedef bool (*action_func)(TradeClient*, double);
+		typedef bool (*action_func)(const Client*, double);
 		typedef bool (*paper_func)(PaperAccount&, double);
 
 		extern action_func actions[Action::COUNT];

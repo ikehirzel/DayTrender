@@ -16,7 +16,7 @@ namespace daytrender
 {
 	typedef void(*algorithm_func)(algorithm_data&);
 
-	class TradeAlgorithm
+	class Algorithm
 	{
 	private:
 		bool bound = false;
@@ -27,10 +27,10 @@ namespace daytrender
 		algorithm_func algo;
 
 	public:
-		TradeAlgorithm(const std::string& _filepath);
-		~TradeAlgorithm();
+		Algorithm(const std::string& _filepath);
+		~Algorithm();
 
-		algorithm_data process(const candleset& candles, const std::vector<int>& ranges);
+		algorithm_data process(const candleset& candles, const std::vector<int>& ranges) const;
 		inline const std::string& get_filename() const { return filename; };
 		inline int get_ranges_count() const { return ranges_count; }
 		inline bool is_bound() const { return bound; }

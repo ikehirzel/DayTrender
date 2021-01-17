@@ -10,8 +10,8 @@
 #include "data/interval.h"
 
 #include "api/action.h"
-#include "api/tradeclient.h"
-#include "api/tradealgorithm.h"
+#include "api/client.h"
+#include "api/algorithm.h"
 
 #include "interface/shell.h"
 #include "interface/server.h"
@@ -29,18 +29,12 @@ namespace daytrender
 
 	// data containers
 	std::vector<Asset*> assets;
-	std::vector<TradeAlgorithm*> algorithms;
-	std::vector<TradeClient*> clients;
-	std::string compiler, buildflags;
-	json config;
+	std::vector<Algorithm*> algorithms;
+	std::vector<Client*> clients;
 
 	std::mutex mtx;
 
 	void update();
-	bool initClients();
-	bool initAssets();
-	bool initBuilder();
-	bool loadConfig();
 
 	void init(const std::string& execpath)
 	{
@@ -53,27 +47,35 @@ namespace daytrender
 		infof("Initializing clients...");
 		// loading credentials for apis
 
-		std::string config_str = file::read_file_as_string(dtdir + "/config.json");
+		std::string clients_str = file::read_file_as_string(dtdir + "/clients.json");
 
-		if (config_str.empty())
+		if (clients_str.empty())
 		{
-			fatalf("Failed to load config.json! aborting...");
+			fatalf("Failed to load clients.json! Aborting...");
 			shouldrun = false;
 			mtx.unlock();
 			return;
 		}
 		else
 		{
-			successf("Successfully loaded config.json");
+			successf("Successfully loaded clients.json");
 		}
 
-		config = json::parse(config_str);
+		std::string server_str = file::read_file_as_string(dtdir + "/server.json");
 
-		std::cout << "config size: " << config.size() << std::endl;
-		json& clients_json = config["clients"];
+		if (server_str.empty())
+		{
+			fatalf("Failed to load server.json! Aborting...");
+			shouldrun = false;
+			mtx.unlock();
+			return;
+		}
+		else
+		{
+			successf("Successfully loaded server.json");
+		}
 
-		std::cout << "clients json size: " << clients_json.size() << std::endl;
-
+		json clients_json = json::parse(clients_str);
 		for (int i = 0; i < clients_json.size(); i++)
 		{
 			json& client_json = clients_json[i];
@@ -99,32 +101,31 @@ namespace daytrender
 				warningf("No credentials were passed to %s client in config.json", label);
 			}
 
-			TradeClient* client = new TradeClient(label, filename, args);
+			Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args);
 
-			if (!client->all_bound())
+			if (cli->all_bound())
 			{
-				delete client;
-				errorf("%s client %s failed to bind!", label, filename);
-				continue;
+				clients.push_back(cli);
 			}
 			else
 			{
-				clients[i] = client;
+				errorf("%s client %s failed to bind!", label, filename);
+				delete cli;
+				continue;
 			}
 
 			// allocating all the assets for the client;
-
 			json& assets_json = client_json["assets"];
-
-			for (int j = 0; j < assets_json.size(); i++)
+			for (int j = 0; j < assets_json.size(); j++)
 			{
 				json& asset_json = assets_json[j];
 
 				std::string ticker = asset_json["ticker"];
 				std::string algorithm = asset_json["algorithm"];
-				bool paper = asset_json.get<bool>();
-				int interval = asset_json.get<int>();
-				double risk = asset_json.get<double>();
+				
+				bool paper = asset_json["paper"].get<bool>();
+				int interval = asset_json["interval"].get<int>();
+				double risk = asset_json["risk"].get<double>();
 				std::vector<int> ranges(asset_json["ranges"].begin(), asset_json["ranges"].end());
 
 				if (ticker.empty())
@@ -157,89 +158,84 @@ namespace daytrender
 					continue;
 				}
 
-				TradeAlgorithm* algo = nullptr;
-
+				int algoi = -1;
 				for (int k = 0; k < algorithms.size(); i++)
 				{
 					if (algorithms[k]->get_filename() == algorithm)
 					{
-						algo = algorithms[k];
+						algoi = k;
 						break;
 					}
 				}
 
-				if (!algo)
+				if (algoi < 0)
 				{
-					algo = new TradeAlgorithm(dtdir + algorithm);
-					algorithms.push_back(algo);
+					algoi = algorithms.size();
+					Algorithm* algo = new Algorithm(dtdir + ALGORITHM_DIR + algorithm);
+
+					if (algo->is_bound())
+					{
+						algorithms.push_back(algo);
+					}
+					else
+					{
+						errorf("Algorithm '%s' did not bind correctly. '%s' cannot be initialized.", algorithm, ticker);
+						delete algo;
+						algorithms.pop_back();
+						continue;
+					}
 				}
 
-				if (!algo->is_bound())
-				{
-					errorf("Algorithm '%s' did not bind correctly. '%s' cannot be initialized.", algorithm, ticker);
-				}
-				else
-				{
-					assets.push_back(new Asset(i, client, ticker, algo, interval, risk, ranges, paper));
-				}
+				assets.push_back(new Asset(i, clients[i], ticker, algorithms[algoi], interval, risk, ranges, paper));
+				successf("Successfully initialized asset: '%s'", ticker);
 			}
-
 		}
 
-		// frees unused algorithms
-		for (int i = algorithms.size() - 1; i >= 0; i--)
+		json server_json = json::parse(server_str);
+
+		if(server::init(server_json, dtdir))
 		{
-			if (!algorithms[i]->is_bound())
-			{
-				delete algorithms[i];
-				algorithms.erase(algorithms.begin() + i);
-			}
+			successf("Successfully initialized server");
 		}
-
-		//**************************************************
-		// sets the callbacks for the server
-		if(!server::init(config["Server"], dtdir))
+		else
 		{
 			errorf("Failed to initialize server! aborting...");
 			shouldrun = false;
 		}
-		else
-		{
-			successf("Successfully initialized server");
-		}
+
+		infof("Initialized clients:    %d", clients.size());
+		infof("Initialized assets:     %d", assets.size());
+		infof("Initialized algorithms: %d", algorithms.size());
 
 		mtx.unlock();
+
+		//printfmt("Order successful: %b\n", clients[0]->market_order("EUR_USD", 3));
+		json test = json::parse(R"===({"orderCreateTransaction":{"id":"10","accountID":"101-001-16095116-001","userID":16095116,"batchID":"10","requestID":"42785319189581476","time":"2021-01-17T10:46:55.470968477Z","type":"MARKET_ORDER","instrument":"EUR_USD","units":"3","timeInForce":"FOK","positionFill":"DEFAULT","reason":"CLIENT_ORDER"},"orderCancelTransaction":{"id":"11","accountID":"101-001-16095116-001","userID":16095116,"batchID":"10","requestID":"42785319189581476","time":"2021-01-17T10:46:55.470968477Z","type":"ORDER_CANCEL","orderID":"10","reason":"MARKET_HALTED"},"relatedTransactionIDs":["10","11"],"lastTransactionID":"11"})===");
+		std::cout << "Json size: " << test.size() << std::endl;
+		if (test["orderCreateTransaction"].is_null())
+		{
+			std::cout << "Order was not created correctly!\n";
+		}
+		if (test["orderFillTransaction"].is_null() || !test["orderCancelTransaction"].is_null())
+		{
+			std::cout << "Order was not fulfilled!\n";
+		}
+		/*
+		account_info info = clients[0]->get_account_info();
+		printfmt("Account Info:\n\tbalance: %f\n\tbuying_power: %f\n\tequity: %f\n", info.balance, info.buying_power, info.equity);
+		candleset candles = clients[0]->get_candles("EUR_USD", 300, 15);
+
+		for (int i = 0; i < candles.size; i++)
+		{
+			std::cout << "open: " << candles[i].close << std::endl;
+		}
+		*/
 	}
 
 	// destroys clients and assets
 	void free()
 	{
 		mtx.lock();
-
-		for (int i = 0; i < clients.size(); i++)
-		{
-			delete clients[i];
-		}
-
-		int count = 0;
-		for (int i = 0; i < assets.size(); i++)
-		{
-			delete assets[i];
-			count++;
-			
-		}
-		if (!count) warningf("No assets were initialized!");
-
-		count = 0;
-		for (TradeAlgorithm * algo : algorithms)
-		{
-			if (algo)
-			{
-				delete algo;
-				count++;
-			}
-		}
-		if(!count) warningf("No algorithms were initialized!");
 
 		mtx.unlock();
 	}
@@ -266,8 +262,8 @@ namespace daytrender
 		running = true;
 		mtx.unlock();
 
-		std::thread shellInputThread(shell::get_input);
-		std::thread serverThread(server::start);
+		//std::thread shellInputThread(shell::get_input);
+		//std::thread serverThread(server::start);
 
 		long long time, last, elapsed, timeout;
 
@@ -302,9 +298,9 @@ namespace daytrender
 			sys::thread_sleep(200);
 		}
 
-		server::stop();
-		shellInputThread.join();
-		serverThread.join();
+		//server::stop();
+		//shellInputThread.join();
+		//serverThread.join();
 	}
 
 	void stop()
@@ -324,10 +320,11 @@ namespace daytrender
 	void update()
 	{
 		infof("Updating assets...");
-		unsigned int count = 0;
+		int count = 0;
 
-		for (Asset *a : assets)
+		for (Asset* a : assets)
 		{
+
 			if(a->isLive())
 			{
 				count++;
@@ -349,8 +346,6 @@ namespace daytrender
 	{
 		std::vector<PaperAccount> out;
 		std::string ticker;
-		TradeClient* client = nullptr;
-		TradeAlgorithm* algo = nullptr;
 
 		std::vector<candleset> candles_vec;
 		std::vector<int> intervals;
@@ -359,9 +354,9 @@ namespace daytrender
 		
 		asset_type = assets[asset_index]->getType();
 		risk = assets[asset_index]->getRisk();
-		client = clients[asset_type];
+		const Client* client = clients[asset_type];
 		ticker = assets[asset_index]->getTicker();
-		algo = algorithms[algo_index];
+		const Algorithm* algo = algorithms[algo_index];
 
 		paper_initial = PAPER_ACCOUNT_INITIAL;
 		paper_fee = client->paper_fee();
@@ -553,7 +548,7 @@ namespace daytrender
 		return assets[index];
 	}
 
-	const TradeClient* getClient(int type)
+	const Client* getClient(int type)
 	{
 		return clients[type];
 	}

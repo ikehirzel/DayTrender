@@ -13,15 +13,15 @@
 #include "data/paperaccount.h"
 
 #include "data/asset.h"
-#include "api/tradeclient.h"
+#include "api/client.h"
 
 
 #define PAPER_BY_DEFAULT
 #define BACKTESTING
 #define JIT_COMPILE_ALGORITHMS
 
-#define ALGORITHM_FOLDER	"/algorithms/"
-#define CLIENTS_FOLDER		"/clients/"
+#define ALGORITHM_DIR	"/algorithms/"
+#define CLIENTS_DIR		"/clients/"
 
 namespace daytrender
 {
@@ -39,5 +39,5 @@ namespace daytrender
 	std::vector<std::string> getAlgoInfo();
 	std::vector<std::pair<std::string, int>> getAssetInfo();
 	const Asset* getAsset(int index);
-	const TradeClient* getClient(int type);
+	const Client* getClient(int type);
 }
