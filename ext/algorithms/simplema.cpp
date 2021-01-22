@@ -4,7 +4,7 @@
 #include <algodefs.h>
 #include <iostream>
 
-void EMA(indicator& data, const candleset& candles, int range)
+void EMA(Indicator& data, const CandleSet& candles, int range)
 {
 	double multiplier = 2.0 / (double)(range + 1);
 
@@ -18,21 +18,21 @@ void EMA(indicator& data, const candleset& candles, int range)
 
 	data[0] = sum / (double)initLength;
 
-	for (int i = 1; i < data.size; i++)
+	for (int i = 1; i < data.size(); i++)
 	{
 		data[i] = candles[i].close * multiplier + data[i - 1] * (1.0 - multiplier);
 	}
 }
 
-void algorithm (algorithm_data& out)
+void algorithm (AlgorithmData& out)
 {
 	init_algorithm(out, "Simple MA");
 	std::cout << "Start of the algorithm\n";
 
-	const indicator& longma = add_indicator(out, EMA, "long");
+	const Indicator& longma = add_indicator(out, EMA, "long");
 	std::cout << "Added longma\n";
 
-	const indicator& shortma = add_indicator(out, EMA, "short");
+	const Indicator& shortma = add_indicator(out, EMA, "short");
 	std::cout << "Added shortma\n";
 
 	if (shortma.back() > longma.back() && shortma.back(1) < longma.back(1))

@@ -9,10 +9,10 @@ namespace daytrender
 {
 	namespace action
 	{
-		typedef bool (*action_func)(const Client*, double);
-		typedef bool (*paper_func)(PaperAccount&, double);
+		typedef bool (*ActionFunc)(const Client*, const std::string& ticker, double);
+		typedef bool (*PaperFunc)(PaperAccount&, double);
 
-		extern action_func actions[Action::COUNT];
-		extern paper_func paper_actions[Action::COUNT];
+		extern ActionFunc actions[Action::COUNT];
+		extern PaperFunc paper_actions[Action::COUNT];
 	}
 };

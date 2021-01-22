@@ -23,7 +23,7 @@ namespace daytrender
 	{
 		httplib::Server server;
 		std::string ip, username, password;
-		std::string html{
+		std::string html {
 			#include "webinterface.inc"
 		};
 		unsigned short port;
@@ -106,7 +106,7 @@ namespace daytrender
 			json response;
 
 			// gathering algorithm names
-			auto algo_info = getAlgoInfo();
+			auto algo_info = get_algo_info();
 			if(algo_info.empty())
 			{
 				warningf("No algorithm names were received");
@@ -120,7 +120,7 @@ namespace daytrender
 			}
 
 			// gathering asset types and tickers
-			auto asset_data = getAssetInfo();
+			auto asset_data = get_asset_info();
 			if (asset_data.empty())
 			{
 				warningf("No asset data was received");
@@ -134,7 +134,7 @@ namespace daytrender
 				}
 			}
 
-			auto client_data = getClientInfo();
+			auto client_data = get_client_info();
 			for (int i = 0; i < client_data.size(); i++)
 			{
 				response["types"][i] = client_data[i];
@@ -149,13 +149,13 @@ namespace daytrender
 			debugf("Server: GET @ %s", req.path);
 
 			int asset_type;
-			account_info accinfo;
+			AccountInfo accinfo;
 			;
 			json response;
 
 			asset_type = std::stoi(req.get_param_value("asset_type"));
 
-			const Client* client = getClient(asset_type);
+			const Client* client = get_client(asset_type);
 			accinfo = client->get_account_info();
 			response["balance"] = accinfo.balance;
 			response["buying_power"] = accinfo.buying_power;
@@ -168,28 +168,23 @@ namespace daytrender
 		{
 			debugf("Server: GET @ %s", req.path);
 
-			int index;
-			std::string ticker;
-			algorithm_data data;
-			asset_info ainfo;
+			int index = std::stoi(req.get_param_value("index"));
+			const Asset* asset = get_asset(index);
+			AlgorithmData data = asset->get_data();
+			AssetInfo ainfo = asset->get_info();
+
 			json response;
-
-			index = std::stoi(req.get_param_value("index"));
-			const Asset* asset = getAsset(index);
-			data = asset->getData();
-			ainfo = asset->getAssetInfo();
-
 			json& jacc = response["asset"];
 			jacc["risk"] = ainfo.risk;
 			jacc["shares"] = ainfo.shares;
 			jacc["live"] = ainfo.live;
 			jacc["paper"] = ainfo.paper;
 
-			response["interval"] = data.candles.interval;
-			response["ticker"] = asset->getTicker();
+			response["interval"] = data.candles.interval();
+			response["ticker"] = asset->get_ticker();
 
-			const candleset& c = data.candles;
-			for (unsigned i = 0; i < c.size; i++)
+			const CandleSet& c = data.candles;
+			for (unsigned i = 0; i < c.size(); i++)
 			{
 				response["x"][i] = i;
 				response["open"][i] = c[i].open;
@@ -199,17 +194,17 @@ namespace daytrender
 				response["volume"][i] = c[i].volume;
 			}
 
-			unsigned indi_index = 0;
-			const indicator* dataset = data.dataset;
+			//unsigned indi_index = 0;
 	
-			for (int i = 0; i < data.ranges_size - 1; i++)
+			for (int i = 0; i < data.size(); i++)
 			{
 				json& indi = response["indicators"][i];
-				indi["type"] = dataset[i].type;
-				indi["label"] = dataset[i].label;
-				for (int j = 0; j < dataset[i].size; j++)
+				indi["type"] = data[i].type;
+				indi["label"] = data[i].label;
+				const Indicator& indicator = data[i];
+				for (int j = 0; j < indicator.size(); j++)
 				{
-					indi["data"][j] = dataset[i].front(j);
+					indi["data"][j] = indicator.front(j);
 				}
 			}
 			res.set_content(response.dump(), JSON_FORMAT);

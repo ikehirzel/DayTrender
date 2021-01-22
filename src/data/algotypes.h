@@ -4,92 +4,107 @@
 #include "candle.h"
 
 #include <stdexcept>
+#include <vector>
 
 namespace daytrender
 {
-	struct indicator
+	class Indicator
 	{
+	private:
+		double* data_ = nullptr;
+		int size_ = 0;
+
+	public:
 		const char* type = nullptr;
 		const char* label = nullptr;
-		double* data;
-		int size;
 
-		void create(int _size)
+		Indicator() = default;
+		Indicator(int size)
 		{
-			size = _size;
-			data = new double[size];
+			size_ = size;
+			data_ = new double[size_];
 		}
 
-		void clear()
+		~Indicator()
 		{
-			size = 0;
-			delete[] data;
-			data = nullptr;
+			delete[] data_;
 		}
 
 		double& operator[](unsigned pos)
 		{
-			if (pos >= size)
+			if (pos >= size_)
 			{
 				throw std::out_of_range("attempt to access indicator element outside of range");
 			}
 		
-			return data[pos];
+			return data_[pos];
 		}
 
 		double back(unsigned pos = 0) const
 		{
-			if (pos >= size)
+			if (pos >= size_)
 			{
 				throw std::out_of_range("attempt to access indicator element outside of range");
 			}
-			return data[(size - 1) - pos];
+			return data_[(size_ - 1) - pos];
 		}
 
 		double front(unsigned pos = 0) const
 		{
-			if (pos >= size)
+			if (pos >= size_)
 			{
 				throw std::out_of_range("attempt to access indicator element outside of range");
 			}
-			return data[pos];
+			return data_[pos];
 		}
+
+		inline int size() const { return size_; }
 	};
 	
-	struct algorithm_data
+	class AlgorithmData
 	{
-		const char* type = nullptr;
-		const char* label = nullptr;
-		const char* err = nullptr;
-		const int *ranges = nullptr;
-		candleset candles;
-		indicator* dataset = nullptr;
-		int ranges_size = 0;
-		int action = 0;
+	private:
+		Indicator* dataset_ = nullptr;
+		int action_ = 0;
+		const char* label_ = nullptr;
+		const char* error_ = nullptr;
+
+	public:
+		std::vector<int> ranges;
+		CandleSet candles;
 		
-		inline void do_nothing() { action = Action::NOTHING; }
-		inline void sell() { action = Action::SELL; }
-		inline void buy() { action = Action::BUY; }
+		inline void do_nothing() { action_ = Action::NOTHING; }
+		inline void sell() { action_ = Action::SELL; }
+		inline void buy() { action_ = Action::BUY; }
 
-		inline void create(const int* _ranges, int _ranges_size)
+		AlgorithmData() = default;
+		AlgorithmData(const std::vector<int>& ranges)
 		{
-			ranges_size = _ranges_size;
-			ranges = _ranges;
-
-			dataset = new indicator[ranges_size - 1];
-			for (int i = 0; i < ranges_size - 1; i++)
+			this->ranges = ranges;
+			dataset_ = new Indicator[ranges.size() - 1];
+			for (int i = 1; i < ranges.size(); i++)
 			{
-				dataset[i].create(ranges[0]);
+				dataset_[i - 1] = Indicator(ranges[i]);
 			}
 		}
-
-		inline void clear()
+		
+		~AlgorithmData()
 		{
-			for (int i = 0; i < ranges_size - 1; i++)
-			{
-				dataset[i].clear();
-			}
-			delete[] dataset;
+			delete[] dataset_;
 		}
+
+		Indicator& operator[](unsigned index)
+		{
+			return dataset_[index];
+		}
+
+		inline int action() const { return action_; }
+		inline int size() const { return ranges.size() - 1; }
+		inline void set_label(const char* label) { label_ = label; }
+		inline void flag_error(const char* error) { error_ = error; }
+
+		inline const char* label() const { return label_; }
+		inline const char* error() const { return error_; }
+
 	};
 }

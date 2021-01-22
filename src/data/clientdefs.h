@@ -62,13 +62,15 @@ bool res_ok(const Result& res)
 extern "C"
 {
 	void init(const std::vector<std::string>& credentials);
-	const char* to_interval(int interval);
-	void get_candles(candleset& candles, const std::string& ticker);
-	void get_account_info(account_info& info);
+	void get_candles(CandleSet& candles, const std::string& ticker);
+	void get_account_info(AccountInfo& info);
 	bool market_order(const std::string& ticker, double amount);
 	double get_shares(const std::string& ticker);
 	bool close_all_positions();
+	bool market_open();
+	double get_price(const std::string& ticker);
 
+	const char* to_interval(int interval);
 	void backtest_intervals(std::vector<int>& out)
 	{
 		out = { BACKTEST_INTERVALS };

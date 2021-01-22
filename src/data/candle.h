@@ -2,60 +2,57 @@
 
 namespace daytrender
 {
-	struct candle
+	struct Candle
 	{
-		double open = 0.0, high = 0.0, low = 0.0, close = 0.0, volume = 0.0;
-		candle() = default;
-		candle(double _open, double _high, double _low, double _close, double _volume)
-		{
-			open = _open;
-			high = _high;
-			low = _low;
-			close = _close;
-			volume = _volume;
-		}
+		double open = 0.0;
+		double high = 0.0;
+		double low = 0.0;
+		double close = 0.0;
+		double volume = 0.0;
 	};
 
-	struct candleset
+	class CandleSet
 	{
-		candle* candles = nullptr;
-		int size = 0;
-		int interval = 0;
+	private:
+		Candle* candles_ = nullptr;
+		int size_ = 0;
+		int interval_ = 0;
+		bool clone_ = false;
 
-		candleset() = default;
-		candleset(int _size, int _interval)
+	public:
+		CandleSet() = default;
+		CandleSet(int size, int interval)
 		{
-			init(_size, _interval);
+			size_ = size;
+			interval_ = interval;
+			candles_ = new Candle[size];
 		}
 
-		void clear()
+		CandleSet(CandleSet* other, int offset, int size)
 		{
-			delete[] candles;
-			candles = nullptr;
-			size = 0;
-			interval = 0;
+			clone_ = true;
+			size_ = size;
+			if (offset + size_ > other->size()) size_ = 0;
+			interval_ = other->interval();
+			candles_ = other->data() + offset;
 		}
 
-		inline void init(int _size, int _interval)
+		~CandleSet()
 		{
-			clear();
-			size = _size;
-			interval = _interval;
-			candles = new candle[size];
+			if (!clone_) delete[] candles_;
 		}
 
-		inline candleset get_slice(int _offset, int _size)
+		inline CandleSet get_slice(int offset, int size)
 		{
-			candleset out;
-			out.candles = candles + _offset;
-			out.size = _size;
-			out.interval = interval;
-			return out;
+			return CandleSet(this, offset, size);
 		}
 
-		inline candle& operator[] (int index) { return candles[index]; }
-		inline const candle& operator[] (int index) const { return candles[index]; }
-		inline const candle& back() const { return candles[size - 1]; }
-		inline bool empty() const { return size == 0; }
+		inline Candle& operator[] (int index) { return candles_[index]; }
+		inline const Candle& operator[] (int index) const { return candles_[index]; }
+		inline const Candle& back() const { return candles_[size_ - 1]; }
+		inline bool empty() const { return size_ == 0; }
+		inline int size() const { return size_; }
+		inline int interval() const { return interval_; }
+		inline Candle* data() const { return candles_; }
 	};
 }

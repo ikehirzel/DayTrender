@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <clientdefs.h>
+#include <chrono>
 
 std::string username, accountid, token;
 
@@ -19,13 +20,13 @@ void init(const std::vector<std::string>& credentials)
 	client.set_bearer_token_auth(token.c_str());
 }
 
-void get_candles(candleset& candles, const std::string& ticker)
+void get_candles(CandleSet& candles, const std::string& ticker)
 {
-	std::string url = "/v3/accounts/" + accountid + "/instruments/" + ticker + "/candles";
+	std::string url = "/v3/instruments/" + ticker + "/candles";
 
 	Params p = {
-		{ "granularity", to_interval(candles.interval) },
-		{ "count", std::to_string(candles.size) }
+		{ "granularity", to_interval(candles.interval()) },
+		{ "count", std::to_string(candles.size()) }
 	};
 
 	url += '?' + detail::params_to_query_str(p);
@@ -41,7 +42,7 @@ void get_candles(candleset& candles, const std::string& ticker)
 			error = "no candles were received";
 			return;
 		}
-		else if (candles_json.size() != candles.size)
+		else if (candles_json.size() != candles.size())
 		{
 			error = "not all candles were received";
 			return;
@@ -57,11 +58,12 @@ void get_candles(candleset& candles, const std::string& ticker)
 			candles[i].low = std::stod(mid["l"].get<std::string>());
 			candles[i].close = std::stod(mid["c"].get<std::string>());
 			candles[i].volume = c["volume"].get<double>();
+			//std::cout << "[" << candles.interval << "]: time: " << c["time"].get<std::string>() << std::endl;
 		}
 	}
 }
 
-void get_account_info(account_info& info)
+void get_account_info(AccountInfo& info)
 {
 	std::string url = "/v3/accounts/" + accountid;
 	auto res = client.Get(url.c_str());
@@ -71,7 +73,7 @@ void get_account_info(account_info& info)
 		json res_json = json::parse(res->body);
 		json& acc = res_json["account"];
 		info.balance = std::stod(acc["balance"].get<std::string>());
-		info.buying_power = std::stod(acc["marginAvailable"].get<std::string>());
+		info.buying_power = info.balance + std::stod(acc["marginAvailable"].get<std::string>());
 		info.equity = std::stod(acc["NAV"].get<std::string>());
 	}
 }
@@ -181,6 +183,35 @@ bool close_all_positions()
 	}
 
 	return false;
+}
+
+bool market_open()
+{
+	auto res = client.Get("/v3/instruments/EUR_USD/candles?count=1&granularity=S5", {{ "Accept-Datetime-Format", "UNIX" }});
+	if (res_ok(res))
+	{
+		json res_json = json::parse(res->body);
+		long long candle_time = std::stoll(res_json["candles"][0]["time"].get<std::string>());
+		long long sys_time = std::chrono::duration_cast<std::chrono::seconds>
+				(std::chrono::system_clock::now().time_since_epoch()).count();
+		if (sys_time - candle_time < 15)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+double get_price(const std::string& ticker)
+{
+	std::string url = "/v3/instruments/" + ticker + "/candles?count=1&granularity=S5";
+	auto res = client.Get(url.c_str());
+	if (res_ok(res))
+	{
+		json res_json = json::parse(res->body);
+		return std::stod(res_json["candles"][0]["mid"]["c"].get<std::string>());
+	}
+	return 0.0;
 }
 
 const char* to_interval(int interval)

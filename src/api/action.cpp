@@ -7,12 +7,12 @@ namespace daytrender
 {
 	namespace action
 	{
-		bool nothing(const Client* client, double risk) { return true; }
+		bool nothing(const Client* client, const std::string& ticker, double risk) { return true; }
 		bool paper_nothing(PaperAccount& account, double risk) { return true; }
 
-		bool buy(const Client* client, double risk) 
+		bool buy(const Client* client, const std::string& ticker,  double risk) 
 		{
-			errorf("Live buying is not implemented yet!");
+			//double curr_shares = client->get_shares(t
 			return false;
 		}
 
@@ -27,9 +27,20 @@ namespace daytrender
 			return true;
 		}
 
-		bool sell(const Client* client, double risk)
+		bool sell(const Client* client, const std::string& ticker, double risk)
 		{
-			errorf("Live selling is not implemented yet!");
+			if (risk > 1.0) risk = 1.0;
+			AccountInfo info = client->get_account_info();
+			double curr_shares = client->get_shares(ticker);
+			double price = client->get_price(ticker);
+			// check if the amount of shares controlled by the asset 
+			// oversteps the amount available to it and act skip if so
+			double curr_value = curr_shares * price;
+			// setting to absolute value of the shares
+			curr_value  = (curr_value >= 0 ? curr_value : -curr_value);
+			double percent = client->get_asset_share() * risk;
+			double money_available = curr_value - percent * info.equity;
+			double shares = 0.0;
 			return false;
 		}
 
@@ -44,14 +55,14 @@ namespace daytrender
 			return true;
 		}
 
-		action_func actions[Action::COUNT] =
+		ActionFunc actions[Action::COUNT] =
 		{
 			nothing,
 			sell,
 			buy
 		};
 		
-		paper_func paper_actions[Action::COUNT] = 
+		PaperFunc paper_actions[Action::COUNT] = 
 		{
 			paper_nothing,
 			paper_sell,

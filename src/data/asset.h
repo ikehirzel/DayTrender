@@ -7,6 +7,7 @@
 #include "paperaccount.h"
 #include "../api/algorithm.h"
 #include "../api/client.h"
+#include <hirzel/sysutil.h>
 
 // algorithm constants
 #define MAX_ALGORITHM_WINDOW	50
@@ -17,7 +18,7 @@
 
 namespace daytrender
 {
-	struct asset_info
+	struct AssetInfo
 	{
 		double shares = 0.0;
 		double risk = 0.0;
@@ -28,11 +29,19 @@ namespace daytrender
 	class Asset
 	{
 	protected:
-		bool paper = true, live = false;
-		int tick = 0, interval = 0, candle_count = 0, type = 0;
+		bool paper = true;
+		bool live = false;
+
+		int interval = 0;
+		int candle_count = 0;
+		int type = 0;
+
+		long long last_update = 0;
+
 		double risk = 0.9;
+
 		std::string ticker;
-		algorithm_data data;
+		AlgorithmData data;
 		std::vector<int> ranges;
 		
 		const Client* client;
@@ -44,15 +53,27 @@ namespace daytrender
 			int _interval, double _risk, const std::vector<int>& _ranges, bool _paper);
 
 		void update();
+		AssetInfo get_info() const;
 
-		asset_info getAssetInfo() const;
-		inline algorithm_data getData() const { return data; }
-		inline const Algorithm& getAlgorithm() const { return *algo; }
-		inline const Client& getClient() const { return *client; }
-		inline const std::string& getTicker() const { return ticker; }
-		inline int getInterval() const { return interval; }
-		inline int getType() const { return type; }
-		inline bool isLive() const { return live; }
-		inline int getRisk() const { return risk; }
+		// inline getter functions
+		inline AlgorithmData get_data() const { return data; }
+		inline const Algorithm& get_algorithm() const { return *algo; }
+		inline const Client& get_client() const { return *client; }
+		inline const std::string& get_ticker() const { return ticker; }
+		inline int get_interval() const { return interval; }
+		inline int get_type() const { return type; }
+		inline bool is_live() const { return live; }
+		inline int get_risk() const { return risk; }
+		inline bool should_update() const
+		{
+			if ((hirzel::sys::get_seconds() - last_update) > interval)
+			{
+				if (client->market_open())
+				{
+					return true;
+				}
+			}
+			return false;
+		}
 	};
 }

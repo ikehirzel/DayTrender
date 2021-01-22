@@ -22,7 +22,7 @@ namespace daytrender
 		}
 
 		ranges_count = handle->execute<int>(COUNT_FUNCTION);
-		algo = (algorithm_func)handle->get_func(ALGO_FUNCTION);
+		algo = (AlgorithmFunc)handle->get_func(ALGO_FUNCTION);
 		bound = true;
 		successf("Successfully loaded algorithm: '%s'", filename);
 	}
@@ -32,24 +32,23 @@ namespace daytrender
 		delete handle;
 	}
 	
-	algorithm_data Algorithm::process(const candleset& candles, const std::vector<int>& ranges) const
+	AlgorithmData Algorithm::process(const CandleSet& candles, const std::vector<int>& ranges) const
 	{
 		//printfmt("Executing algorithm...\n");
-		algorithm_data data;
-		data.create(ranges.data(), ranges_count);
+		AlgorithmData data(ranges);
 		data.candles = candles;
 
 		algo(data);
 
-		if (data.err)
+		if (data.error())
 		{
 			std::string args_glob;
-			for (int i = 0; i < data.ranges_size; i++)
+			for (int i = 0; i < data.ranges.size(); i++)
 			{
 				if (i > 0) args_glob += ", ";
 				args_glob += std::to_string(data.ranges[i]);
 			}
-			errorf("%s(%s): %s", data.label, args_glob, data.err);
+			errorf("%s(%s): %s", data.label(), args_glob, data.error());
 		}
 
 		return data;

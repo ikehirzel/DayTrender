@@ -1,9 +1,10 @@
 #include "asset.h"
 
 #include "candle.h"
-
 #include "../api/action.h"
 #include "../api/client.h"
+
+#include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
 
 namespace daytrender
@@ -44,42 +45,38 @@ namespace daytrender
 	
 	void Asset::update()
 	{
-		bool shouldUpdate = tick++ % (interval / 60U) == 0;
+		long long curr_time = hirzel::sys::get_seconds();
+		last_update = curr_time - (curr_time % interval);
+		infof("Updating %s...", ticker);
+		return;
 
-		if (shouldUpdate)
+		// making new algo data
+		CandleSet candles = client->get_candles(ticker, interval, candle_count);
+		data = algo->process(candles, ranges);
+	
+		// error handling
+		if (data.error())
 		{
-			// clearing old data from algo data
-			data.clear();
-			data.candles.clear();
-
-			// making new algo data
-			candleset candles = client->get_candles(ticker, interval, candle_count);
-			data = algo->process(candles, ranges);
-		
-			// error handling
-			if (data.err)
-			{
-				errorf("Action could not be handled %s", ticker);
-				return;
-			}
-		
-			// paper trading
-			if (paper)
-			{
-				paperAccount.setPrice(candles.back().close);
-				action::paper_actions[data.action](paperAccount, risk);
-			}
-			// live trading
-			else
-			{
-				action::actions[data.action](client, risk);
-			}
+			errorf("Action could not be handled %s", ticker);
+			return;
+		}
+	
+		// paper trading
+		if (paper)
+		{
+			paperAccount.setPrice(candles.back().close);
+			action::paper_actions[data.action()](paperAccount, risk);
+		}
+		// live trading
+		else
+		{
+			action::actions[data.action()](client, ticker, risk);
 		}
 	}
 
-	asset_info Asset::getAssetInfo() const
+	AssetInfo Asset::get_info() const
 	{
-		asset_info out;
+		AssetInfo out;
 		if (live)
 		{
 			out.live = live;

@@ -42,7 +42,7 @@ namespace daytrender
 				int asset_index = -1;
 
 				// tokens[1] should be algo name and 2 should be ticker
-				auto algo_filenames = getAlgoInfo();
+				auto algo_filenames = get_algo_info();
 
 				for (int i = 0; i < algo_filenames.size(); i++)
 				{
@@ -59,7 +59,7 @@ namespace daytrender
 					return;
 				}
 
-				auto asset_info = getAssetInfo();
+				auto asset_info = get_asset_info();
 
 				for (int i = 0; i < asset_info.size(); i++)
 				{
@@ -94,7 +94,7 @@ namespace daytrender
 		{
 			std::string input;
 
-			while (daytrender::isRunning())
+			while (daytrender::is_running())
 			{
 				std::getline(std::cin, input);
 				infof("$ %s", input);

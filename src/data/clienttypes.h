@@ -2,7 +2,7 @@
 
 namespace daytrender
 {
-	struct account_info
+	struct AccountInfo
 	{
 		double balance = 0.0;
 		double buying_power = 0.0;

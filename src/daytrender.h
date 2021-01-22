@@ -15,11 +15,6 @@
 #include "data/asset.h"
 #include "api/client.h"
 
-
-#define PAPER_BY_DEFAULT
-#define BACKTESTING
-#define JIT_COMPILE_ALGORITHMS
-
 #define ALGORITHM_DIR	"/algorithms/"
 #define CLIENTS_DIR		"/clients/"
 
@@ -33,11 +28,11 @@ namespace daytrender
 	void start();
 	void stop();
 
-	bool isRunning();
+	bool is_running();
 
-	std::vector<std::string> getClientInfo();
-	std::vector<std::string> getAlgoInfo();
-	std::vector<std::pair<std::string, int>> getAssetInfo();
-	const Asset* getAsset(int index);
-	const Client* getClient(int type);
+	std::vector<std::string> get_client_info();
+	std::vector<std::string> get_algo_info();
+	std::vector<std::pair<std::string, int>> get_asset_info();
+	const Asset* get_asset(int index);
+	const Client* get_client(int type);
 }

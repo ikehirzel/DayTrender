@@ -24,7 +24,8 @@ using namespace hirzel;
 
 namespace daytrender
 {
-	bool running = false, shouldrun = true;
+	bool running = false;
+	bool shouldrun = true;
 	std::string dtdir;
 
 	// data containers
@@ -33,8 +34,6 @@ namespace daytrender
 	std::vector<Client*> clients;
 
 	std::mutex mtx;
-
-	void update();
 
 	void init(const std::string& execpath)
 	{
@@ -82,6 +81,7 @@ namespace daytrender
 			json& credentials = client_json["keys"];
 			std::string label = client_json["label"];
 			std::string filename = client_json["filename"];
+			double risk = client_json["risk"].get<double>();
 			std::vector<std::string> args(credentials.begin(), credentials.end());
 			
 			if (label.empty())
@@ -101,7 +101,7 @@ namespace daytrender
 				warningf("No credentials were passed to %s client in config.json", label);
 			}
 
-			Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args);
+			Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, risk);
 
 			if (cli->all_bound())
 			{
@@ -187,6 +187,8 @@ namespace daytrender
 				}
 
 				assets.push_back(new Asset(i, clients[i], ticker, algorithms[algoi], interval, risk, ranges, paper));
+				// incrementing the amount of assets for a client
+				clients[i]->set_asset_count(clients[i]->get_asset_count() + 1);
 				successf("Successfully initialized asset: '%s'", ticker);
 			}
 		}
@@ -203,38 +205,11 @@ namespace daytrender
 			shouldrun = false;
 		}
 
-		infof("Initialized clients:    %d", clients.size());
-		infof("Initialized assets:     %d", assets.size());
-		infof("Initialized algorithms: %d", algorithms.size());
+		infof("Initialized clients:       %d", clients.size());
+		infof("Initialized assets:        %d", assets.size());
+		infof("Initialized algorithms:    %d", algorithms.size());
 
 		mtx.unlock();
-
-		bool ord = clients[0]->market_order("EUR_USD", 3);
-		printfmt("Order successful: %b\n", ord);
-
-		if (ord)
-		{
-			account_info info = clients[0]->get_account_info();
-			double shares = clients[0]->get_shares("EUR_USD");
-			printfmt("Account Info:\n\tbalance: %f\n\tbuying_power: %f\n\tequity: %f\n\tshares: %f\n", info.balance, info.buying_power, info.equity, shares);
-		}
-
-		bool close = clients[0]->close_all_positions();
-		printfmt("Close successful: %b\n", close);
-		if (close)
-		{
-			account_info info = clients[0]->get_account_info();
-			double shares = clients[0]->get_shares("EUR_USD");
-			printfmt("Account Info:\n\tbalance: %f\n\tbuying_power: %f\n\tequity: %f\n\tshares: %f\n", info.balance, info.buying_power, info.equity, shares);
-		}
-
-		/*
-		candleset candles = clients[0]->get_candles("EUR_USD", 300, 15);
-		for (int i = 0; i < candles.size; i++)
-		{
-			std::cout << "open: " << candles[i].close << std::endl;
-		}
-		*/
 	}
 
 	// destroys clients and assets
@@ -276,7 +251,6 @@ namespace daytrender
 				delete algorithms[i];
 			}
 		}
-
 		mtx.unlock();
 	}
 
@@ -305,37 +279,15 @@ namespace daytrender
 		//std::thread shellInputThread(shell::get_input);
 		//std::thread serverThread(server::start);
 
-		long long time, last, elapsed, timeout;
-
-		time = sys::get_millis();
-		last = time - time % 60000;
-
-		timeout = (61000 - (sys::get_millis() % 60000)) % 60000;
-		std::string msg = "Timeout: " + std::to_string((double)timeout / 1000.0) + " seconds";
-
-		if (timeout < 10000)
-		{
-			msg += ": Resting...";
-			infof(msg);
-		}
-		else
-		{
-			infof(msg);
-			update();
-		}
-
 		while (running)
 		{
-			time = sys::get_millis();
-			elapsed = time - last;
-
-			if (time % 60000 >= 1000 && time % 60000 < 2000 && elapsed >= 2000)
+			// check if every asset needs to update every 500ms, update each asset as needed 
+			for (Asset* asset : assets)
 			{
-				last = time;
-				update();
+				if (asset->should_update()) asset->update();
 			}
 
-			sys::thread_sleep(200);
+			sys::thread_sleep(500);
 		}
 
 		//server::stop();
@@ -357,55 +309,22 @@ namespace daytrender
 		mtx.unlock();
 	}
 
-	void update()
-	{
-		infof("Updating assets...");
-		int count = 0;
-
-		for (Asset* a : assets)
-		{
-
-			if(a->isLive())
-			{
-				count++;
-				a->update();
-			}
-		}
-
-		if(!count)
-		{
-			warningf("No assets were live for updating");
-		}
-		else
-		{
-			successf("Updated %d assets", count);
-		}
-	}
-
 	std::vector<PaperAccount> backtest(int algo_index, int asset_index, const std::vector<int>& test_ranges)
 	{
-		std::vector<PaperAccount> out;
-		std::string ticker;
-
-		std::vector<candleset> candles_vec;
-		std::vector<int> intervals;
-		double paper_initial, paper_minimum, paper_fee, risk;
-		int asset_type;
-		
-		asset_type = assets[asset_index]->getType();
-		risk = assets[asset_index]->getRisk();
+		int asset_type = assets[asset_index]->get_type();
+		double risk = assets[asset_index]->get_risk();
 		const Client* client = clients[asset_type];
-		ticker = assets[asset_index]->getTicker();
+		std::string ticker = assets[asset_index]->get_ticker();
 		const Algorithm* algo = algorithms[algo_index];
 
-		paper_initial = PAPER_ACCOUNT_INITIAL;
-		paper_fee = client->paper_fee();
-		paper_minimum = client->paper_minimum();
-		intervals = client->backtest_intervals();
+		double paper_initial = PAPER_ACCOUNT_INITIAL;
+		double paper_fee = client->paper_fee();
+		double paper_minimum = client->paper_minimum();
+		std::vector<int> intervals = client->backtest_intervals();
 
-		out.resize(intervals.size());
+		std::vector<PaperAccount> out(intervals.size());
 
-		candles_vec.resize(intervals.size());
+		std::vector<CandleSet> candles_vec(intervals.size());
 		for (int i = 0; i < candles_vec.size(); i++)
 		{
 			candles_vec[i] = client->get_candles(ticker, intervals[i]);
@@ -473,10 +392,7 @@ namespace daytrender
 			for (int j = 0; j < permutations; j++)
 			{
 				// storing activity and performance data
-				algorithm_data data;  
 				PaperAccount acc(PAPER_ACCOUNT_INITIAL, paper_fee, paper_minimum, intervals[i], ranges);
-
-				data.ranges = ranges.data();
 
 				// calculating size of candles
 				int candle_count = 0;
@@ -492,19 +408,19 @@ namespace daytrender
 				//std::cout << "candle count: " << candle_count << std::endl;
 
 				// walk through every step of candles_vec[i]
-				for (int k = 0; k < candles_vec[i].size - candle_count; k++)
+				for (int k = 0; k < candles_vec[i].size() - candle_count; k++)
 				{
-					candleset candles = candles_vec[i].get_slice(k, candle_count);
+					CandleSet candles = candles_vec[i].get_slice(k, candle_count);
 					acc.setPrice(candles.back().close);
-					algorithm_data data = algo->process(candles, ranges);
+					AlgorithmData data = algo->process(candles, ranges);
 
-					if (data.err)
+					if (data.error())
 					{
-						errorf("Backtest: %s", data.err);
+						errorf("Backtest: %s", data.error());
 					}
 					else
 					{
-						action::paper_actions[data.action](acc, risk);
+						action::paper_actions[data.action()](acc, risk);
 					}
 				}
 
@@ -534,20 +450,15 @@ namespace daytrender
 			out[i] = best;
 		}
 
-		for (int i = 0; i < candles_vec.size(); i++)
-		{
-			candles_vec[i].clear();
-		}
-
 		return out;
 	}
 
-	bool isRunning()
+	bool is_running()
 	{
 		return running;
 	}
 
-	std::vector<std::string> getClientInfo()
+	std::vector<std::string> get_client_info()
 	{
 		std::vector<std::string> out;
 
@@ -559,7 +470,7 @@ namespace daytrender
 		return out;
 	}
 
-	std::vector<std::string> getAlgoInfo()
+	std::vector<std::string> get_algo_info()
 	{
 		std::vector<std::string> out(algorithms.size());
 
@@ -571,24 +482,24 @@ namespace daytrender
 		return out;
 	}
 
-	std::vector<std::pair<std::string, int>> getAssetInfo()
+	std::vector<std::pair<std::string, int>> get_asset_info()
 	{
 		std::vector<std::pair<std::string, int>> out(assets.size());
 
 		for (int i = 0; i < assets.size(); i++)
 		{
-			out[i] = { assets[i]->getTicker(), assets[i]->getType() };
+			out[i] = { assets[i]->get_ticker(), assets[i]->get_type() };
 		}
 
 		return out;
 	}
 
-	const Asset* getAsset(int index)
+	const Asset* get_asset(int index)
 	{
 		return assets[index];
 	}
 
-	const Client* getClient(int type)
+	const Client* get_client(int type)
 	{
 		return clients[type];
 	}
