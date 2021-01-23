@@ -145,6 +145,10 @@ namespace daytrender
 					errorf("No interval defined for %s of %s client", ticker, label);
 					continue;
 				}
+				else
+				{
+					std::cout << "init: interval: " << interval << std::endl;
+				}
 
 				if (risk == 0.0)
 				{
@@ -311,10 +315,10 @@ namespace daytrender
 
 	std::vector<PaperAccount> backtest(int algo_index, int asset_index, const std::vector<int>& test_ranges)
 	{
-		int asset_type = assets[asset_index]->get_type();
-		double risk = assets[asset_index]->get_risk();
+		int asset_type = assets[asset_index]->type();
+		double risk = assets[asset_index]->risk();
 		const Client* client = clients[asset_type];
-		std::string ticker = assets[asset_index]->get_ticker();
+		std::string ticker = assets[asset_index]->ticker();
 		const Algorithm* algo = algorithms[algo_index];
 
 		double paper_initial = PAPER_ACCOUNT_INITIAL;
@@ -410,7 +414,7 @@ namespace daytrender
 				// walk through every step of candles_vec[i]
 				for (int k = 0; k < candles_vec[i].size() - candle_count; k++)
 				{
-					CandleSet candles = candles_vec[i].get_slice(k, candle_count);
+					CandleSet candles = candles_vec[i].slice(k, candle_count);
 					acc.setPrice(candles.back().close);
 					AlgorithmData data = algo->process(candles, ranges);
 
@@ -488,7 +492,7 @@ namespace daytrender
 
 		for (int i = 0; i < assets.size(); i++)
 		{
-			out[i] = { assets[i]->get_ticker(), assets[i]->get_type() };
+			out[i] = { assets[i]->ticker(), assets[i]->type() };
 		}
 
 		return out;

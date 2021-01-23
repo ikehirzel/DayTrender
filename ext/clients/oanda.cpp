@@ -58,7 +58,6 @@ void get_candles(CandleSet& candles, const std::string& ticker)
 			candles[i].low = std::stod(mid["l"].get<std::string>());
 			candles[i].close = std::stod(mid["c"].get<std::string>());
 			candles[i].volume = c["volume"].get<double>();
-			//std::cout << "[" << candles.interval << "]: time: " << c["time"].get<std::string>() << std::endl;
 		}
 	}
 }
@@ -128,6 +127,16 @@ double get_shares(const std::string& ticker)
 		return longu + shortu;
 	}
 	return 0.0;
+}
+
+double get_leverage()
+{
+	return 0.0;
+}
+
+bool set_leverage(int numerator)
+{
+	return false;
 }
 
 bool close_all_positions()
@@ -213,6 +222,8 @@ double get_price(const std::string& ticker)
 	}
 	return 0.0;
 }
+
+
 
 const char* to_interval(int interval)
 {

@@ -7,6 +7,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 # globbing sources for daytrender
 
 file(GLOB DAYTRENDER_SRCS src/*.cpp src/api/*.cpp src/data/*.cpp src/interface/*.cpp)
+file(GLOB ALGORITHM_TYPES_SRCS src/data/algorithmdata.cpp src/data/indicator.cpp src/data/candle.cpp)
 
 # creating symlinks so files can be shared between build folder and project folder
 
@@ -28,7 +29,7 @@ foreach(ALGO ${ALGO_SRCS})
 	# get filename without folder or extension
 	get_filename_component(FILENAME ${ALGO} NAME_WE)
 	# create shared object for it
-	add_library(${FILENAME} SHARED ${ALGO})
+	add_library(${FILENAME} SHARED ${ALGO} ${ALGORITHM_TYPES_SRCS})
 	# tell it to go to algorithms folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/algorithms)
 	target_include_directories(${FILENAME} PRIVATE src/data)

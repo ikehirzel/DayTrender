@@ -170,8 +170,8 @@ namespace daytrender
 
 			int index = std::stoi(req.get_param_value("index"));
 			const Asset* asset = get_asset(index);
-			AlgorithmData data = asset->get_data();
-			AssetInfo ainfo = asset->get_info();
+			const AlgorithmData& data = asset->data();
+			const AssetInfo& ainfo = asset->info();
 
 			json response;
 			json& jacc = response["asset"];
@@ -180,10 +180,10 @@ namespace daytrender
 			jacc["live"] = ainfo.live;
 			jacc["paper"] = ainfo.paper;
 
-			response["interval"] = data.candles.interval();
-			response["ticker"] = asset->get_ticker();
+			response["interval"] = data.candles().interval();
+			response["ticker"] = asset->ticker();
 
-			const CandleSet& c = data.candles;
+			const CandleSet& c = data.candles();
 			for (unsigned i = 0; i < c.size(); i++)
 			{
 				response["x"][i] = i;
@@ -199,8 +199,8 @@ namespace daytrender
 			for (int i = 0; i < data.size(); i++)
 			{
 				json& indi = response["indicators"][i];
-				indi["type"] = data[i].type;
-				indi["label"] = data[i].label;
+				indi["type"] = data[i].type();
+				indi["label"] = data[i].label();
 				const Indicator& indicator = data[i];
 				for (int j = 0; j < indicator.size(); j++)
 				{

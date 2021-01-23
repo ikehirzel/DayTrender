@@ -102,6 +102,8 @@ namespace daytrender
 
 	CandleSet Client::get_candles(const std::string& ticker, int interval, int max) const
 	{
+		printfmt("Getcandles: interval: %d, size: %d\n", interval, max);
+
 		if (!get_candles_ptr)
 		{
 			errorf("%s: get_candles is not bound and cannot be executed!", filename);
@@ -116,6 +118,8 @@ namespace daytrender
 
 		CandleSet candles(max, interval);
 		get_candles_ptr(candles, ticker);
+
+		std::cout << "client::get_candles: interval: " << candles.interval() << std::endl;
 
 		std::string error = get_error();
 		if (!error.empty()) errorf("%s: %s", filename, error);

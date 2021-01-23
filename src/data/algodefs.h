@@ -1,4 +1,4 @@
-#include "algotypes.h"
+#include "algorithmdata.h"
 
 #ifndef INDICATORS
 #error INDICATORS must be defined
@@ -21,26 +21,27 @@ const Indicator& _add_indicator(AlgorithmData& out, IndiFunc indi, const char* t
 		return out[0];
 	}
 
-	out[indicators].type = type;
-	out[indicators].label = label;
+	out[indicators].set_ident(type, label);
 
-	indi(out[indicators], out.candles, out.ranges[indicators + 1]);
+	indi(out[indicators], out.candles(), out.ranges()[indicators + 1]);
 	return out[indicators++];
 }
 
 void _init_algorithm(AlgorithmData& out, const char* label)
 {
-	out.set_label(label);
 	indicators = 0;
-	if (out.candles.empty())
+	out.set_label(label);
+	const CandleSet& candles = out.candles();
+	const std::vector<int>& ranges = out.ranges();
+	if (candles.empty())
 	{
 		out.flag_error("no candles were passed to algorithm!");
 	}
-	else if (!out.ranges.size())
+	else if (!ranges.size())
 	{
 		out.flag_error("algorithm data has not been initialized");
 	}
-	else if (out.ranges.size() != ranges_size())
+	else if (ranges.size() != ranges_size())
 	{
 		out.flag_error("algorithm dataset size did not match expected size");
 	}

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 namespace daytrender
 {
 	struct Candle
@@ -14,45 +16,34 @@ namespace daytrender
 	class CandleSet
 	{
 	private:
-		Candle* candles_ = nullptr;
-		int size_ = 0;
-		int interval_ = 0;
-		bool clone_ = false;
+		Candle* _data = nullptr;
+		int _size = 0;
+		int _interval = 0;
+		bool _slice = false;
 
 	public:
 		CandleSet() = default;
-		CandleSet(int size, int interval)
+		CandleSet(int size, int interval);
+		CandleSet(const CandleSet& other);
+		CandleSet(const CandleSet& other, int offset, int size);
+		~CandleSet();
+
+		inline CandleSet slice(int offset, int size)
 		{
-			size_ = size;
-			interval_ = interval;
-			candles_ = new Candle[size];
+			return CandleSet(*this, offset, size);
 		}
 
-		CandleSet(CandleSet* other, int offset, int size)
-		{
-			clone_ = true;
-			size_ = size;
-			if (offset + size_ > other->size()) size_ = 0;
-			interval_ = other->interval();
-			candles_ = other->data() + offset;
-		}
+		inline Candle& operator[] (int index) { return _data[index]; }
+		inline const Candle& operator[] (int index) const { return _data[index]; }
+		CandleSet& operator=(const CandleSet& other);
 
-		~CandleSet()
-		{
-			if (!clone_) delete[] candles_;
-		}
+		inline const Candle& back(unsigned index = 0) const { return _data[_size - (index - 1)]; }
+		inline const Candle& front(unsigned index = 0) const { return _data[index]; }
 
-		inline CandleSet get_slice(int offset, int size)
-		{
-			return CandleSet(this, offset, size);
-		}
+		inline bool empty() const { return _size == 0; }
+		inline int size() const { return _size; }
 
-		inline Candle& operator[] (int index) { return candles_[index]; }
-		inline const Candle& operator[] (int index) const { return candles_[index]; }
-		inline const Candle& back() const { return candles_[size_ - 1]; }
-		inline bool empty() const { return size_ == 0; }
-		inline int size() const { return size_; }
-		inline int interval() const { return interval_; }
-		inline Candle* data() const { return candles_; }
+		inline int interval() const { return _interval; }
+		inline Candle* data() const { return _data; }
 	};
 }

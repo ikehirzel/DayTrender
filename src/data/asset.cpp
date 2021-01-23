@@ -9,82 +9,85 @@
 
 namespace daytrender
 {
-	Asset::Asset(int _type, const Client* _client, const std::string &_ticker, const Algorithm* _algo,
-		int _interval, double _risk, const std::vector<int>& _ranges, bool _paper)
+	Asset::Asset(int type, const Client* client, const std::string &ticker, const Algorithm* algo,
+		int interval, double risk, const std::vector<int>& ranges, bool paper)
 	{
-		if (!_ranges.empty())
+		if (!ranges.empty())
 		{
-			live = true;
+			_live = true;
 		}
 		else
 		{
 			warningf("Arguments were not sufficient, asset '%s' cannot go live", ticker);
 		}
 
-		client = _client;
-		algo = _algo;
-		ticker = _ticker;
-		interval = _interval;
+		_client = client;
+		_algo = algo;
+		_ticker = ticker;
+		_interval = interval;
 
-		if (_ranges.size() > 1)
+		if (ranges.size() > 1)
 		{
-			for (int i = 1; i < _ranges.size(); i++)
+			for (int i = 1; i < ranges.size(); i++)
 			{
-				if (_ranges[i] > candle_count) candle_count = _ranges[i];
+				if (ranges[i] > _candle_count) _candle_count = ranges[i];
 			}
 		}
 
-		candle_count += _ranges[0];
-		type = _type;
-		ranges = _ranges;
-		paper = _paper;
-		risk = _risk;
+		_candle_count += ranges[0];
+		_type = type;
+		_ranges = ranges;
+		_paper = paper;
+		_risk = risk;
 
-		paperAccount = PaperAccount(PAPER_ACCOUNT_INITIAL, client->paper_fee(), client->paper_minimum(), interval, _ranges);
+		_paper_account = PaperAccount(PAPER_ACCOUNT_INITIAL, client->paper_fee(), client->paper_minimum(), interval, _ranges);
 	}
 	
 	void Asset::update()
 	{
 		long long curr_time = hirzel::sys::get_seconds();
-		last_update = curr_time - (curr_time % interval);
-		infof("Updating %s...", ticker);
-		return;
+		_last_update = curr_time - (curr_time % _interval);
+
+		infof("Updating %s...", _ticker);
 
 		// making new algo data
-		CandleSet candles = client->get_candles(ticker, interval, candle_count);
-		data = algo->process(candles, ranges);
+		CandleSet candles = _client->get_candles(_ticker, _interval, _candle_count);
+		_data = _algo->process(candles, _ranges);
 	
 		// error handling
-		if (data.error())
+		if (_data.error())
 		{
-			errorf("Action could not be handled %s", ticker);
+			errorf("Action could not be handled %s", _ticker);
 			return;
 		}
 	
 		// paper trading
-		if (paper)
+		if (_paper)
 		{
-			paperAccount.setPrice(candles.back().close);
-			action::paper_actions[data.action()](paperAccount, risk);
+			_paper_account.setPrice(candles.back().close);
+			action::paper_actions[_data.action()](_paper_account, _risk);
 		}
 		// live trading
 		else
 		{
-			action::actions[data.action()](client, ticker, risk);
+			action::actions[_data.action()](_client, _ticker, _risk);
+			std::cout << "live action!\n";
 		}
+		std::cout << "Finished updatin!\n";
+		infof("Finished updating!");
 	}
 
-	AssetInfo Asset::get_info() const
+	AssetInfo Asset::info() const
 	{
 		AssetInfo out;
-		if (live)
+		if (_live)
 		{
-			out.live = live;
-			out.paper = paper;
-			out.risk = risk;
-			if (paper)
+			out.live = _live;
+			out.paper = _paper;
+			out.risk = _risk;
+			if (_paper)
 			{
-				out.shares = paperAccount.getShares();
+				out.shares = _paper_account.getShares();
 			}
 			else
 			{
@@ -94,5 +97,22 @@ namespace daytrender
 			}
 		}
 		return out;
+	}
+
+	bool Asset::should_update() const
+	{
+		if ((hirzel::sys::get_seconds() - _last_update) > _interval)
+			{
+				if (_client->market_open())
+				{
+					return true;
+				}
+				else
+				{
+					errorf("%s: The market is closed! Updating anyway...", _ticker);
+					return true;
+				}
+			}
+			return false;
 	}
 }

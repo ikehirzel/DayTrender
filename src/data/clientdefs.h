@@ -69,6 +69,8 @@ extern "C"
 	bool close_all_positions();
 	bool market_open();
 	double get_price(const std::string& ticker);
+	double get_leverage();
+	bool set_leverage(int numerator);
 
 	const char* to_interval(int interval);
 	void backtest_intervals(std::vector<int>& out)
