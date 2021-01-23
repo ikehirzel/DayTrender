@@ -259,28 +259,28 @@ namespace daytrender
 			{
 				json& curr = response[i];
 
-				curr["buys"] = results[i].getBuys();
-				curr["sells"] = results[i].getSells();
-				curr["interval"] = results[i].getInterval();
+				curr["buys"] = results[i].buys();
+				curr["sells"] = results[i].sales();
+				curr["interval"] = results[i].interval();
 
-				auto ranges = results[i].getRanges();
+				auto ranges = results[i].ranges();
 				for (int j = 0; j < ranges.size(); j++)
 				{
 					curr["ranges"][j] = ranges[j];
 				}
 
-				curr["elapsedhrs"] = results[i].elapsedHours();
-				curr["initial"] = results[i].getInitial();
-				curr["shares"] = results[i].getShares();
-				curr["balance"] = results[i].getBalance();
+				curr["elapsedhrs"] = results[i].elapsed_hours();
+				curr["initial"] = results[i].initial();
+				curr["shares"] = results[i].shares();
+				curr["balance"] = results[i].balance();
 				curr["equity"] = results[i].equity();
-				curr["netreturn"] = results[i].netReturn();
-				curr["preturn"] = results[i].percentReturn();
-				curr["hrreturn"] = results[i].avgHourNetReturn();
-				curr["phrreturn"] = results[i].avgHourPercentReturn();
-				curr["winrate"] = results[i].winRate();
-				curr["bwinrate"] = results[i].buyWinRate();
-				curr["swinrate"] = results[i].sellWinRate();
+				curr["netreturn"] = results[i].net_return();
+				curr["preturn"] = results[i].pct_return();
+				curr["hrreturn"] = results[i].avg_net_per_hour();
+				curr["phrreturn"] = results[i].avg_pct_per_hour();
+				curr["winrate"] = results[i].win_rate();
+				curr["bwinrate"] = results[i].buy_win_rate();
+				curr["swinrate"] = results[i].sale_win_rate();
 			}
 
 			res.set_content(response.dump(), JSON_FORMAT);

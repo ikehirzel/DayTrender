@@ -18,8 +18,8 @@ namespace daytrender
 
 		bool paper_buy(PaperAccount& account, double risk)
 		{
-			double shares = (risk * account.getBalance() * (1.0 - account.getFee())) / account.getPrice();
-			if (shares < account.getMinimum())
+			double shares = (risk * account.balance() * (1.0 - account.fee())) / account.price();
+			if (shares < account.minimum())
 			{
 				return false;
 			}
@@ -46,8 +46,8 @@ namespace daytrender
 
 		bool paper_sell(PaperAccount& account, double risk) 
 		{
-			double shares = account.getShares();
-			if (shares < account.getMinimum())
+			double shares = account.shares();
+			if (shares < account.minimum())
 			{
 				return false;
 			}

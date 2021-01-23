@@ -9,62 +9,66 @@ namespace daytrender
 	class PaperAccount
 	{
 	private:
-		double
-			balance = 0.0,
-			shares = 0.0,
-			fee = 0.0,
-			minimum = 0.0,
-			initial = 1.0,
-			price = 0.0,
-			lastActPrice = 0.0;
+		double _balance = 0.0;
+		double _shares = 0.0;
+		double _fee = 0.0;
+		double _minimum = 0.0;
+		double _initial = 1.0;
+		double _price = 0.0;
+		double _last_act_price = 0.0;
 		
-		int
-			buys = 0,
-			sells = 0,
-			buywins = 0,
-			buylosses = 0,
-			sellwins = 0,
-			selllosses = 0,
-			interval = 0,
-			updates = 0;
-		std::vector<int> ranges;
+		int _buys = 0;
+		int _buy_wins = 0;
+		int _buy_losses = 0;
+
+		int _sales = 0;
+		int _sale_wins = 0;
+		int _sale_losses = 0;
+
+		int _interval = 0;
+		int _updates = 0;
+
+		std::vector<int> _ranges;
 		
 	public:
 		PaperAccount() = default;
-		PaperAccount(double _initial, double _fee, double _minimum, int _interval,
-			const std::vector<int>& _ranges);
+		PaperAccount(double initial, double fee, double minimum, int interval,
+			const std::vector<int>& ranges);
 			
 		void buy(double shares);
 		void sell(double shares);
 		
-		inline double getInitial() const { return initial; }
-		inline double getBalance() const { return balance; }	
-		inline double getShares() const { return shares; }
-		inline double getFee() const { return fee; }
-		inline double getMinimum() const { return minimum; }
+		inline double initial() const { return _initial; }
+		inline double balance() const { return _balance; }	
+		inline double shares() const { return _shares; }
+		inline double fee() const { return _fee; }
+		inline double minimum() const { return _minimum; }
 		
-		inline double getPrice() const { return price; }
-		inline void setPrice(double _price) { updates++; price = _price; };
+		inline double price() const { return _price; }
+		inline void update_price(double price)
+		{
+			if (_updates == 0) _last_act_price = price;
+			_price = price;
+			_updates++; 
+		};
 		
-		inline int getBuys() const { return buys; }
-		inline int getSells() const { return sells; }
-		inline int getTrades() const { return buys + sells; }
-		inline int getInterval() const { return interval; }
-		inline const std::vector<int>& getRanges() const { return ranges; };
+		inline int buys() const { return _buys; }
+		inline int sales() const { return _sales; }
+		inline int trades() const { return _buys + _sales; }
+		inline int interval() const { return _interval; }
+		inline const std::vector<int>& ranges() const { return _ranges; };
 		
 		//non-trivial getters
 
 		double equity() const;
-		double netReturn() const;
-		double percentReturn() const;
-		double elapsedHours() const;
-		double avgHourNetReturn() const;
-		double avgHourPercentReturn() const;
-		double buyWinRate() const;
-		double sellWinRate() const;
-		double winRate() const;
-
-		//todo implement buy win rate and sell winrate
+		double net_return() const;
+		double pct_return() const;
+		double elapsed_hours() const;
+		double avg_net_per_hour() const;
+		double avg_pct_per_hour() const;
+		double buy_win_rate() const;
+		double sale_win_rate() const;
+		double win_rate() const;
 		
 		std::string to_string() const;
 

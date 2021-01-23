@@ -64,7 +64,7 @@ namespace daytrender
 		// paper trading
 		if (_paper)
 		{
-			_paper_account.setPrice(candles.back().close);
+			_paper_account.update_price(candles.back().close);
 			action::paper_actions[_data.action()](_paper_account, _risk);
 		}
 		// live trading
@@ -73,8 +73,6 @@ namespace daytrender
 			action::actions[_data.action()](_client, _ticker, _risk);
 			std::cout << "live action!\n";
 		}
-		std::cout << "Finished updatin!\n";
-		infof("Finished updating!");
 	}
 
 	AssetInfo Asset::info() const
@@ -87,7 +85,7 @@ namespace daytrender
 			out.risk = _risk;
 			if (_paper)
 			{
-				out.shares = _paper_account.getShares();
+				out.shares = _paper_account.shares();
 			}
 			else
 			{

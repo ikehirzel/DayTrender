@@ -4,160 +4,159 @@
 
 namespace daytrender
 {
-	PaperAccount::PaperAccount(double _initial, double _fee, double _minimum, int _interval,
-		const std::vector<int>& _ranges)
+	PaperAccount::PaperAccount(double initial, double fee, double minimum, int interval,
+		const std::vector<int>& ranges)
 	{
-		initial = _initial;
-		balance = _initial;
-		fee = _fee;
-		minimum = _minimum;
-		interval = _interval;
-		ranges = _ranges;
+		_initial = initial;
+		_balance = initial;
+		_fee = fee;
+		_minimum = minimum;
+		_interval = interval;
+		_ranges = ranges;
 	}
 
-	void PaperAccount::buy(double _shares)
+	void PaperAccount::buy(double shares)
 	{
-		if (_shares < minimum)
+		if (shares < _minimum)
 		{
 			warningf("A minimum of %f must be bought to complete a trade");
 			return;
 		}
 
-		if(!price)
+		if(!_price)
 		{
 			errorf("Price must be set before purchasing!");
 			return;
 		}
 		
-		if(!lastActPrice) lastActPrice = price;
-		
-		if (price > lastActPrice)
+		if (_price > _last_act_price)
 		{
-			buylosses++;
+			_buy_losses++;
 		}
-		else if (price < lastActPrice)
+		else if (_price < _last_act_price)
 		{
-			buywins++;
+			_buy_wins++;
 		}
 		
-		double cost = _shares * price * (fee + 1.0);
+		double cost = _shares * _price * (_fee + 1.0);
 		
-		if (cost > balance)
+		if (cost > _balance)
 		{			
 			warningf("Not enough balance to complete purchase");
 			return;
 		}
 		
-		buys++;
-		shares += _shares;
-		balance -= cost;
+		_last_act_price = _price;
+		_buys++;
+		_shares += shares;
+		_balance -= cost;
 	}
 
-	void PaperAccount::sell(double _shares)
+	void PaperAccount::sell(double shares)
 	{
-		if (_shares < minimum)
+		if (shares < _minimum)
 		{
-			warningf("A minimum of %f myst be sold to complete trade", minimum);
+			warningf("A minimum of %f myst be sold to complete trade", _minimum);
 			return;
 		}
 
-		if (_shares > shares)
+		if (shares > _shares)
 		{
 			warningf("Not enough shares to complete sale");
 			return;
 		}
 
-		if(!price)
+		if(!_price)
 		{
 			errorf("Price must be set before selling!");
 			return;
 		}
 
-		if(!lastActPrice) lastActPrice = price;
 		
-		if (price > lastActPrice)
+		if (_price > _last_act_price)
 		{
-			sellwins++;
+			_sale_wins++;
 		}
-		else if (price < lastActPrice)
+		else if (_price < _last_act_price)
 		{
-			selllosses++;
+			_sale_losses++;
 		}
 
-		double returns = _shares * price * (1.0 - fee);
+		double returns = _shares * _price * (1.0 - _fee);
 		
-		sells++;
+		_last_act_price = _price;
+		_sales++;
 		shares -= _shares;
-		balance += returns;
+		_balance += returns;
 	}	
 
 	double PaperAccount::equity() const
 	{
-		return balance + (shares * price);
+		return _balance + (_shares * _price);
 	}
 
-	double PaperAccount::netReturn() const
+	double PaperAccount::net_return() const
 	{
-		return equity() - initial;
+		return equity() - _initial;
 	}
 
-	double PaperAccount::percentReturn() const
+	double PaperAccount::pct_return() const
 	{
-		if(initial > 0.0)
+		if(_initial > 0.0)
 		{
-			return netReturn() / initial;
+			return net_return() / _initial;
 		}
 		return 0.0;
 	}
 
-	double PaperAccount::elapsedHours() const
+	double PaperAccount::elapsed_hours() const
 	{
-		return (double)(interval * updates) / 3600.0;
+		return (double)(_interval * _updates) / 3600.0;
 	}
 
-	double PaperAccount::avgHourNetReturn() const
+	double PaperAccount::avg_net_per_hour() const
 	{
-		double hours = elapsedHours();
+		double hours = elapsed_hours();
 		if(hours > 0.0)
 		{
-			return netReturn() / hours;
+			return net_return() / hours;
 		}
 		return 0.0;
 	}
 
-	double PaperAccount::avgHourPercentReturn() const
+	double PaperAccount::avg_pct_per_hour() const
 	{
-		double hours = elapsedHours();
+		double hours = elapsed_hours();
 		if(hours > 0.0)
 		{
-			return percentReturn() / hours;
+			return pct_return() / hours;
 		}
 		return 0.0;
 	}
 
-	double PaperAccount::buyWinRate() const
+	double PaperAccount::buy_win_rate() const
 	{
-		if(buys)
+		if(_buys)
 		{
-			return (double)buywins / (double)(buys);
+			return (double)_buy_wins / (double)(_buys);
 		}
 		return 0.0;
 	}
-	double PaperAccount::sellWinRate() const
+	double PaperAccount::sale_win_rate() const
 	{
-		if (sells)
+		if (_sales)
 		{
-			return (double)sellwins / (double)sells;
+			return (double)_sale_wins / (double)_sales;
 		}
 		return 0.0;
 	}
 
-	double PaperAccount::winRate() const
+	double PaperAccount::win_rate() const
 	{
-		double base = (double)(buys + sells);
+		double base = (double)trades();
 		if	(base > 0.0)
 		{
-			return (double)(buywins + sellwins) / base;
+			return (double)(_buy_wins + _sale_wins) / base;
 		}
 		return 0.0;
 	}
@@ -166,31 +165,31 @@ namespace daytrender
 	{
 		std::string out;
 		out = "PaperAccount:\n{";
-		out += "\n    Buys        :    " + std::to_string(buys);
-		out += "\n    Sells       :    " + std::to_string(sells);
-		out += "\n    Interval    :    " + std::to_string(interval);
+		out += "\n    Buys        :    " + std::to_string(_buys);
+		out += "\n    Sells       :    " + std::to_string(_sales);
+		out += "\n    Interval    :    " + std::to_string(_interval);
 		out += "\n    Ranges      :    ";
-		for (int i = 0; i < ranges.size(); i++)
+		for (int i = 0; i < _ranges.size(); i++)
 		{
 			if (i > 0) out += ", ";
-			out += std::to_string(ranges[i]);
+			out += std::to_string(_ranges[i]);
 		}
-		out += "\n    Elapsed Hrs :    " + std::to_string(elapsedHours()) + " (" + std::to_string(elapsedHours() / 24.0) + " days)";
+		out += "\n    Elapsed Hrs :    " + std::to_string(elapsed_hours()) + " (" + std::to_string(elapsed_hours() / 24.0) + " days)";
 		out += "\n";
-		out += "\n    Initial     :  $ " + std::to_string(initial);
-		out += "\n    Shares      :    " + std::to_string(shares);
-		out += "\n    Balance     :  $ " + std::to_string(balance);
+		out += "\n    Initial     :  $ " + std::to_string(_initial);
+		out += "\n    Shares      :    " + std::to_string(_shares);
+		out += "\n    Balance     :  $ " + std::to_string(_balance);
 		out += "\n    Equity      :  $ " + std::to_string(equity());
 		out += "\n";
-		out += "\n    Net Return  :  $ " + std::to_string(netReturn());
-		out += "\n    % Return    :  % " + std::to_string(percentReturn() * 100.0);
+		out += "\n    Net Return  :  $ " + std::to_string(net_return());
+		out += "\n    % Return    :  % " + std::to_string(pct_return() * 100.0);
 		out += "\n";
-		out += "\n    Hr Return   :  $ " + std::to_string(avgHourNetReturn());
-		out += "\n    Hr% Return  :  % " + std::to_string(avgHourPercentReturn() * 100.0);
+		out += "\n    Hr Return   :  $ " + std::to_string(avg_net_per_hour());
+		out += "\n    Hr% Return  :  % " + std::to_string(avg_pct_per_hour() * 100.0);
 		out += "\n";
-		out += "\n    Win Rate    :  % " + std::to_string(winRate() * 100.0);
-		out += "\n    B Win Rate  :  % " + std::to_string(buyWinRate() * 100.0);
-		out += "\n    S Win Rate  :  % " + std::to_string(sellWinRate() * 100.0);
+		out += "\n    Win Rate    :  % " + std::to_string(win_rate() * 100.0);
+		out += "\n    B Win Rate  :  % " + std::to_string(buy_win_rate() * 100.0);
+		out += "\n    S Win Rate  :  % " + std::to_string(sale_win_rate() * 100.0);
 		out += "\n}";
 		return out;
 	}

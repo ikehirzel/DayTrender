@@ -415,7 +415,7 @@ namespace daytrender
 				for (int k = 0; k < candles_vec[i].size() - candle_count; k++)
 				{
 					CandleSet candles = candles_vec[i].slice(k, candle_count);
-					acc.setPrice(candles.back().close);
+					acc.update_price(candles.back().close);
 					AlgorithmData data = algo->process(candles, ranges);
 
 					if (data.error())
@@ -430,7 +430,7 @@ namespace daytrender
 
 				// comparing account to previous, potentially storing account
 
-				double ahnr = acc.avgHourNetReturn();
+				double ahnr = acc.avg_net_per_hour();
 				
 				if (ahnr > bahnr)
 				{

@@ -3,17 +3,12 @@
 #include <hirzel/fountain.h>
 #include <hirzel/strutil.h>
 
-#define DAYTRENDER_ALGO_DIR "./res/algorithms/"
-
-#define ALGO_FUNCTION	"algorithm"
-#define COUNT_FUNCTION	"ranges_size"
-
 namespace daytrender
 {
 	Algorithm::Algorithm(const std::string& _filepath)
 	{
 		_filename = hirzel::str::get_filename(_filepath);
-		_plugin = new hirzel::Plugin(_filepath, { ALGO_FUNCTION, COUNT_FUNCTION });
+		_plugin = new hirzel::Plugin(_filepath, { "ranges_size", "algorithm" });
 		
 		if (!_plugin->all_bound())
 		{
@@ -21,8 +16,8 @@ namespace daytrender
 			return;
 		}
 
-		_ranges_count = _plugin->execute<int>(COUNT_FUNCTION);
-		_algorithm_ptr = (void(*)(AlgorithmData&))_plugin->get_func(ALGO_FUNCTION);
+		_ranges_count = _plugin->execute<int>("ranges_size");
+		_algorithm_ptr = (void(*)(AlgorithmData&))_plugin->get_func("algorithm");
 		_bound = true;
 		successf("Successfully loaded algorithm: '%s'", _filename);
 	}
