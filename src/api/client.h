@@ -2,7 +2,7 @@
 
 #include "../data/candle.h"
 
-#include "../data/clienttypes.h"
+#include "../data/accountinfo.h"
 
 #include <string>
 #include <vector>
@@ -17,38 +17,45 @@ namespace daytrender
 	class Client
 	{
 	private:
-		bool bound = false;
-		hirzel::Plugin* handle = nullptr;
-		std::string filename, label;
-		int asset_count = 0;
-		double risk = 0.0;
+		bool _bound = false;
+		bool _live = false;
+		int _asset_count = 0;
+		double _risk = 0.0;
+
+		hirzel::Plugin* _handle = nullptr;
+		
+		std::string _filename;
+		std::string _label;
 		
 		// init func
 
-		void (*init_ptr)(const std::vector<std::string>&) = nullptr;
+		bool (*_init)(const std::vector<std::string>&) = nullptr;
 
 		// api functions
 
-		void (*get_candles_ptr)(CandleSet&, const std::string&) = nullptr;
-		void (*get_account_info_ptr)(AccountInfo&) = nullptr;
-		bool (*market_order_ptr)(const std::string&, double) = nullptr;
-		double (*get_shares_ptr)(const std::string&) = nullptr;
-		bool (*close_all_positions_ptr)() = nullptr;
-		bool (*market_open_ptr)() = nullptr;
-		double (*get_price_ptr)(const std::string&) = nullptr;
-		double (*get_leverage_ptr)() = nullptr;
-		bool (*set_leverage_ptr)(int) = nullptr;
+		// non returning
+		bool (*_market_order)(const std::string&, double) = nullptr;
+		bool (*_close_all_positions)() = nullptr;
+		bool (*_set_leverage)(int) = nullptr;
+
+		// returning
+		bool (*_get_account_info)(AccountInfo&) = nullptr;
+		bool (*_get_candles)(CandleSet&, const std::string&) = nullptr;
+		bool (*_get_shares)(double&, const std::string&) = nullptr;
+		bool (*_get_price)(double&, const std::string&) = nullptr;
+		bool (*_market_open)(bool&) = nullptr;
+		bool (*_to_interval)(const char*, int) = nullptr;
 
 		// getters
 
-		const char* (*to_interval_ptr)(int) = nullptr;
-		int (*max_candles_ptr)() = nullptr;
-		double (*paper_fee_ptr)() = nullptr;
-		double (*paper_minimum_ptr)() = nullptr;
-		void (*backtest_intervals_ptr)(std::vector<int>&) = nullptr;
-		void (*get_error_ptr)(std::string&) = nullptr;
+		int (*_max_candles)() = nullptr;
+		double (*_paper_fee)() = nullptr;
+		double (*_paper_minimum)() = nullptr;
+		void (*_backtest_intervals)(std::vector<int>&) = nullptr;
+		void (*_get_error)(std::string&) = nullptr;
 
 		void flag_error();
+		bool func_ok(const char* label, void(*func)());
 
 	public:
 		Client(const std::string& _label, const std::string& _filepath,
@@ -57,34 +64,45 @@ namespace daytrender
 
 		// api functions
 
-		CandleSet get_candles(const std::string& ticker, int interval, int max = 0) const;
-		AccountInfo get_account_info() const;
-		bool market_order(const std::string& ticker, double amount) const;
-		double get_shares(const std::string& ticker) const;
-		bool close_all_positions() const;
-		bool market_open() const;
-		double get_price(const std::string& ticker) const;
-		double get_leverage() const;
-		bool set_leverage(int numerator) const;
+		// non returning
+		bool market_order(const std::string& ticker, double amount);
+		bool close_all_positions();
+		bool set_leverage(int multiplier);
+
+		CandleSet get_candles(const std::string& ticker, int interval, int max = 0);
+		AccountInfo get_account_info();
+		double get_shares(const std::string& ticker);
+		double get_price(const std::string& ticker);
+		bool market_open();
+		std::string to_interval(int interval);
 
 		// getters for constants
 
-		std::string to_interval(int multiplier) const;
-		double paper_fee() const;
-		double paper_minimum() const;
-		std::vector<int> backtest_intervals() const;
-		int max_candles() const;
-		std::string get_error() const;
+		inline double paper_fee() const { return _paper_fee(); }
+		inline double paper_minimum() const { return _paper_minimum(); }
+		inline int max_candles() const { return _max_candles(); }
+
+		inline std::vector<int> backtest_intervals() const
+		{
+			std::vector<int> out;
+			_backtest_intervals(out);
+			return out;
+		}
+
+		inline std::string get_error() const
+		{
+			std::string error;
+			_get_error(error);
+			return error;
+		}
 
 		// inline getter functions
 
-		inline bool all_bound() const { return bound; }
-		inline const std::string& get_label() const { return label; }
-		inline const std::string& get_filename() const { return filename; }
-		inline hirzel::Plugin* gethandle() const { return handle; }
-		inline double get_risk() const { return risk; }
-		inline int get_asset_count() const { return asset_count; }
-		inline void set_asset_count(int count) { asset_count = count; }
-		inline double get_asset_share() const { return risk / (double)asset_count; }
+		inline bool bound() const { return _bound; }
+		inline const std::string& label() const { return _label; }
+		inline const std::string& filename() const { return _filename; }
+		inline hirzel::Plugin* handle() const { return _handle; }
+		inline double risk() const { return _risk; }
+		inline void increment_assets() { _asset_count++; }
 	};
 }

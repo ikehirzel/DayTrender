@@ -4,13 +4,15 @@
 
 namespace daytrender
 {
-	PaperAccount::PaperAccount(double initial, double fee, double minimum, int interval,
-		const std::vector<int>& ranges)
+	PaperAccount::PaperAccount(double principal, double fee, double minimum, double initial_price,
+		int interval, const std::vector<int>& ranges)
 	{
-		_initial = initial;
-		_balance = initial;
+		_principal = principal;
+		_balance = principal;
 		_fee = fee;
 		_minimum = minimum;
+		_price = initial_price;
+		_last_act_price = initial_price;
 		_interval = interval;
 		_ranges = ranges;
 	}
@@ -97,14 +99,14 @@ namespace daytrender
 
 	double PaperAccount::net_return() const
 	{
-		return equity() - _initial;
+		return equity() - _principal;
 	}
 
 	double PaperAccount::pct_return() const
 	{
-		if(_initial > 0.0)
+		if(_principal > 0.0)
 		{
-			return net_return() / _initial;
+			return net_return() / _principal;
 		}
 		return 0.0;
 	}
@@ -136,27 +138,54 @@ namespace daytrender
 
 	double PaperAccount::buy_win_rate() const
 	{
-		if(_buys)
+		if(_buys > 0)
 		{
-			return (double)_buy_wins / (double)(_buys);
+			return (double)_buy_wins / (double)_buys;
 		}
 		return 0.0;
 	}
+
+	double PaperAccount::buy_loss_rate() const
+	{
+		if (_buys > 0)
+		{
+			return (double)_buy_losses / (double)_buys;
+		}
+		return 0.0;
+	}
+
 	double PaperAccount::sale_win_rate() const
 	{
-		if (_sales)
+		if (_sales > 0)
 		{
 			return (double)_sale_wins / (double)_sales;
 		}
 		return 0.0;
 	}
 
+	double PaperAccount::sale_loss_rate() const
+	{
+		if (_sales > 0)
+		{
+			return (double)_sale_losses / (double)_sales;
+		}
+		return 0.0;
+	}
+
 	double PaperAccount::win_rate() const
 	{
-		double base = (double)trades();
-		if	(base > 0.0)
+		if	(trades() > 0)
 		{
-			return (double)(_buy_wins + _sale_wins) / base;
+			return (double)(_buy_wins + _sale_wins) / (double)trades();
+		}
+		return 0.0;
+	}
+
+	double PaperAccount::loss_rate() const
+	{
+		if (trades() > 0)
+		{
+			return (double)(_buy_losses + _sale_losses) / (double)trades();
 		}
 		return 0.0;
 	}
@@ -176,7 +205,7 @@ namespace daytrender
 		}
 		out += "\n    Elapsed Hrs :    " + std::to_string(elapsed_hours()) + " (" + std::to_string(elapsed_hours() / 24.0) + " days)";
 		out += "\n";
-		out += "\n    Initial     :  $ " + std::to_string(_initial);
+		out += "\n    Principal   :  $ " + std::to_string(_principal);
 		out += "\n    Shares      :    " + std::to_string(_shares);
 		out += "\n    Balance     :  $ " + std::to_string(_balance);
 		out += "\n    Equity      :  $ " + std::to_string(equity());
@@ -190,6 +219,10 @@ namespace daytrender
 		out += "\n    Win Rate    :  % " + std::to_string(win_rate() * 100.0);
 		out += "\n    B Win Rate  :  % " + std::to_string(buy_win_rate() * 100.0);
 		out += "\n    S Win Rate  :  % " + std::to_string(sale_win_rate() * 100.0);
+		out += "\n";
+		out += "\n    Loss Rate   :  % " + std::to_string(loss_rate() * 100.0);
+		out += "\n    B Loss Rate :  % " + std::to_string(buy_loss_rate() * 100.0);
+		out += "\n    S Loss Rate :  % " + std::to_string(sale_loss_rate() * 100.0);
 		out += "\n}";
 		return out;
 	}

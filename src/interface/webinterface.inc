@@ -103,6 +103,7 @@ $("document").ready(() =>
 			asset_labels = data.types
 
 			typeSelect.append(`<option value=-1>All</option>`)
+			
 			for (let i = 0 i < data.types.length i++)
 			{
 				typeSelect.append(`<option value=${i}>${data.types[i]}</option>`)

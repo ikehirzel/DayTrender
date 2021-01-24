@@ -1,5 +1,6 @@
 #include "shell.h"
 
+#include "interface.h"
 #include "../daytrender.h"
 
 #include <vector>
@@ -42,7 +43,7 @@ namespace daytrender
 				int asset_index = -1;
 
 				// tokens[1] should be algo name and 2 should be ticker
-				auto algo_filenames = get_algo_info();
+				auto algo_filenames = algorithm_names();
 
 				for (int i = 0; i < algo_filenames.size(); i++)
 				{
@@ -59,7 +60,7 @@ namespace daytrender
 					return;
 				}
 
-				auto asset_info = get_asset_info();
+				auto asset_info = asset_names();
 
 				for (int i = 0; i < asset_info.size(); i++)
 				{
@@ -76,7 +77,7 @@ namespace daytrender
 					return;
 				}
 
-				auto result = daytrender::backtest(algo_index, asset_index, {});
+				auto result = interface::backtest(algo_index, asset_index, {});
 
 				for (const PaperAccount& p : result)
 				{

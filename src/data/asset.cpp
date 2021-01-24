@@ -9,7 +9,7 @@
 
 namespace daytrender
 {
-	Asset::Asset(int type, const Client* client, const std::string &ticker, const Algorithm* algo,
+	Asset::Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
 		int interval, double risk, const std::vector<int>& ranges, bool paper)
 	{
 		if (!ranges.empty())
@@ -20,12 +20,13 @@ namespace daytrender
 		{
 			warningf("Arguments were not sufficient, asset '%s' cannot go live", ticker);
 		}
-
+	
 		_client = client;
+		_client->increment_assets();
 		_algo = algo;
 		_ticker = ticker;
 		_interval = interval;
-
+	
 		if (ranges.size() > 1)
 		{
 			for (int i = 1; i < ranges.size(); i++)
@@ -33,14 +34,27 @@ namespace daytrender
 				if (ranges[i] > _candle_count) _candle_count = ranges[i];
 			}
 		}
-
+	
 		_candle_count += ranges[0];
 		_type = type;
 		_ranges = ranges;
 		_paper = paper;
-		_risk = risk;
+		if (risk > 1.0)
+		{
+			warningf("%s: risk (%f) should be a maximum of 1.0. It will be readjusted.", ticker, risk);
+			risk = 1.0;
+		}
+		else if (risk < 0.0)
+		{
+			warningf("%s: risk (%f) should me a minimum of 0.0; It will be readjusted.", ticker, risk);
+			risk = 0.0;
+		}
 
-		_paper_account = PaperAccount(PAPER_ACCOUNT_INITIAL, client->paper_fee(), client->paper_minimum(), interval, _ranges);
+		_risk = risk;
+		double fee = client->paper_fee();
+		double minimum = client->paper_minimum();
+		double principal = client->get_price(ticker);
+		_paper_account = PaperAccount(PAPER_ACCOUNT_INITIAL, fee, minimum, principal, interval, _ranges);
 	}
 	
 	void Asset::update()
@@ -52,15 +66,15 @@ namespace daytrender
 
 		// making new algo data
 		CandleSet candles = _client->get_candles(_ticker, _interval, _candle_count);
+
 		_data = _algo->process(candles, _ranges);
-	
 		// error handling
 		if (_data.error())
 		{
 			errorf("Action could not be handled %s", _ticker);
 			return;
 		}
-	
+
 		// paper trading
 		if (_paper)
 		{
@@ -74,7 +88,7 @@ namespace daytrender
 			std::cout << "live action!\n";
 		}
 	}
-
+	/*
 	AssetInfo Asset::info() const
 	{
 		AssetInfo out;
@@ -96,18 +110,13 @@ namespace daytrender
 		}
 		return out;
 	}
-
+*/
 	bool Asset::should_update() const
 	{
 		if ((hirzel::sys::get_seconds() - _last_update) > _interval)
 			{
 				if (_client->market_open())
 				{
-					return true;
-				}
-				else
-				{
-					errorf("%s: The market is closed! Updating anyway...", _ticker);
 					return true;
 				}
 			}

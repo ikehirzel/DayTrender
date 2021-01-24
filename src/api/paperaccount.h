@@ -9,13 +9,13 @@ namespace daytrender
 	class PaperAccount
 	{
 	private:
+		double _principal = 0.0;
 		double _balance = 0.0;
-		double _shares = 0.0;
 		double _fee = 0.0;
 		double _minimum = 0.0;
-		double _initial = 1.0;
 		double _price = 0.0;
 		double _last_act_price = 0.0;
+		double _shares = 0.0;
 		
 		int _buys = 0;
 		int _buy_wins = 0;
@@ -32,13 +32,13 @@ namespace daytrender
 		
 	public:
 		PaperAccount() = default;
-		PaperAccount(double initial, double fee, double minimum, int interval,
-			const std::vector<int>& ranges);
+		PaperAccount(double principal, double fee, double minimum, double initial_price,
+			int interval, const std::vector<int>& ranges);
 			
 		void buy(double shares);
 		void sell(double shares);
 		
-		inline double initial() const { return _initial; }
+		inline double principal() const { return _principal; }
 		inline double balance() const { return _balance; }	
 		inline double shares() const { return _shares; }
 		inline double fee() const { return _fee; }
@@ -47,7 +47,6 @@ namespace daytrender
 		inline double price() const { return _price; }
 		inline void update_price(double price)
 		{
-			if (_updates == 0) _last_act_price = price;
 			_price = price;
 			_updates++; 
 		};
@@ -63,12 +62,20 @@ namespace daytrender
 		double equity() const;
 		double net_return() const;
 		double pct_return() const;
+
 		double elapsed_hours() const;
+
 		double avg_net_per_hour() const;
 		double avg_pct_per_hour() const;
+
 		double buy_win_rate() const;
+		double buy_loss_rate() const;
+
 		double sale_win_rate() const;
+		double sale_loss_rate() const;
+
 		double win_rate() const;
+		double loss_rate() const;
 		
 		std::string to_string() const;
 

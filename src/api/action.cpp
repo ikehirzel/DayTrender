@@ -1,21 +1,15 @@
 #include "action.h"
 
 #include <hirzel/fountain.h>
-#include "../data/paperaccount.h"
 
 namespace daytrender
 {
 	namespace action
 	{
-		bool nothing(const Client* client, const std::string& ticker, double risk) { return true; }
+		bool nothing(Client* client, const std::string& ticker, double risk) { return true; }
 		bool paper_nothing(PaperAccount& account, double risk) { return true; }
 
-		bool buy(const Client* client, const std::string& ticker,  double risk) 
-		{
-			//double curr_shares = client->get_shares(t
-			return false;
-		}
-
+		
 		bool paper_buy(PaperAccount& account, double risk)
 		{
 			double shares = (risk * account.balance() * (1.0 - account.fee())) / account.price();
@@ -25,23 +19,6 @@ namespace daytrender
 			}
 			account.buy(shares);
 			return true;
-		}
-
-		bool sell(const Client* client, const std::string& ticker, double risk)
-		{
-			if (risk > 1.0) risk = 1.0;
-			AccountInfo info = client->get_account_info();
-			double curr_shares = client->get_shares(ticker);
-			double price = client->get_price(ticker);
-			// check if the amount of shares controlled by the asset 
-			// oversteps the amount available to it and act skip if so
-			double curr_value = curr_shares * price;
-			// setting to absolute value of the shares
-			curr_value  = (curr_value >= 0 ? curr_value : -curr_value);
-			double percent = client->get_asset_share() * risk;
-			double money_available = curr_value - percent * info.equity;
-			double shares = 0.0;
-			return false;
 		}
 
 		bool paper_sell(PaperAccount& account, double risk) 
@@ -54,6 +31,40 @@ namespace daytrender
 			account.sell(shares);
 			return true;
 		}
+
+		bool buy(Client* client, const std::string& ticker,  double risk) 
+		{
+			AccountInfo acct = client->get_account_info();
+			double money_available = acct.money_per_share * risk;
+			double price = client->get_price(ticker);
+			double max_shares = money_available / price;
+			double curr_shares = client->get_shares(ticker);
+			double shares_to_order = max_shares - curr_shares;
+			// if (||shares_to_order|| < client->minimum_order()) return false;
+			return client->market_order(ticker, shares_to_order);
+		}
+
+		bool sell(Client* client, const std::string& ticker, double risk)
+		{
+			AccountInfo acct = client->get_account_info();
+			double money_available = acct.money_per_share * risk;
+			double curr_shares = client->get_shares(ticker);
+			double price = client->get_price(ticker);
+			double min_shares = 0.0;
+
+			// if (client->shorting_enabled())
+			// {
+			// 	min_shares = -(money_available / price);
+			// }
+
+			double shares_to_order = -(curr_shares - min_shares);
+
+			// if (||shares_to_order|| < client->minimum_order()) return false;
+
+			return client->market_order(ticker, shares_to_order);
+		}
+
+		
 
 		ActionFunc actions[Action::COUNT] =
 		{

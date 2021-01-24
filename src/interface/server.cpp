@@ -1,8 +1,8 @@
 #include "server.h"
 
+#include "interface.h"
 #include "../daytrender.h"
 #include "../data/asset.h"
-
 #include <mutex>
 #include <string>
 
@@ -96,7 +96,7 @@ namespace daytrender
 			debugf("Server GET @ %s", req.path);
 
 			res.set_content(html, "text/html");
-			// TODO: Implement /
+			std::cout << "BIGNUS\n";
 		}
 
 		void get_data(const httplib::Request& req,  httplib::Response& res)
@@ -106,7 +106,7 @@ namespace daytrender
 			json response;
 
 			// gathering algorithm names
-			auto algo_info = get_algo_info();
+			auto algo_info = algorithm_names();
 			if(algo_info.empty())
 			{
 				warningf("No algorithm names were received");
@@ -120,7 +120,7 @@ namespace daytrender
 			}
 
 			// gathering asset types and tickers
-			auto asset_data = get_asset_info();
+			auto asset_data = asset_names();
 			if (asset_data.empty())
 			{
 				warningf("No asset data was received");
@@ -134,7 +134,7 @@ namespace daytrender
 				}
 			}
 
-			auto client_data = get_client_info();
+			auto client_data = client_names();
 			for (int i = 0; i < client_data.size(); i++)
 			{
 				response["types"][i] = client_data[i];
@@ -150,12 +150,11 @@ namespace daytrender
 
 			int asset_type;
 			AccountInfo accinfo;
-			;
 			json response;
 
 			asset_type = std::stoi(req.get_param_value("asset_type"));
 
-			const Client* client = get_client(asset_type);
+			Client* client = get_client(asset_type);
 			accinfo = client->get_account_info();
 			response["balance"] = accinfo.balance;
 			response["buying_power"] = accinfo.buying_power;
@@ -171,14 +170,15 @@ namespace daytrender
 			int index = std::stoi(req.get_param_value("index"));
 			const Asset* asset = get_asset(index);
 			const AlgorithmData& data = asset->data();
-			const AssetInfo& ainfo = asset->info();
+			Client* client = asset->client();
+			//const AssetInfo& ainfo = asset->info();
 
 			json response;
 			json& jacc = response["asset"];
-			jacc["risk"] = ainfo.risk;
-			jacc["shares"] = ainfo.shares;
-			jacc["live"] = ainfo.live;
-			jacc["paper"] = ainfo.paper;
+			jacc["risk"] = asset->risk();
+			jacc["shares"] = client->get_shares(asset->ticker());
+			jacc["live"] = asset->is_live();
+			jacc["paper"] = asset->is_paper();
 
 			response["interval"] = data.candles().interval();
 			response["ticker"] = asset->ticker();
@@ -223,7 +223,7 @@ namespace daytrender
 			
 			if (sranges.empty())
 			{
-				results = daytrender::backtest(algo_index, asset_index, {});
+				results = interface::backtest(algo_index, asset_index, {});
 			}
 			else
 			{	
@@ -251,7 +251,7 @@ namespace daytrender
 				}
 
 				std::cout << "Ranges: " << ranges.size() << std::endl;
-				results = daytrender::backtest(algo_index, asset_index, ranges);
+				results = interface::backtest(algo_index, asset_index, ranges);
 			}
 			std::cout << "Got result!\n";
 
@@ -270,7 +270,7 @@ namespace daytrender
 				}
 
 				curr["elapsedhrs"] = results[i].elapsed_hours();
-				curr["initial"] = results[i].initial();
+				curr["initial"] = results[i].principal();
 				curr["shares"] = results[i].shares();
 				curr["balance"] = results[i].balance();
 				curr["equity"] = results[i].equity();

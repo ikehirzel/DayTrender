@@ -18,9 +18,9 @@
 
 #include <string>
 #include <vector>
-#include <candle.h>
-#include <interval.h>
-#include <clienttypes.h>
+#include "candle.h"
+#include "interval.h"
+#include "accountinfo.h"
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
@@ -61,18 +61,24 @@ bool res_ok(const Result& res)
 
 extern "C"
 {
-	void init(const std::vector<std::string>& credentials);
-	void get_candles(CandleSet& candles, const std::string& ticker);
-	void get_account_info(AccountInfo& info);
-	bool market_order(const std::string& ticker, double amount);
-	double get_shares(const std::string& ticker);
+	// non-returning functions
+
+	bool init(const std::vector<std::string>& credentials);
+	bool market_order(const std::string& ticker, double amount);\
 	bool close_all_positions();
-	bool market_open();
-	double get_price(const std::string& ticker);
-	double get_leverage();
 	bool set_leverage(int numerator);
 
-	const char* to_interval(int interval);
+	// returning functions
+
+	bool get_candles(CandleSet& candles, const std::string& ticker);
+	bool get_account_info(AccountInfo& info);
+	bool market_open(bool&);
+	bool get_shares(double&, const std::string& ticker);
+	bool get_price(double&, const std::string& ticker);
+	bool to_interval(const char*& interval_str, int interval);
+
+	// const functions
+
 	void backtest_intervals(std::vector<int>& out)
 	{
 		out = { BACKTEST_INTERVALS };

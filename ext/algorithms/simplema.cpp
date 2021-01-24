@@ -27,13 +27,9 @@ void EMA(Indicator& data, const CandleSet& candles, int range)
 void algorithm (AlgorithmData& out)
 {
 	init_algorithm(out, "Simple MA");
-	std::cout << "Start of the algorithm\n";
 
 	const Indicator& longma = add_indicator(out, EMA, "long");
-	std::cout << "Added longma\n";
-
 	const Indicator& shortma = add_indicator(out, EMA, "short");
-	std::cout << "Added shortma\n";
 
 	if (shortma.back() > longma.back() && shortma.back(1) < longma.back(1))
 	{
@@ -43,6 +39,4 @@ void algorithm (AlgorithmData& out)
 	{
 		out.sell();
 	}
-
-	std::cout << "end of algorithm\n";
 }

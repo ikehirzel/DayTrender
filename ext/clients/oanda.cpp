@@ -11,21 +11,30 @@ std::string username, accountid, token;
 
 httplib::SSLClient client("api-fxpractice.oanda.com");
 
-void init(const std::vector<std::string>& credentials)
+bool init(const std::vector<std::string>& credentials)
 {
 	username = credentials[0];
 	accountid = credentials[1];
 	token = credentials[2];
 	//client.set_default_headers({{ "Content-Type", "application/json" }});
 	client.set_bearer_token_auth(token.c_str());
+	return true;
 }
 
-void get_candles(CandleSet& candles, const std::string& ticker)
+bool get_candles(CandleSet& candles, const std::string& ticker)
 {
 	std::string url = "/v3/instruments/" + ticker + "/candles";
+	
+	const char* interval_str = nullptr;
 
+	if (!to_interval(interval_str, candles.interval()))
+	{
+		error = "interval given (" + std::to_string(candles.interval()) + ") is not valid";
+		return false;
+	}
+	
 	Params p = {
-		{ "granularity", to_interval(candles.interval()) },
+		{ "granularity", interval_str },
 		{ "count", std::to_string(candles.size()) }
 	};
 
@@ -40,12 +49,12 @@ void get_candles(CandleSet& candles, const std::string& ticker)
 		if (candles_json.empty())
 		{
 			error = "no candles were received";
-			return;
+			return false;
 		}
 		else if (candles_json.size() != candles.size())
 		{
 			error = "not all candles were received";
-			return;
+			return false;
 		}
 
 		for (int i = 0; i < candles_json.size(); i++)
@@ -59,12 +68,16 @@ void get_candles(CandleSet& candles, const std::string& ticker)
 			candles[i].close = std::stod(mid["c"].get<std::string>());
 			candles[i].volume = c["volume"].get<double>();
 		}
+
+		return true;
 	}
+
+	return false;
 }
 
-void get_account_info(AccountInfo& info)
+bool get_account_info(AccountInfo& info)
 {
-	std::string url = "/v3/accounts/" + accountid;
+	std::string url = "/v3/accounts/" + accountid + "/summary";
 	auto res = client.Get(url.c_str());
 
 	if (res_ok(res))
@@ -72,9 +85,13 @@ void get_account_info(AccountInfo& info)
 		json res_json = json::parse(res->body);
 		json& acc = res_json["account"];
 		info.balance = std::stod(acc["balance"].get<std::string>());
-		info.buying_power = info.balance + std::stod(acc["marginAvailable"].get<std::string>());
+		info.buying_power = std::stod(acc["marginAvailable"].get<std::string>());
 		info.equity = std::stod(acc["NAV"].get<std::string>());
+		info.leverage = 1.0 / std::stod(acc["marginRate"].get<std::string>());
+		info.shorting_enabled = true;
+		return true;
 	}
+	return false;
 }
 
 bool market_order(const std::string& ticker, double amount)
@@ -114,7 +131,7 @@ bool market_order(const std::string& ticker, double amount)
 	return false;
 }
 
-double get_shares(const std::string& ticker)
+bool get_shares(double& shares, const std::string& ticker)
 {
 	std::string url = "/v3/accounts/" + accountid + "/positions/" + ticker;
 	auto res = client.Get(url.c_str());
@@ -124,14 +141,23 @@ double get_shares(const std::string& ticker)
 		double longu = std::stod(res_json["position"]["long"]["units"].get<std::string>());
 		double shortu = std::stod(res_json["position"]["short"]["units"].get<std::string>());
 		
-		return longu + shortu;
+		shares = longu + shortu;
+		return true;
 	}
-	return 0.0;
+	return false;
 }
 
-double get_leverage()
+bool get_price(double& price, const std::string& ticker)
 {
-	return 0.0;
+	std::string url = "/v3/instruments/" + ticker + "/candles?count=1&granularity=S5";
+	auto res = client.Get(url.c_str());
+	if (res_ok(res))
+	{
+		json res_json = json::parse(res->body);
+		price = std::stod(res_json["candles"][0]["mid"]["c"].get<std::string>());
+		return true;
+	}
+	return false;
 }
 
 bool set_leverage(int numerator)
@@ -194,7 +220,7 @@ bool close_all_positions()
 	return false;
 }
 
-bool market_open()
+bool market_open(bool& open)
 {
 	auto res = client.Get("/v3/instruments/EUR_USD/candles?count=1&granularity=S5", {{ "Accept-Datetime-Format", "UNIX" }});
 	if (res_ok(res))
@@ -205,65 +231,68 @@ bool market_open()
 				(std::chrono::system_clock::now().time_since_epoch()).count();
 		if (sys_time - candle_time < 15)
 		{
-			return true;
+			open = true;
 		}
+		return true;
 	}
 	return false;
 }
 
-double get_price(const std::string& ticker)
-{
-	std::string url = "/v3/instruments/" + ticker + "/candles?count=1&granularity=S5";
-	auto res = client.Get(url.c_str());
-	if (res_ok(res))
-	{
-		json res_json = json::parse(res->body);
-		return std::stod(res_json["candles"][0]["mid"]["c"].get<std::string>());
-	}
-	return 0.0;
-}
-
-
-
-const char* to_interval(int interval)
+bool to_interval(const char*& interval_str, int interval)
 {
 	switch(interval)
 	{
 		case MIN1:
-			return "M1";
+			interval_str = "M1";
+			return true;
 		case MIN2:
-			return "M2";
+			interval_str = "M2";
+			return true;
 		case MIN4:
-			return "M4";
+			interval_str = "M4";
+			return true;
 		case MIN5:
-			return "M5";
+			interval_str = "M5";
+			return true;
 		case MIN10:
-			return "M10";
+			interval_str = "M10";
+			return true;
 		case MIN15:
-			return "M15";
+			interval_str = "M15";
+			return true;
 		case MIN30:
-			return "M30";
+			interval_str = "M30";
+			return true;
 		case HOUR1:
-			return "H1";
+			interval_str = "H1";
+			return true;
 		case HOUR2:
-			return "H2";
+			interval_str = "H2";
+			return true;
 		case HOUR3:
-			return "H3";
+			interval_str = "H3";
+			return true;
 		case HOUR4:
-			return "H4";
+			interval_str = "H4";
+			return true;
 		case HOUR6:
-			return "H6";
+			interval_str = "H6";
+			return true;
 		case HOUR8:
-			return "H8";
+			interval_str = "H8";
+			return true;
 		case HOUR12:
-			return "H12";
+			interval_str = "H12";
+			return true;
 		case DAY:
-			return "D";
+			interval_str = "D";
+			return true;
 		case WEEK:
-			return "W";
+			interval_str = "W";
+			return true;
 		case MONTH:
-			return "M";
-		default:
-			return "M1";
+			interval_str = "M";
+			return true;
 	}
+	return false;
 }
