@@ -18,6 +18,7 @@
 
 #include <string>
 #include <vector>
+#include <chrono>
 #include "candle.h"
 #include "interval.h"
 #include "accountinfo.h"
@@ -30,9 +31,35 @@ using namespace daytrender;
 using namespace httplib;
 using nlohmann::json;
 
+double _max_loss = 0.05;
+double _equity = 0.0;
+long long last_update = 0;
 std::string error;
 
 #define JSON_FORMAT "application/json"
+
+// updates equity and returns false if 
+bool update_equity(double equity)
+{
+	bool res = true;
+
+	// if the current level of loss is more than 5 percent of equity
+	if (equity - _equity <= _equity * -_max_loss)
+	{
+		res = false;
+	}
+
+	long long time = std::chrono::duration_cast<std::chrono::seconds>
+				(std::chrono::system_clock::now().time_since_epoch()).count();
+
+	if ((time - last_update) > DAY)
+	{
+		_equity = equity;
+		last_update = time;
+	}
+
+	return res;
+}
 
 bool res_ok(const Result& res)
 {
@@ -97,6 +124,11 @@ extern "C"
 	int max_candles()
 	{
 		return MAX_CANDLES;
+	}
+
+	void set_max_loss(double max_loss)
+	{
+		_max_loss = max_loss;
 	}
 
 	void get_error(std::string& out)
