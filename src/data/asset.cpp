@@ -54,7 +54,7 @@ namespace daytrender
 		double fee = client->paper_fee();
 		double minimum = client->paper_minimum();
 		double principal = client->get_price(ticker);
-		_paper_account = PaperAccount(PAPER_ACCOUNT_INITIAL, fee, minimum, principal, interval, _ranges);
+		_paper_account = PaperAccount(PAPER_ACCOUNT_INITIAL, client->leverage(), fee, minimum, principal, interval, _ranges);
 	}
 	
 	void Asset::update()

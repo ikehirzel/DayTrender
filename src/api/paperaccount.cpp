@@ -4,10 +4,11 @@
 
 namespace daytrender
 {
-	PaperAccount::PaperAccount(double principal, double fee, double minimum, double initial_price,
-		int interval, const std::vector<int>& ranges)
+	PaperAccount::PaperAccount(double principal, int leverage, double fee, double minimum,
+		double initial_price, int interval, const std::vector<int>& ranges)
 	{
 		_principal = principal;
+		_leverage = (double)leverage;
 		_balance = principal;
 		_fee = fee;
 		_minimum = minimum;
@@ -42,9 +43,9 @@ namespace daytrender
 		
 		double cost = _shares * _price * (_fee + 1.0);
 		
-		if (cost > _balance)
+		if (cost > buying_power())
 		{			
-			warningf("Not enough balance to complete purchase");
+			warningf("Not enough buying power to complete purchase");
 			return;
 		}
 		
@@ -95,6 +96,11 @@ namespace daytrender
 	double PaperAccount::equity() const
 	{
 		return _balance + (_shares * _price);
+	}
+
+	double PaperAccount::buying_power() const
+	{
+		return equity() * _leverage;
 	}
 
 	double PaperAccount::net_return() const
@@ -209,6 +215,7 @@ namespace daytrender
 		out += "\n    Shares      :    " + std::to_string(_shares);
 		out += "\n    Balance     :  $ " + std::to_string(_balance);
 		out += "\n    Equity      :  $ " + std::to_string(equity());
+		out += "\n    Leverage    :  $ " + std::to_string(leverage());
 		out += "\n";
 		out += "\n    Net Return  :  $ " + std::to_string(net_return());
 		out += "\n    % Return    :  % " + std::to_string(pct_return() * 100.0);

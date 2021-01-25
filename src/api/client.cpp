@@ -1,6 +1,7 @@
 #include "client.h"
 
 #include <hirzel/strutil.h>
+#include <hirzel/sysutil.h>
 #include <hirzel/plugin.h>
 #include <hirzel/fountain.h>
 
@@ -18,11 +19,15 @@
 namespace daytrender
 {
 	Client::Client(const std::string& label, const std::string& filepath,
-		const std::vector<std::string>& credentials, double risk)
+		const std::vector<std::string>& credentials, double risk, double max_loss,
+		double history_length, int leverage)
 	{
 		_label = label;
 		_risk = risk;
 		_filename = hirzel::str::get_filename(filepath);
+		_max_loss = max_loss;
+		_history_length = history_length;
+		_leverage = leverage;
 
 		_handle = new hirzel::Plugin(filepath);
 
@@ -84,6 +89,10 @@ namespace daytrender
 		if (_bound)
 		{
 			_live = _init(credentials);
+			if (!set_leverage(_leverage))
+			{
+				_live = false;
+			}
 			if (_live)
 			{
 				successf("Successfully loaded %s client: '%s'", _label, _filename);
@@ -150,9 +159,29 @@ namespace daytrender
 
 		AccountInfo info;
 		bool res = _get_account_info(info);
+		if (!res) flag_error();
+
+		// calculating money_per_share
 		info.money_per_share = info.equity * (_risk /(double)_asset_count) * info.leverage;
 
-		if (!res) flag_error();
+		// handling equity_history and loss management
+		long long curr_time = hirzel::sys::get_seconds();
+		_equity_history.push_back({ curr_time, info.equity });
+		const std::pair<long long, double>& front = _equity_history[0];
+		info.pl = info.equity - front.second;
+
+		if (info.pl <= front.second * -_max_loss)
+		{
+			errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, info.pl, _history_length);
+			close_all_positions();
+			errorf("%s client '%s' has gone offline!", _label, _filename);
+			_live = false;
+		}
+
+		while (curr_time - _equity_history[0].first >= (long long)(_history_length * 3600))
+		{
+			_equity_history.erase(_equity_history.begin());
+		}
 
 		return info;
 	}

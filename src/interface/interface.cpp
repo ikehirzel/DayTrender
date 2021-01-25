@@ -91,7 +91,7 @@ namespace daytrender
 				for (int j = 0; j < permutations; j++)
 				{
 					// storing activity and performance data
-					PaperAccount acc(PAPER_ACCOUNT_INITIAL, paper_fee, paper_minimum, intervals[i], candles_vec[i][0].open, ranges);
+					PaperAccount acc(PAPER_ACCOUNT_INITIAL, client->leverage(), paper_fee, paper_minimum, intervals[i], candles_vec[i][0].open, ranges);
 
 					// calculating size of candles
 					int candle_count = 0;

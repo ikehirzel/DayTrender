@@ -5,14 +5,6 @@
 #include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
 
-#include "data/candle.h"
-#include "data/asset.h"
-#include "data/interval.h"
-
-#include "api/action.h"
-#include "api/client.h"
-#include "api/algorithm.h"
-
 #include "interface/shell.h"
 #include "interface/server.h"
 
@@ -79,8 +71,11 @@ namespace daytrender
 		{
 			json& client_json = clients_json[i];
 			json& credentials = client_json["keys"];
-			std::string label = client_json["label"];
-			std::string filename = client_json["filename"];
+			std::string label = client_json["label"].get<std::string>();
+			std::string filename = client_json["filename"].get<std::string>();
+			double history_length = client_json["history_length"].get<double>();
+			double max_loss = client_json["max_loss"].get<double>();
+			int leverage = client_json["leverage"].get<int>();
 			double risk = client_json["risk"].get<double>();
 			std::vector<std::string> args(credentials.begin(), credentials.end());
 			
@@ -101,7 +96,7 @@ namespace daytrender
 				warningf("No credentials were passed to %s client in config.json", label);
 			}
 
-			Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, risk);
+			Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, risk, max_loss, history_length, leverage);
 
 			if (cli->bound())
 			{
@@ -221,6 +216,7 @@ namespace daytrender
 		{
 			for (int i = 0; i < clients.size(); i++)
 			{
+				clients[i]->close_all_positions();
 				delete clients[i];
 			}
 		}
@@ -350,7 +346,6 @@ namespace daytrender
 	const Asset* get_asset(int index) { return assets[index]; }
 	const Algorithm* get_algorithm(int index) { return algorithms[index]; }
 	Client* get_client(int type) { return clients[type]; }
-
 }
 
 int main(int argc, char *argv[])

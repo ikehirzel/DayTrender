@@ -12,7 +12,7 @@ namespace daytrender
 		
 		bool paper_buy(PaperAccount& account, double risk)
 		{
-			double shares = (risk * account.balance() * (1.0 - account.fee())) / account.price();
+			double shares = (risk * account.buying_power() * (1.0 - account.fee())) / account.price();
 			if (shares < account.minimum())
 			{
 				return false;

@@ -10,5 +10,6 @@ namespace daytrender
 		double leverage = 0.0;
 		double money_per_share = 0.0;
 		bool shorting_enabled = false;
+		double pl = 0.0;
 	};
 }

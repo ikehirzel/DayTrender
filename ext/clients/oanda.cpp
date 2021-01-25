@@ -7,16 +7,14 @@
 #include <clientdefs.h>
 #include <chrono>
 
-std::string username, accountid, token;
+std::string accountid, token;
 
 httplib::SSLClient client("api-fxpractice.oanda.com");
 
 bool init(const std::vector<std::string>& credentials)
 {
-	username = credentials[0];
-	accountid = credentials[1];
-	token = credentials[2];
-	//client.set_default_headers({{ "Content-Type", "application/json" }});
+	accountid = credentials[0];
+	token = credentials[1];
 	client.set_bearer_token_auth(token.c_str());
 	return true;
 }
@@ -89,8 +87,10 @@ bool get_account_info(AccountInfo& info)
 		info.equity = std::stod(acc["NAV"].get<std::string>());
 		info.leverage = 1.0 / std::stod(acc["marginRate"].get<std::string>());
 		info.shorting_enabled = true;
+
 		return true;
 	}
+
 	return false;
 }
 

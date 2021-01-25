@@ -399,11 +399,6 @@ $("document").ready(() =>
 			});
 	}
 
-	function init_watch()
-	{
-
-	}
-
 	async function toggle_watch()
 	{
 		if (watching == tickerSelect.val())
@@ -415,16 +410,19 @@ $("document").ready(() =>
 		console.log(`Stopped watching ${watching}!`);
 		watching_interval = 0;
 		// starting a new asset observation
-		console.log("Bingo mode");
 		watching = tickerSelect.val();
 		console.log(`Now watching ${watching}...`);
+		// awaits to get interval back from asset
 		await get_watch();
+		// calculates time till next update + 5 seconds
 		let interval = watching_interval * 1000;
 		let time_till_update = interval - (Date.now() % interval) + 5000;
-		console.log("time till update: ", time_till_update / 1000);
+
 		setTimeout(() => {
+			// updates
 			get_watch();
-			watching_timer = setInterval(get_watch, 60000);
+			// sets timer to update in sync with server
+			watching_timer = setInterval(get_watch, interval);
 		}, time_till_update);
 	}
 

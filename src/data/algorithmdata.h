@@ -19,7 +19,6 @@ namespace daytrender
 		CandleSet _candles;
 
 	public:
-		
 		inline void do_nothing() { _action = Action::NOTHING; }
 		inline void sell() { _action = Action::SELL; }
 		inline void buy() { _action = Action::BUY; }

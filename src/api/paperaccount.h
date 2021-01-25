@@ -16,6 +16,7 @@ namespace daytrender
 		double _price = 0.0;
 		double _last_act_price = 0.0;
 		double _shares = 0.0;
+		double _leverage = 1.0;
 		
 		int _buys = 0;
 		int _buy_wins = 0;
@@ -32,17 +33,18 @@ namespace daytrender
 		
 	public:
 		PaperAccount() = default;
-		PaperAccount(double principal, double fee, double minimum, double initial_price,
-			int interval, const std::vector<int>& ranges);
+		PaperAccount(double principal, int leverage, double fee, double minimum,
+			double initial_price, int interval, const std::vector<int>& ranges);
 			
 		void buy(double shares);
 		void sell(double shares);
 		
 		inline double principal() const { return _principal; }
-		inline double balance() const { return _balance; }	
+		inline double balance() const { return _balance; }
 		inline double shares() const { return _shares; }
 		inline double fee() const { return _fee; }
 		inline double minimum() const { return _minimum; }
+		inline double leverage() const { return _leverage; }
 		
 		inline double price() const { return _price; }
 		inline void update_price(double price)
@@ -58,8 +60,8 @@ namespace daytrender
 		inline const std::vector<int>& ranges() const { return _ranges; };
 		
 		//non-trivial getters
-
 		double equity() const;
+		double buying_power() const;
 		double net_return() const;
 		double pct_return() const;
 

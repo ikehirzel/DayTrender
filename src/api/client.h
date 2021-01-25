@@ -21,11 +21,15 @@ namespace daytrender
 		bool _live = false;
 		int _asset_count = 0;
 		double _risk = 0.0;
+		double _max_loss = 0.05;
+		double _history_length = 24.0;
+		int _leverage = 1;
 
-		hirzel::Plugin* _handle = nullptr;
-		
+		std::vector<std::pair<long long, double>> _equity_history;
 		std::string _filename;
 		std::string _label;
+
+		hirzel::Plugin* _handle = nullptr;
 		
 		// init func
 
@@ -58,8 +62,9 @@ namespace daytrender
 		bool func_ok(const char* label, void(*func)());
 
 	public:
-		Client(const std::string& _label, const std::string& _filepath,
-			const std::vector<std::string>& _credentials, double _risk);
+		Client(const std::string& label, const std::string& filepath,
+			const std::vector<std::string>& credentials, double risk, double max_loss,
+			double history_length, int leverage);
 		~Client();
 
 		// api functions
@@ -104,5 +109,7 @@ namespace daytrender
 		inline hirzel::Plugin* handle() const { return _handle; }
 		inline double risk() const { return _risk; }
 		inline void increment_assets() { _asset_count++; }
+		inline int leverage() const { return _leverage; }
+
 	};
 }
