@@ -88,29 +88,7 @@ namespace daytrender
 			std::cout << "live action!\n";
 		}
 	}
-	/*
-	AssetInfo Asset::info() const
-	{
-		AssetInfo out;
-		if (_live)
-		{
-			out.live = _live;
-			out.paper = _paper;
-			out.risk = _risk;
-			if (_paper)
-			{
-				out.shares = _paper_account.shares();
-			}
-			else
-			{
-				errorf("Get asset info not yet implemented");
-				//out = client->get
-				out.shares = 0.0;
-			}
-		}
-		return out;
-	}
-*/
+
 	bool Asset::should_update() const
 	{
 		if ((hirzel::sys::get_seconds() - _last_update) > _interval)

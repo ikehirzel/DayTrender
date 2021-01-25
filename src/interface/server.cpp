@@ -9,11 +9,16 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
-#include <hirzel/fileutil.h>
 #include <hirzel/fountain.h>
 
 #define JSON_FORMAT	"application/json"
 #define TEXT_FORMAT "text/plain"
+
+#define READ_INTERFACE_ON_STARTUP
+
+#ifdef READ_INTERFACE_ON_STARTUP
+#include <hirzel/fileutil.h>
+#endif
 
 using nlohmann::json;
 
@@ -23,9 +28,14 @@ namespace daytrender
 	{
 		httplib::Server server;
 		std::string ip, username, password;
-		std::string html {
+		std::string html
+		#ifndef READ_INTERFACE_ON_STARTUP
+		{
 			#include "webinterface.inc"
-		};
+		}
+		#endif
+		;
+		
 		unsigned short port;
 		bool running = false;
 		std::mutex mtx;
@@ -94,9 +104,10 @@ namespace daytrender
 		void get_root(const httplib::Request& req,  httplib::Response& res)
 		{
 			debugf("Server GET @ %s", req.path);
-
+			#ifdef READ_INTERFACE_ON_STARTUP
+			html = hirzel::file::read_file_as_string("./webinterface.html");
+			#endif
 			res.set_content(html, "text/html");
-			std::cout << "BIGNUS\n";
 		}
 
 		void get_data(const httplib::Request& req,  httplib::Response& res)
@@ -118,7 +129,6 @@ namespace daytrender
 					response["algorithms"][i] = algo_info[i];
 				}
 			}
-
 			// gathering asset types and tickers
 			auto asset_data = asset_names();
 			if (asset_data.empty())

@@ -88,6 +88,10 @@ var shutdownButton = $("#shutdown-button");
 var contentWindow = $("#content");
 var accinfoField = $("#accinfo-field");
 
+var watching = -1;
+var watching_interval = 0;
+var watching_timer;
+
 $("document").ready(() =>
 {
 	$.get(
@@ -103,7 +107,7 @@ $("document").ready(() =>
 			asset_labels = data.types;
 
 			typeSelect.append(`<option value=-1>All</option>`);
-			
+
 			for (let i = 0; i < data.types.length; i++)
 			{
 				typeSelect.append(`<option value=${i}>${data.types[i]}</option>`);
@@ -177,10 +181,6 @@ $("document").ready(() =>
 			});
 	});
 
-
-	var watching = -1;
-	var watching_interval;
-
 	function get_accinfo()
 	{
 		if (current_account == assets[tickerSelect.val()].type)
@@ -211,12 +211,12 @@ $("document").ready(() =>
 		});
 	}
 
-	function get_watch()
+	async function get_watch()
 	{
 		let index = tickerSelect.val();
 		console.log("Asset index:", index);
 
-		$.get({
+		await $.get({
 			url: "/watch",
 			dataType: "json",
 			data: {
@@ -225,7 +225,7 @@ $("document").ready(() =>
 			success: function (data, status)
 			{
 				console.log("Watch data:", data);
-
+				
 				contentWindow.empty();
 				contentWindow.append(
 				`
@@ -246,6 +246,14 @@ $("document").ready(() =>
 					Risk: ${data.asset.risk}
 					<hr>
 				`);
+
+				if (data.x == undefined)
+				{
+					console.log("Watch data is not live!");
+					$("#rwindow").addClass("bg-light display-4 font-weight-bold text-center p-5");
+					$("#rwindow").append(`<div class="m-5">Asset is not currently live</div>`);
+					return;
+				}
 
 				// handling plot data
 				var i_traces = [];
@@ -293,7 +301,7 @@ $("document").ready(() =>
 				for (let i = 0; i < i_traces.length; i++) {
 					chartdata.push(i_traces[i]);
 				}
-
+				watching_interval = data.interval;
 				let title = data.ticker + " @ " + data.interval + "sec";
 
 				var layout = {
@@ -391,27 +399,38 @@ $("document").ready(() =>
 			});
 	}
 
-	function toggle_watch()
+	async function toggle_watch()
 	{
 		if (watching == tickerSelect.val())
 		{
 			return;
 		}
-		clearInterval(watching_interval);
+		// stopping asset observation
+		clearInterval(watching_timer);
 		console.log(`Stopped watching ${watching}!`);
-		// Stopping observation
-
-		get_watch();
-		watching_interval = setInterval(get_watch, 60000);
+		watching_interval = 0;
+		// starting a new asset observation
 		watching = tickerSelect.val();
 		console.log(`Now watching ${watching}...`);
+		// awaits to get interval back from asset
+		await get_watch();
+		// calculates time till next update + 5 seconds
+		let interval = watching_interval * 1000;
+		let time_till_update = interval - (Date.now() % interval) + 5000;
+
+		setTimeout(() => {
+			// updates
+			get_watch();
+			// sets timer to update in sync with server
+			watching_timer = setInterval(get_watch, interval);
+		}, time_till_update);
 	}
 
 	backtestButton.click(() =>
 	{
 		if (watching)
 		{
-			clearInterval(watching_interval);
+			clearInterval(watching_timer);
 			watching = false;
 			console.log("Stopped watching...");
 		}

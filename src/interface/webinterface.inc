@@ -8,15 +8,15 @@ R"=====(<!DOCTYPE html>
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 	<style>
 		body html {
-			width: 100vh
-			height: 100vh
+			width: 100vh;
+			height: 100vh;
 		}
 
 		#main-container {
-			height: 100vh
-			display: flex
-			flex-direction: column
-			align-items: stretch
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			align-items: stretch;
 		}
 	</style>
 </head>
@@ -69,24 +69,28 @@ R"=====(<!DOCTYPE html>
 
 	<!-- User defined scripts -->
 <script>
-'use strict'
+'use strict';
 
-var assets = []
-var algorithms = []
-var asset_labels = []
-var current_account = -1
+var assets = [];
+var algorithms = [];
+var asset_labels = [];
+var current_account = -1;
 
 
-var algoSelect = $("#algo-select")
-var tickerSelect = $("#ticker-select")
-var typeSelect = $("#type-select")
+var algoSelect = $("#algo-select");
+var tickerSelect = $("#ticker-select");
+var typeSelect = $("#type-select");
 
-var watchButton = $("#watch-button")
-var backtestButton = $("#backtest-button")
-var shutdownButton = $("#shutdown-button")
+var watchButton = $("#watch-button");
+var backtestButton = $("#backtest-button");
+var shutdownButton = $("#shutdown-button");
 
-var contentWindow = $("#content")
-var accinfoField = $("#accinfo-field")
+var contentWindow = $("#content");
+var accinfoField = $("#accinfo-field");
+
+var watching = -1;
+var watching_interval = 0;
+var watching_timer;
 
 $("document").ready(() =>
 {
@@ -95,71 +99,71 @@ $("document").ready(() =>
 		url: "/data",
 		success: function (data, status)
 		{
-			console.log("Data:", data)
+			console.log("Data:", data);
 
 			// default setting is to show all in a large pool
 			// the user can then organize by type if desired
-			assets = data.assets
-			asset_labels = data.types
+			assets = data.assets;
+			asset_labels = data.types;
 
-			typeSelect.append(`<option value=-1>All</option>`)
-			
-			for (let i = 0 i < data.types.length i++)
+			typeSelect.append(`<option value=-1>All</option>`);
+
+			for (let i = 0; i < data.types.length; i++)
 			{
-				typeSelect.append(`<option value=${i}>${data.types[i]}</option>`)
+				typeSelect.append(`<option value=${i}>${data.types[i]}</option>`);
 			}
 
-			for (let i = 0 i < assets.length i++)
+			for (let i = 0; i < assets.length; i++)
 			{
-				tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`)
+				tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
 			}
 
-			for (let i = 0 i < data.algorithms.length i++)
+			for (let i = 0; i < data.algorithms.length; i++)
 			{
-				algorithms[i] = data.algorithms[i]
-				algoSelect.append(`<option value="${i}">${algorithms[i]}</option>`)
+				algorithms[i] = data.algorithms[i];
+				algoSelect.append(`<option value="${i}">${algorithms[i]}</option>`);
 			}
 
-			get_accinfo()
-			toggle_watch()
+			get_accinfo();
+			toggle_watch();
 		}
-	})
+	});
 
 	// callback for organizing assets
 	typeSelect.change(() =>
 	{
-		let val = typeSelect.val()
-		tickerSelect.empty()
+		let val = typeSelect.val();
+		tickerSelect.empty();
 
 		// if it is set to all, then put all of them
 		if (val == -1)
 		{
-			for (let i = 0 i < assets.length i++)
+			for (let i = 0; i < assets.length; i++)
 			{
-				tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`)
+				tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
 			}
 		}
 		// otherwise put all that match the type
 		else
 		{
-			for (let i = 0 i < assets.length i++)
+			for (let i = 0; i < assets.length; i++)
 			{
 				if (assets[i].type == val)
 				{
-					tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`)
+					tickerSelect.append(`<option value=${i}>${assets[i].ticker}</option>`);
 				}
 			}
 		}
 
-		get_accinfo()
-		toggle_watch()
-	})
+		get_accinfo();
+		toggle_watch();
+	});
 
 	tickerSelect.change(() =>
 	{
-		get_accinfo()
-		toggle_watch()
-	})
+		get_accinfo();
+		toggle_watch();
+	});
 
 	// callback for shutting down server
 	shutdownButton.click(() => {
@@ -167,27 +171,23 @@ $("document").ready(() =>
 			{
 				url: "/shutdown",
 				success: function (data, status) {
-					console.log(data)
+					console.log(data);
 					/*
 					setTimeout(()=>{
-						location.reload()
-					}, 12000)
+						location.reload();
+					}, 12000);
 					*/
 				}
-			})
-	})
-
-
-	var watching = -1
-	var watching_interval
+			});
+	});
 
 	function get_accinfo()
 	{
 		if (current_account == assets[tickerSelect.val()].type)
 		{
-			return
+			return;
 		}
-		current_account = assets[tickerSelect.val()].type
+		current_account = assets[tickerSelect.val()].type;
 		$.get(
 		{
 			url: "/accinfo",
@@ -197,7 +197,7 @@ $("document").ready(() =>
 			},
 			success: function (data, status)
 			{
-				accinfoField.empty()
+				accinfoField.empty();
 				accinfoField.append(
 				`
 					<div class="row border bg-light text-dark p-3 font-weight-bold">
@@ -206,17 +206,17 @@ $("document").ready(() =>
 						<div class="col">Buying Power: $${data.buying_power.toFixed(2)}</div>
 						<div class="col">Equity: $${data.equity.toFixed(2)}</div>
 					</div>
-				`)
+				`);
 			}
-		})
+		});
 	}
 
-	function get_watch()
+	async function get_watch()
 	{
-		let index = tickerSelect.val()
-		console.log("Asset index:", index)
+		let index = tickerSelect.val();
+		console.log("Asset index:", index);
 
-		$.get({
+		await $.get({
 			url: "/watch",
 			dataType: "json",
 			data: {
@@ -224,14 +224,14 @@ $("document").ready(() =>
 			},
 			success: function (data, status)
 			{
-				console.log("Watch data:", data)
-
-				contentWindow.empty()
+				console.log("Watch data:", data);
+				
+				contentWindow.empty();
 				contentWindow.append(
 				`
 					<div id="lwindow" class="col-2 bg-light p-5"></div>
 					<div id="rwindow" class="col-10"></div>
-				`)
+				`);
 
 
 				// handling acc data
@@ -245,14 +245,22 @@ $("document").ready(() =>
 					<hr>
 					Risk: ${data.asset.risk}
 					<hr>
-				`)
+				`);
+
+				if (data.x == undefined)
+				{
+					console.log("Watch data is not live!");
+					$("#rwindow").addClass("bg-light display-4 font-weight-bold text-center p-5");
+					$("#rwindow").append(`<div class="m-5">Asset is not currently live</div>`);
+					return;
+				}
 
 				// handling plot data
-				var i_traces = []
+				var i_traces = [];
 
-				var maxVolume = data.volume[0]
-				for (let i = 0 i < data.low.length i++) {
-					maxVolume = (data.volume[i] > maxVolume) ? data.volume[i] : maxVolume
+				var maxVolume = data.volume[0];
+				for (let i = 0; i < data.low.length; i++) {
+					maxVolume = (data.volume[i] > maxVolume) ? data.volume[i] : maxVolume;
 				}
 
 				var priceTrace = {
@@ -266,7 +274,7 @@ $("document").ready(() =>
 					name: "OHLC",
 					increasing: { line: { color: '#00CC00' } },
 					decreasing: { line: { color: '#CC0000' } }
-				}
+				};
 
 				var volumeTrace = {
 					x: data.x,
@@ -274,27 +282,27 @@ $("document").ready(() =>
 					type: "bar",
 					yaxis: "y",
 					name: "Volume"
-				}
+				};
 
 
-				for (let i = 0 i < data.indicators.length i++) {
-					let ind = data.indicators[i]
+				for (let i = 0; i < data.indicators.length; i++) {
+					let ind = data.indicators[i];
 					i_traces[i] = {
 						x: data.x,
 						y: ind.data,
 						type: "scatter",
 						yaxis: "y2",
 						name: ind.label
-					}
+					};
 				}
 
-				var chartdata = [priceTrace, volumeTrace]
+				var chartdata = [priceTrace, volumeTrace];
 
-				for (let i = 0 i < i_traces.length i++) {
-					chartdata.push(i_traces[i])
+				for (let i = 0; i < i_traces.length; i++) {
+					chartdata.push(i_traces[i]);
 				}
-
-				let title = data.ticker + " @ " + data.interval + "sec"
+				watching_interval = data.interval;
+				let title = data.ticker + " @ " + data.interval + "sec";
 
 				var layout = {
 					title: title,
@@ -316,20 +324,20 @@ $("document").ready(() =>
 						overlaying: "y1",
 						type: "linear"
 					}
-				}
+				};
 
-				Plotly.newPlot("rwindow", chartdata, layout)
+				Plotly.newPlot("rwindow", chartdata, layout);
 
 			}
-		})
+		});
 	}
 
 	function get_backtest()
 	{
-		let asset_index = tickerSelect.val()
-		let algo_index = algoSelect.val()
-		let ranges = $("#ranges-field").val()
-		console.log("ranges:", ranges)
+		let asset_index = tickerSelect.val();
+		let algo_index = algoSelect.val();
+		let ranges = $("#ranges-field").val();
+		console.log("ranges:", ranges);
 		$.get(
 			{
 				url: "/backtest",
@@ -341,23 +349,23 @@ $("document").ready(() =>
 				},
 				success: function (data, status)
 				{
-					console.log("Response:", data)
+					console.log("Response:", data);
 
-					contentWindow.empty()
-					//contentWindow.append(`<div class="row bg-light p-4" id="res-row"></div>`)
-					for (let i = 0 i < data.length i++)
+					contentWindow.empty();
+					//contentWindow.append(`<div class="row bg-light p-4" id="res-row"></div>`);
+					for (let i = 0; i < data.length; i++)
 					{
 
-						let ranges_str = ""
+						let ranges_str = "";
 						if (data[i].ranges == undefined)
 						{
-							console.error(`Failed to get result[${i}] from server`)
-							continue
+							console.error(`Failed to get result[${i}] from server`);
+							continue;
 						}
-						for (let j = 0 j < data[i].ranges.length j++)
+						for (let j = 0; j < data[i].ranges.length; j++)
 						{
-							if (j > 0) ranges_str += ", "
-							ranges_str += data[i].ranges[j].toString()
+							if (j > 0) ranges_str += ", ";
+							ranges_str += data[i].ranges[j].toString();
 						}
 
 						contentWindow.append(
@@ -384,41 +392,54 @@ $("document").ready(() =>
 								B Win Rate  :  % ${data[i].bwinrate.toFixed(4)}<br>
 								S Win Rate  :  % ${data[i].swinrate.toFixed(4)}<br>
 							</div>
-						`)
+						`);
 					}
 
 				}
-			})
+			});
 	}
 
-	function toggle_watch()
+	function init_watch()
+	{
+
+	}
+
+	async function toggle_watch()
 	{
 		if (watching == tickerSelect.val())
 		{
-			return
+			return;
 		}
-		clearInterval(watching_interval)
-		console.log(`Stopped watching ${watching}!`)
-		// Stopping observation
-
-		get_watch()
-		watching_interval = setInterval(get_watch, 60000)
-		watching = tickerSelect.val()
-		console.log(`Now watching ${watching}...`)
+		// stopping asset observation
+		clearInterval(watching_timer);
+		console.log(`Stopped watching ${watching}!`);
+		watching_interval = 0;
+		// starting a new asset observation
+		console.log("Bingo mode");
+		watching = tickerSelect.val();
+		console.log(`Now watching ${watching}...`);
+		await get_watch();
+		let interval = watching_interval * 1000;
+		let time_till_update = interval - (Date.now() % interval) + 5000;
+		console.log("time till update: ", time_till_update / 1000);
+		setTimeout(() => {
+			get_watch();
+			watching_timer = setInterval(get_watch, 60000);
+		}, time_till_update);
 	}
 
 	backtestButton.click(() =>
 	{
 		if (watching)
 		{
-			clearInterval(watching_interval)
-			watching = false
-			console.log("Stopped watching...")
+			clearInterval(watching_timer);
+			watching = false;
+			console.log("Stopped watching...");
 		}
-		console.log("Backtesting...")
-		get_backtest()
-	})
-})
+		console.log("Backtesting...");
+		get_backtest();
+	});
+});
 </script>
 </body>
 </html>

@@ -15,6 +15,7 @@ file(CREATE_LINK ../clients.json clients.json SYMBOLIC)
 file(CREATE_LINK ../server.json server.json SYMBOLIC)
 file(CREATE_LINK ../algorithms algorithms SYMBOLIC)
 file(CREATE_LINK ../clients clients SYMBOLIC)
+file(CREATE_LINK ../src/interface/webinterface.html webinterface.html SYMBOLIC)
 
 # creating main executable of project
 add_executable(daytrender ${DAYTRENDER_SRCS})
@@ -51,8 +52,7 @@ endforeach()
 
 # copying over the website source
 file(READ src/interface/webinterface.html WEBINTERFACE_HTML)
-string(CONCAT WEBINTERFACE_INC "R\"=====(" ${WEBINTERFACE_HTML} ")=====\"")
-file(WRITE src/interface/webinterface.inc ${WEBINTERFACE_INC})
+file(WRITE src/interface/webinterface.inc "R\"=====(${WEBINTERFACE_HTML})=====\"")
 
 # setting properties
 set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)

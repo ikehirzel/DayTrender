@@ -313,7 +313,7 @@ namespace daytrender
 
 	std::vector<std::string> client_names()
 	{
-		std::vector<std::string> out;
+		std::vector<std::string> out(clients.size());
 
 		for (int i = 0; i < clients.size(); i++)
 		{
