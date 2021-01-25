@@ -91,8 +91,10 @@ namespace daytrender
 			_live = _init(credentials);
 			if (!set_leverage(_leverage))
 			{
-				_live = false;
+				errorf("Failed to set leverage!!! ;P");
+				//_live = false;
 			}
+
 			if (_live)
 			{
 				successf("Successfully loaded %s client: '%s'", _label, _filename);
@@ -117,7 +119,7 @@ namespace daytrender
 	{
 		if (!_live)
 		{
-			errorf("%s: client is not live! %s cannot be called.", _filename, label);
+			errorf("%s: '%s': client is not live.", _filename, label);
 			return false;
 		}
 

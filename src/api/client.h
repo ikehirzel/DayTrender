@@ -104,12 +104,12 @@ namespace daytrender
 		// inline getter functions
 
 		inline bool bound() const { return _bound; }
+		inline bool is_live() const { return _live; }
 		inline const std::string& label() const { return _label; }
 		inline const std::string& filename() const { return _filename; }
 		inline hirzel::Plugin* handle() const { return _handle; }
 		inline double risk() const { return _risk; }
 		inline void increment_assets() { _asset_count++; }
 		inline int leverage() const { return _leverage; }
-
 	};
 }

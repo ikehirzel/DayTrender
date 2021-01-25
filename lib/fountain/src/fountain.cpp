@@ -5,6 +5,7 @@
 #include <ctime>
 #include <fstream>
 #include <cstdint>
+#include <mutex>
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
 #endif
@@ -54,8 +55,8 @@
 #define FOUNTAIN_STRING		's'
 #define FOUNTAIN_CHAR		'c'
 #define FOUNTAIN_PERCENT	'%'
-// defined for future use
-#define FOUNTAIN_POINTER	'p'
+#define FOUNTAIN_PTRLOWER	'p'
+#define FOUNTAIN_PTRUPPER	'P'
 
 namespace hirzel
 {
@@ -63,7 +64,7 @@ namespace hirzel
 	{
 		namespace details
 		{
-			// does not do unary numbers only binary through hexadecimal
+			// minimum of base-2
 			std::string itos(uintmax_t num, unsigned base, bool upper = true)
 			{
 				if (base > 16 || base < 2)
@@ -105,13 +106,18 @@ namespace hirzel
 			}
 		}
 
-		std::string logfilename;
-		std::vector<std::string> logs;
-		bool debug_mode = false;
-		const char *colors[] = FOUNTAIN_COLORS;
-		const char *levels[] = FOUNTAIN_LEVELS;
+		std::mutex _mtx;
+		const char* _error = nullptr;
+		std::string _log_filename;
+		std::vector<std::string> _logs;
+		int _max_log_size = 0;
+		bool _print_logs = false;
+		bool _push_logs = false;
+		bool _debug_mode = false;
+		const char *_colors[] = FOUNTAIN_COLORS;
+		const char *_levels[] = FOUNTAIN_LEVELS;
 
-		std::string formatStr(const std::string &str, const std::vector<var> &vars)
+		std::string format_str(const std::string &str, const std::vector<var> &vars)
 		{
 			std::string out;
 			std::string tmp;
@@ -153,6 +159,7 @@ namespace hirzel
 
 				*/
 
+				
 				switch (str[i])
 				{
 				case FOUNTAIN_INT:
@@ -168,11 +175,15 @@ namespace hirzel
 					break;
 
 				case FOUNTAIN_HEXUPPER:
-					tmp = details::itos(vars[li].as_uint(), 16);
+					tmp = "0x" + details::itos(vars[li].as_uint(), 16);
 					break;
 
 				case FOUNTAIN_HEXLOWER:
-					tmp = details::itos(vars[li].as_uint(), 16, false);
+					tmp = "0x" + details::itos(vars[li].as_uint(), 16, false);
+					break;
+				
+				case FOUNTAIN_PTRUPPER:
+					tmp = "0x" + details::itos((uintmax_t)vars[li].as_bytes(), 16);
 					break;
 
 				case FOUNTAIN_FLOAT:
@@ -216,20 +227,31 @@ namespace hirzel
 			return out;
 		}
 
-		void printFmt(const std::string &str, const std::vector<var> &vars)
+		void print_fmt(const std::string &str, const std::vector<var> &vars)
 		{
-			std::string out = formatStr(str, vars);
+			std::string out = format_str(str, vars);
 			for (size_t i = 0; i < out.size(); i++)
 			{
 				putchar(out[i]);
 			}
 		}
 
-		void init(const std::string &_logfilename, bool _debug_mode)
+		void init(const std::string& log_filename, bool debug_mode, bool print_logs, bool push_logs, int max_log_size)
 		{
-
-			hirzel::fountain::logfilename = _logfilename;
-			hirzel::fountain::debug_mode = _debug_mode;
+			_log_filename = log_filename;
+			_push_logs = push_logs;
+			_print_logs = print_logs;
+			_max_log_size = max_log_size;
+			_debug_mode = debug_mode;
+			if (!_log_filename.empty())
+			{
+				std::ofstream file;
+				file.open(_log_filename);
+				if (file.is_open())
+				{
+					file << "---- START OF LOG FILE ----\n";
+				}
+			}
 #if defined(_WIN32) || defined(_WIN64)
 			DWORD outMode = 0;
 			HANDLE outHandle = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -238,9 +260,9 @@ namespace hirzel
 #endif
 		}
 
-		void pushLog(unsigned level, const char *name, int line, const std::string &str, const std::vector<var> &list)
+		void log(unsigned level, const char *name, int line, const std::string &str, const std::vector<var> &list)
 		{
-			if(level == FOUNTAIN_DEBUG && !debug_mode)
+			if(level == FOUNTAIN_DEBUG && !_debug_mode)
 			{
 				return;
 			}
@@ -269,37 +291,56 @@ namespace hirzel
 				}
 			}
 			
-			msg = formatStr(str, list);
-			log = formatStr("%s| %s | [%s] %s : %s\n%s", { colors[level], name_buf, std::string(timebuf), levels[level], msg, FOUNTAIN_RESET});
-			logs.push_back(log);
+			msg = format_str(str, list);
+			log = format_str("%s| %s | [%s] %s : %s" FOUNTAIN_RESET "\n", { _colors[level], name_buf, std::string(timebuf), _levels[level], msg });
+
+			if (_push_logs)
+			{
+				_mtx.lock();
+				_logs.push_back(log);
+				if (_logs.size() >= _max_log_size)
+				{
+
+					dump();
+				}
+				_mtx.unlock();
+			}
+
+			if (_print_logs)
+			{
+				_mtx.lock();
+				for (int i = 0; i < log.size(); i++)
+				{
+					std::putchar(log[i]);
+				}
+				_mtx.unlock();
+			}
 		}
 
-		void printLog(unsigned level, const char *name, int line, const std::string &str, const std::vector<var> &list)
+		bool dump()
 		{
-			if(level == FOUNTAIN_DEBUG && !debug_mode)
+			if (_log_filename.empty())
 			{
-				return;
+				_error = "The output filename has not been set";
+				return false;
 			}
-			pushLog(level, name, line, str, list);
-			std::string log = logs.back();
-			for (unsigned i = 0; i < log.size(); i++)
-			{
-				putchar(log[i]);
-			}
-		}
 
-		void dump()
-		{
-			if (logfilename.empty())
+			if (_logs.empty())
 			{
-				puts("The logger has not been initialized!");
-				return;
+				_error = "There were no logs to dump";
+				return false;
 			}
 
 			std::ofstream file;
-			file.open(logfilename);
+			file.open(_log_filename, std::ios_base::app);
 
-			for (std::string l : logs)
+			if (!file.is_open())
+			{
+				_error = "The file failed to open";
+				return false;
+			}
+
+			for (std::string l : _logs)
 			{
 				std::string::iterator start = l.begin(), end = l.end();
 
@@ -316,14 +357,12 @@ namespace hirzel
 				file << std::string(start, end + 1);
 			}
 
-			logs.clear();
+			_logs.clear();
 			file.close();
+			return true;
 		}
 
-		const std::vector<std::string>& getLogs()
-		{
-			return logs;
-		}
-
-	} // namespace fountain
-} // namespace hirzel
+		const std::vector<std::string>& logs() { return _logs; }
+		const char* error() { return _error; }
+	}
+}

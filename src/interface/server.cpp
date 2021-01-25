@@ -84,6 +84,7 @@ namespace daytrender
 			mtx.unlock();
 
 			server.listen(ip.c_str(), port);
+			successf("Server has stopped.");
 		}
 
 		void stop()
@@ -95,9 +96,9 @@ namespace daytrender
 				mtx.unlock();
 				return;
 			}
-			infof("Shutting down server...");
 			running = false;
 			server.stop();
+			
 			mtx.unlock();
 		}
 

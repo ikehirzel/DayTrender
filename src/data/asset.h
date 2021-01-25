@@ -54,7 +54,7 @@ namespace daytrender
 		inline const std::string& ticker() const { return _ticker; }
 		inline int interval() const { return _interval; }
 		inline int type() const { return _type; }
-		inline bool is_live() const { return _live; }
+		inline bool is_live() const { return _live && _client->is_live(); }
 		inline int risk() const { return _risk; }
 		inline bool is_paper() const { return _paper; }
 	};

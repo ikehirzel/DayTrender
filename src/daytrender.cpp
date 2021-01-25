@@ -27,8 +27,48 @@ namespace daytrender
 
 	std::mutex mtx;
 
+	bool getline_async(std::istream& is, std::string& str, char delim = '\n')
+	{
+		std::string lineSoFar;
+		char inChar;
+		int charsRead = 0;
+		bool lineRead = false;
+		str = "";
+
+		do {
+			charsRead = is.readsome(&inChar, 1);
+			if (charsRead == 1) {
+				// if the delimiter is read then return the string so far
+				if (inChar < 32) {
+					str = lineSoFar;
+					lineSoFar = "";
+					lineRead = true;
+				} else {  // otherwise add it to the string so far
+					lineSoFar.append(1, inChar);
+				}
+			}
+		} while (charsRead != 0 && !lineRead);
+
+		return lineRead;
+	}
+
 	void init(const std::string& execpath)
 	{
+		// while (true)
+		// {
+		// 	std::string input;
+		// 	if (std::cin.rdbuf()->in_avail())
+		// 	{
+		// 		std::getline(std::cin, input);
+		// 		std::cout << "input: " << input << std::endl;
+		// 	}
+		// 	else
+		// 	{
+		// 		std::cout << "Available: " << std::cin.rdbuf()->in_avail() << std::endl;
+		// 	}
+		// 	sys::thread_sleep(1000);
+		// }
+
 		mtx.lock();
 
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
@@ -268,24 +308,33 @@ namespace daytrender
 		running = true;
 		mtx.unlock();
 
-		std::thread shellInputThread(shell::get_input);
-		std::thread serverThread(server::start);
+		std::thread shell_thread(shell::get_input);
+		std::thread server_thread(server::start);
+		shell_thread.detach();
 		infof("Starting DayTrender");
 
 		while (running)
 		{
+			int live_assets = 0;
 			// check if every asset needs to update every 500ms, update each asset as needed 
 			for (Asset* asset : assets)
 			{
-				if (asset->should_update()) asset->update();
+				if (asset->is_live())
+				{
+					if (asset->should_update()) asset->update();
+					live_assets++;
+				}
 			}
-
+			if (live_assets == 0)
+			{
+				warningf("No assets were live for updating. Excecution cannot continue.");
+				stop();
+			}
 			sys::thread_sleep(500);
 		}
 
 		server::stop();
-		shellInputThread.join();
-		serverThread.join();
+		server_thread.join();
 	}
 
 	void stop()
@@ -298,7 +347,7 @@ namespace daytrender
 		}
 
 		running = false;
-		infof("Shutting down...");
+		infof("Shutting down DayTrender...");
 		mtx.unlock();
 	}
 
@@ -350,10 +399,10 @@ namespace daytrender
 
 int main(int argc, char *argv[])
 {
-	hirzel::fountain::init("./report.log", true);
+	hirzel::fountain::init("./report.log", true, true, false, 1);
 	daytrender::init(hirzel::str::get_folder(argv[0]));
 	daytrender::start();
-	infof("DayTrender has stopped");
 	daytrender::free();
+	successf("DayTrender has stopped");
 	return 0;
 }

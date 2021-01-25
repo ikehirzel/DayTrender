@@ -14,20 +14,19 @@ namespace hirzel
 {
 	namespace fountain
 	{
-		// returns a formatted string
-		std::string formatStr(const std::string& str, const std::vector<var>& vars = {});
-		// prints string in specified fromat but does not push it to log list, essentially a type safe printf variant
-		void printFmt(const std::string& str, const std::vector<var>& vars = {});
 		// specifies the output file and on windows enables VT100 control codes
-		void init(const std::string& _logfilename, bool _debug_mode = false);
-		// pushes the log to the list but does not print it
-		void pushLog(unsigned level, const char* name, int line, const std::string& str, const std::vector<var>& vars);
-		// pushes the log and the list and prints it
-		void printLog(unsigned level, const char* name, int line, const std::string& str, const std::vector<var>& vars);
+		void init(const std::string& log_filename, bool debug_mode, bool print_logs, bool push_logs, int max_log_size);
+		// returns a formatted string
+		std::string format_str(const std::string& str, const std::vector<var>& vars = {});
+		// prints string in specified fromat but does not push it to log list, essentially a type safe printf variant
+		void print_fmt(const std::string& str, const std::vector<var>& vars = {});
+		// prints / pushes log based on settings
+		void log(unsigned level, const char* name, int line, const std::string& str, const std::vector<var>& vars);
 		// flushes the list into specified output file and empties the list
-		void dump();
+		bool dump();
 		// const ref to the log list for parsing
-		const std::vector<std::string>& getLogs();
+		const std::vector<std::string>& logs();
+		const char* error();
 	}
 }
 
@@ -35,24 +34,13 @@ namespace hirzel
 #ifndef EXCLUDE_FOUNTAIN_MACROS
 
 // macro for printFmt for convenience as it allows for variadic 
-#define printfmt(msg, ...)	hirzel::fountain::printFmt(msg, { __VA_ARGS__ });
+#define printfmt(msg, ...)	hirzel::fountain::print_fmt(msg, { __VA_ARGS__ });
 
-// the following logs push and print
-
-#define debugf(msg, ...)	hirzel::fountain::printLog(FOUNTAIN_DEBUG, __FILE__, __LINE__, msg, { __VA_ARGS__} )
-#define infof(msg, ...)		hirzel::fountain::printLog(FOUNTAIN_INFO, __FILE__, __LINE__, msg, { __VA_ARGS__} )
-#define successf(msg, ...)	hirzel::fountain::printLog(FOUNTAIN_SUCCESS, __FILE__, __LINE__, msg, { __VA_ARGS__ })
-#define warningf(msg, ...)	hirzel::fountain::printLog(FOUNTAIN_WARNING, __FILE__, __LINE__, msg, { __VA_ARGS__ })
-#define errorf(msg, ...)	hirzel::fountain::printLog(FOUNTAIN_ERROR, __FILE__, __LINE__, msg, { __VA_ARGS__ })
-#define fatalf(msg, ...)	hirzel::fountain::printLog(FOUNTAIN_FATAL, __FILE__, __LINE__, msg, { __VA_ARGS__ })
-
-// The following macros push but do not print
-
-#define pdebugf(msg, ...)	hirzel::fountain::pushLog(FOUNTAIN_DEBUG, __FILE__, __LINE__, msg, { __VA_ARGS__} )
-#define pinfof(msg, ...) 	hirzel::fountain::pushLog(FOUNTAIN_INFO, __FILE__, __LINE__, msg, { __VA_ARGS__} )
-#define psuccessf(msg, ...)	hirzel::fountain::pushLog(FOUNTAIN_SUCCESS, __FILE__, __LINE__, msg, { __VA_ARGS__ })
-#define pwarningf(msg, ...)	hirzel::fountain::pushLog(FOUNTAIN_WARNING, __FILE__, __LINE__, msg, { __VA_ARGS__ })
-#define perrorf(msg, ...)	hirzel::fountain::pushLog(FOUNTAIN_ERROR, __FILE__, __LINE__, msg, { __VA_ARGS__ })
-#define pfatalf(msg, ...)	hirzel::fountain::pushLog(FOUNTAIN_FATAL, __FILE__, __LINE__, msg, { __VA_ARGS__ })
+#define debugf(msg, ...)	hirzel::fountain::log(FOUNTAIN_DEBUG, __FILE__, __LINE__, msg, { __VA_ARGS__} )
+#define infof(msg, ...)		hirzel::fountain::log(FOUNTAIN_INFO, __FILE__, __LINE__, msg, { __VA_ARGS__} )
+#define successf(msg, ...)	hirzel::fountain::log(FOUNTAIN_SUCCESS, __FILE__, __LINE__, msg, { __VA_ARGS__ })
+#define warningf(msg, ...)	hirzel::fountain::log(FOUNTAIN_WARNING, __FILE__, __LINE__, msg, { __VA_ARGS__ })
+#define errorf(msg, ...)	hirzel::fountain::log(FOUNTAIN_ERROR, __FILE__, __LINE__, msg, { __VA_ARGS__ })
+#define fatalf(msg, ...)	hirzel::fountain::log(FOUNTAIN_FATAL, __FILE__, __LINE__, msg, { __VA_ARGS__ })
 
 #endif
