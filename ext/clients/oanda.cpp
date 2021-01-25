@@ -162,6 +162,7 @@ bool get_price(double& price, const std::string& ticker)
 
 bool set_leverage(int numerator)
 {
+	error = "failed to set leverage";
 	return false;
 }
 

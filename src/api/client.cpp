@@ -38,61 +38,70 @@ namespace daytrender
 		}
 
 		_init = (bool(*)(const std::vector<std::string>&))_handle->bind_function(INIT_FUNC);
-		if (!_init) errorf(_handle->get_error());
+		if (!_init) flag_error();
 
 		_get_candles = (bool(*)(CandleSet&, const std::string&))_handle->bind_function(GET_CANDLES_FUNC);
-		if (!_get_candles) errorf(_handle->get_error());
+		if (!_get_candles) flag_error();
 
 		_get_account_info = (bool(*)(AccountInfo&))_handle->bind_function(GET_ACCT_INFO_FUNC);
-		if (!_get_account_info) errorf(_handle->get_error());
+		if (!_get_account_info) flag_error();
 
 		_market_order = (bool(*)(const std::string&, double))_handle->bind_function("market_order");
-		if (!_market_order) errorf(_handle->get_error());
+		if (!_market_order) flag_error();
 
 		_get_shares = (bool(*)(double&, const std::string&))_handle->bind_function("get_shares");
-		if (!_get_shares) errorf(_handle->get_error());
+		if (!_get_shares) flag_error();
 
 		_close_all_positions = (bool(*)())_handle->bind_function("close_all_positions");
-		if (!_close_all_positions) errorf(_handle->get_error());
+		if (!_close_all_positions) flag_error();
 
 		_market_open = (bool(*)(bool&))_handle->bind_function("market_open");
-		if (!_market_open) errorf(_handle->get_error());
+		if (!_market_open) flag_error();
 
 		_get_price = (bool(*)(double&, const std::string&))_handle->bind_function("get_price");
-		if (!_get_price) errorf(_handle->get_error());
+		if (!_get_price) flag_error();
 
 		_set_leverage = (bool(*)(int))_handle->bind_function("set_leverage");
-		if (!_set_leverage) errorf(_handle->get_error());
+		if (!_set_leverage) flag_error();
 
 		// getters
 
 		_to_interval = (bool(*)(const char*, int))_handle->bind_function(TO_INTERVAL_FUNC);
-		if (!_to_interval) errorf(_handle->get_error());
+		if (!_to_interval) flag_error();
 
 		_max_candles = (int(*)())_handle->bind_function(MAX_CANDLES_FUNC);
-		if (!_max_candles) errorf(_handle->get_error());
+		if (!_max_candles) flag_error();
 
 		_paper_fee = (double(*)())_handle->bind_function(PAPER_FEE_FUNC);
-		if (!_paper_fee) errorf(_handle->get_error());
+		if (!_paper_fee) flag_error();
 
 		_paper_minimum = (double(*)())_handle->bind_function(PAPER_MINIMUM_FUNC);
-		if (!_paper_minimum) errorf(_handle->get_error());
+		if (!_paper_minimum) flag_error();
 
 		_backtest_intervals = (void(*)(std::vector<int>&))_handle->bind_function(BACKTEST_INTERVALS_FUNC);
-		if (!_backtest_intervals) errorf(_handle->get_error());
+		if (!_backtest_intervals) flag_error();
 
 		_get_error = (void(*)(std::string&))_handle->bind_function(GET_ERROR_FUNC);
-		if (!_get_error) errorf(_handle->get_error());
+		if (!_get_error) flag_error();
 
 		_bound = _handle->all_bound();
 
 		if (_bound)
 		{
-			_live = _init(credentials);
+
+			if (!_init(credentials))
+			{
+				flag_error();
+				_live = false;
+			}
+			else
+			{
+				_live = true;
+			}
+			
 			if (!set_leverage(_leverage))
 			{
-				errorf("Failed to set leverage!!! ;P");
-				//_live = false;
+				_live = false;
 			}
 
 			if (_live)
@@ -101,7 +110,7 @@ namespace daytrender
 			}
 			else
 			{
-				flag_error();
+				errorf("Failed initialize %s client: '%s'", _label, _filename);
 			}
 		}
 		else
@@ -223,7 +232,13 @@ namespace daytrender
 
 	bool Client::close_all_positions()
 	{
-		if (!func_ok("close_all_positions", (void(*)())_close_all_positions)) return false;
+		// this function can happen when not live
+
+		if (!_close_all_positions)
+		{
+			errorf("%s: close_all_positions is not bound and cannot be executed!", _filename);
+			return false;
+		}
 
 		bool res = _close_all_positions();
 		if (!res) flag_error();

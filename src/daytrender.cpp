@@ -137,17 +137,22 @@ namespace daytrender
 			}
 
 			Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, risk, max_loss, history_length, leverage);
-
-			if (cli->bound())
-			{
-				clients.push_back(cli);
-			}
-			else
+		
+			if (!cli->bound())
 			{
 				errorf("%s client %s failed to bind!", label, filename);
 				delete cli;
 				continue;
 			}
+
+			if (!cli->is_live())
+			{
+				errorf("%s assets cannot be initialized!", label);
+				delete cli;
+				continue;
+			}
+
+			clients.push_back(cli);
 
 			// allocating all the assets for the client;
 			json& assets_json = client_json["assets"];
@@ -256,6 +261,7 @@ namespace daytrender
 		{
 			for (int i = 0; i < clients.size(); i++)
 			{
+				infof("Closing all %s positions for %s", clients[i]->label(), clients[i]->filename());
 				clients[i]->close_all_positions();
 				delete clients[i];
 			}
