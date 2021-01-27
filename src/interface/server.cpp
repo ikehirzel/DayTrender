@@ -167,9 +167,9 @@ namespace daytrender
 
 			Client* client = get_client(asset_type);
 			accinfo = client->get_account_info();
-			response["balance"] = accinfo.balance;
-			response["buying_power"] = accinfo.buying_power;
-			response["equity"] = accinfo.equity;
+			response["balance"] = accinfo.balance();
+			response["buying_power"] = accinfo.buying_power();
+			response["equity"] = accinfo.equity();
 
 			res.set_content(response.dump(), JSON_FORMAT);
 		}
@@ -195,14 +195,17 @@ namespace daytrender
 			response["ticker"] = asset->ticker();
 
 			const CandleSet& c = data.candles();
-			for (unsigned i = 0; i < c.size(); i++)
+			int len = asset->data_length();
+			int ci = c.size() - len;
+			for (unsigned i = 0; i < len; i++)
 			{
 				response["x"][i] = i;
-				response["open"][i] = c[i].open;
-				response["high"][i] = c[i].high;
-				response["low"][i] = c[i].low;
-				response["close"][i] = c[i].close;
-				response["volume"][i] = c[i].volume;
+				response["open"][i] = c[ci].open();
+				response["high"][i] = c[ci].high();
+				response["low"][i] = c[ci].low();
+				response["close"][i] = c[ci].close();
+				response["volume"][i] = c[ci].volume();
+				ci++;
 			}
 
 			//unsigned indi_index = 0;
@@ -234,7 +237,7 @@ namespace daytrender
 			
 			if (sranges.empty())
 			{
-				results = interface::backtest(algo_index, asset_index, {});
+				results = interface::backtest(algo_index, asset_index, 5, {});
 			}
 			else
 			{	
@@ -262,7 +265,7 @@ namespace daytrender
 				}
 
 				std::cout << "Ranges: " << ranges.size() << std::endl;
-				results = interface::backtest(algo_index, asset_index, ranges);
+				results = interface::backtest(algo_index, asset_index, 5, ranges);
 			}
 			std::cout << "Got result!\n";
 
@@ -287,8 +290,8 @@ namespace daytrender
 				curr["equity"] = results[i].equity();
 				curr["netreturn"] = results[i].net_return();
 				curr["preturn"] = results[i].pct_return();
-				curr["hrreturn"] = results[i].avg_net_per_hour();
-				curr["phrreturn"] = results[i].avg_pct_per_hour();
+				curr["hrreturn"] = results[i].net_per_year();
+				curr["phrreturn"] = results[i].pct_per_year();
 				curr["winrate"] = results[i].win_rate();
 				curr["bwinrate"] = results[i].buy_win_rate();
 				curr["swinrate"] = results[i].sale_win_rate();

@@ -13,29 +13,28 @@ namespace daytrender
 		bool paper_buy(PaperAccount& account, double risk)
 		{
 			double shares = (risk * account.buying_power() * (1.0 - account.fee())) / account.price();
-			if (shares < account.minimum())
+			//printfmt("Buying power: %f\nShares: %f\nPrice: %f\nRisk: %f\n\n", account.buying_power(), shares, account.price(), risk);
+			if (shares >= account.minimum())
 			{
-				return false;
+				return account.buy(shares);
 			}
-			account.buy(shares);
+
 			return true;
 		}
 
 		bool paper_sell(PaperAccount& account, double risk) 
 		{
-			double shares = account.shares();
-			if (shares < account.minimum())
+			if (account.shares() >= account.minimum())
 			{
-				return false;
+				return account.sell(account.shares());
 			}
-			account.sell(shares);
 			return true;
 		}
 
 		bool buy(Client* client, const std::string& ticker,  double risk) 
 		{
 			AccountInfo acct = client->get_account_info();
-			double money_available = acct.money_per_share * risk;
+			double money_available = acct.bp_per_asset() * risk;
 			double price = client->get_price(ticker);
 			double max_shares = money_available / price;
 			double curr_shares = client->get_shares(ticker);
@@ -47,7 +46,7 @@ namespace daytrender
 		bool sell(Client* client, const std::string& ticker, double risk)
 		{
 			AccountInfo acct = client->get_account_info();
-			double money_available = acct.money_per_share * risk;
+			double money_available = acct.bp_per_asset() * risk;
 			double curr_shares = client->get_shares(ticker);
 			double price = client->get_price(ticker);
 			double min_shares = 0.0;

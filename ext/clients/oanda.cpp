@@ -1,6 +1,6 @@
-#define PAPER_FEE 69.69
-#define PAPER_MINIMUM 5390
-#define BACKTEST_INTERVALS MIN1, MIN15, HOUR1
+#define PAPER_FEE 0.00007
+#define PAPER_MINIMUM 1.0
+#define BACKTEST_INTERVALS MIN1, MIN5, MIN15, HOUR1
 #define MAX_CANDLES 5000
 
 #include <iostream>
@@ -57,14 +57,15 @@ bool get_candles(CandleSet& candles, const std::string& ticker)
 
 		for (int i = 0; i < candles_json.size(); i++)
 		{
-			json& c = candles_json[i];
-			json& mid = c["mid"];
+			json& candle_json = candles_json[i];
+			json& mid = candle_json["mid"];
 
-			candles[i].open = std::stod(mid["o"].get<std::string>());
-			candles[i].high = std::stod(mid["h"].get<std::string>());
-			candles[i].low = std::stod(mid["l"].get<std::string>());
-			candles[i].close = std::stod(mid["c"].get<std::string>());
-			candles[i].volume = c["volume"].get<double>();
+			double o = std::stod(mid["o"].get<std::string>());
+			double h = std::stod(mid["h"].get<std::string>());
+			double l = std::stod(mid["l"].get<std::string>());
+			double c = std::stod(mid["c"].get<std::string>());
+			double v = candle_json["volume"].get<double>();
+			candles[i] = { o, h, l, c, v };
 		}
 
 		return true;
@@ -80,14 +81,16 @@ bool get_account_info(AccountInfo& info)
 
 	if (res_ok(res))
 	{
+		std::cout << res->body << "\n\n";
 		json res_json = json::parse(res->body);
 		json& acc = res_json["account"];
-		info.balance = std::stod(acc["balance"].get<std::string>());
-		info.buying_power = std::stod(acc["marginAvailable"].get<std::string>());
-		info.equity = std::stod(acc["NAV"].get<std::string>());
-		info.leverage = 1.0 / std::stod(acc["marginRate"].get<std::string>());
-		info.shorting_enabled = true;
-
+		double balance = std::stod(acc["balance"].get<std::string>());
+		double margin_rate = std::stod(acc["marginRate"].get<std::string>());
+		double buying_power = std::stod(acc["marginAvailable"].get<std::string>()) / margin_rate;
+		double equity = std::stod(acc["NAV"].get<std::string>());
+		int leverage = (int)(1.0 / margin_rate);
+		bool shorting_enabled = true;
+		info = { balance, buying_power, equity, leverage, shorting_enabled };
 		return true;
 	}
 
@@ -160,10 +163,25 @@ bool get_price(double& price, const std::string& ticker)
 	return false;
 }
 
-bool set_leverage(int numerator)
+bool set_leverage(int multiplier)
 {
-	error = "failed to set leverage";
-	return false;
+	std::string url = "/v3/accounts/" + accountid + "/configuration";
+	client.Patch(url.c_str());
+	if (multiplier > 50)
+	{
+		error = "multiplier (" + std::to_string(multiplier) + " was over maximum (50) and was capped.";
+		multiplier = 50;
+	}
+	else if (multiplier < 1)
+	{
+		error = "multiplier (" + std::to_string(multiplier) + " was below minimum (1) and was capped .";
+		multiplier = 1;
+	}
+	json req_json;
+	req_json["marginRate"] = (1.0 / (double)multiplier);
+	auto res = client.Patch(url.c_str(), req_json.dump(), JSON_FORMAT);
+	
+	return res_ok(res);
 }
 
 bool close_all_positions()

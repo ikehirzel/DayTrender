@@ -301,6 +301,7 @@ $("document").ready(() =>
 				for (let i = 0; i < i_traces.length; i++) {
 					chartdata.push(i_traces[i]);
 				}
+				if (data.interval == undefined) data.interval = 1000000;
 				watching_interval = data.interval;
 				let title = data.ticker + " @ " + data.interval + "sec";
 
@@ -329,6 +330,9 @@ $("document").ready(() =>
 				Plotly.newPlot("rwindow", chartdata, layout);
 
 			}
+		}).fail(() => 
+		{
+			console.log("Failed to get data from server");
 		});
 	}
 
@@ -408,12 +412,17 @@ $("document").ready(() =>
 		// stopping asset observation
 		clearInterval(watching_timer);
 		console.log(`Stopped watching ${watching}!`);
-		watching_interval = 0;
+		watching_interval = -1;
 		// starting a new asset observation
 		watching = tickerSelect.val();
 		console.log(`Now watching ${watching}...`);
 		// awaits to get interval back from asset
 		await get_watch();
+		if (watching_interval < 0)
+		{
+			console.log("Watching of asset will not continue!");
+			return;
+		}
 		// calculates time till next update + 5 seconds
 		let interval = watching_interval * 1000;
 		let time_till_update = interval - (Date.now() % interval) + 5000;

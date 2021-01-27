@@ -8,6 +8,7 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 
 file(GLOB DAYTRENDER_SRCS src/*.cpp src/api/*.cpp src/data/*.cpp src/interface/*.cpp)
 file(GLOB ALGORITHM_TYPES_SRCS src/data/algorithmdata.cpp src/data/indicator.cpp src/data/candle.cpp)
+file(GLOB CLIENT_TYPES_SRCS src/data/accountinfo.cpp src/data/candle.cpp)
 
 # creating symlinks so files can be shared between build folder and project folder
 
@@ -43,7 +44,7 @@ foreach(CLIENT ${CLIENT_SRCS})
 	# get filename without folder or extension
 	get_filename_component(FILENAME ${CLIENT} NAME_WE)
 	# create shared object for it
-	add_library(${FILENAME} SHARED ${CLIENT})
+	add_library(${FILENAME} SHARED ${CLIENT} ${CLIENT_TYPES_SRCS})
 	# tell it to go to algorithms folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
 	target_include_directories(${FILENAME} PRIVATE src/data lib/cpp-httplib/include lib/)

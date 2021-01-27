@@ -1,6 +1,6 @@
 #include "paperaccount.h"
 
-#include <hirzel/fountain.h>
+#include <cmath>
 
 namespace daytrender
 {
@@ -18,20 +18,25 @@ namespace daytrender
 		_ranges = ranges;
 	}
 
-	void PaperAccount::buy(double shares)
+	bool PaperAccount::buy(double shares)
 	{
 		if (shares < _minimum)
 		{
-			warningf("A minimum of %f must be bought to complete a trade");
-			return;
+			_error = "attempt to buy " + std::to_string(shares) + " shares with trade minimum of " + std::to_string(_minimum);
+			return false;
 		}
 
-		if(!_price)
-		{
-			errorf("Price must be set before purchasing!");
-			return;
+		double cost = shares * _price * (_fee + 1.0);
+		
+		if (cost > buying_power())
+		{			
+			_error = "attempt to buy " + std::to_string(shares) + " shares @ $" + std::to_string(cost) + "/share ($" + std::to_string(cost) + ") with insufficient buying power: $" + std::to_string(buying_power());
+			return false;
 		}
 		
+		// updating action to price to see if is loss
+
+		_buys++;
 		if (_price > _last_act_price)
 		{
 			_buy_losses++;
@@ -40,42 +45,31 @@ namespace daytrender
 		{
 			_buy_wins++;
 		}
-		
-		double cost = _shares * _price * (_fee + 1.0);
-		
-		if (cost > buying_power())
-		{			
-			warningf("Not enough buying power to complete purchase");
-			return;
-		}
-		
 		_last_act_price = _price;
-		_buys++;
+		
+		// actual calculations
+
+		_margin_used += cost;
 		_shares += shares;
-		_balance -= cost;
+
+		return true;
 	}
 
-	void PaperAccount::sell(double shares)
+	bool PaperAccount::sell(double shares)
 	{
 		if (shares < _minimum)
 		{
-			warningf("A minimum of %f myst be sold to complete trade", _minimum);
-			return;
+			_error = "attempt to sell " + std::to_string(shares) + " shares with trade minimum of " + std::to_string(_minimum);
+			return false;
 		}
 
 		if (shares > _shares)
 		{
-			warningf("Not enough shares to complete sale");
-			return;
+			_error = "attempt to sell " + std::to_string(shares) + " shares with insufficient amount: " + std::to_string(_shares);
+			return false;
 		}
-
-		if(!_price)
-		{
-			errorf("Price must be set before selling!");
-			return;
-		}
-
 		
+		_sales++;
 		if (_price > _last_act_price)
 		{
 			_sale_wins++;
@@ -84,24 +78,23 @@ namespace daytrender
 		{
 			_sale_losses++;
 		}
-
-		double returns = _shares * _price * (1.0 - _fee);
-		
 		_last_act_price = _price;
-		_sales++;
-		shares -= _shares;
-		_balance += returns;
+
+		// actual calculations
+		double returns = shares * _price * (1.0 - _fee);
+		double margin_change = _margin_used * (shares / _shares);
+		_margin_used -= margin_change;
+		_balance -= (margin_change - returns);
+		_shares -= shares;
+
+		if (_balance < 0.0)
+		{
+			_error = "application of returns caused balance to go negative: " + std::to_string(_balance);
+			return false;
+		}
+		// need to make sure that once the shares close out, it undoes the margin, this is wrong
+		return true;
 	}	
-
-	double PaperAccount::equity() const
-	{
-		return _balance + (_shares * _price);
-	}
-
-	double PaperAccount::buying_power() const
-	{
-		return equity() * _leverage;
-	}
 
 	double PaperAccount::net_return() const
 	{
@@ -122,22 +115,16 @@ namespace daytrender
 		return (double)(_interval * _updates) / 3600.0;
 	}
 
-	double PaperAccount::avg_net_per_hour() const
+	double PaperAccount::net_per_year() const
 	{
-		double hours = elapsed_hours();
-		if(hours > 0.0)
-		{
-			return net_return() / hours;
-		}
-		return 0.0;
+		return _principal * (1.0 + pct_per_year()) - _principal;
 	}
 
-	double PaperAccount::avg_pct_per_hour() const
+	double PaperAccount::pct_per_year() const
 	{
-		double hours = elapsed_hours();
-		if(hours > 0.0)
+		if (_updates > 0)
 		{
-			return pct_return() / hours;
+			return std::pow(1.0 + pct_return(), 8760.0 / elapsed_hours()) - 1.0;
 		}
 		return 0.0;
 	}
@@ -201,7 +188,7 @@ namespace daytrender
 		std::string out;
 		out = "PaperAccount:\n{";
 		out += "\n    Buys        :    " + std::to_string(_buys);
-		out += "\n    Sells       :    " + std::to_string(_sales);
+		out += "\n    Sales       :    " + std::to_string(_sales);
 		out += "\n    Interval    :    " + std::to_string(_interval);
 		out += "\n    Ranges      :    ";
 		for (int i = 0; i < _ranges.size(); i++)
@@ -215,13 +202,16 @@ namespace daytrender
 		out += "\n    Shares      :    " + std::to_string(_shares);
 		out += "\n    Balance     :  $ " + std::to_string(_balance);
 		out += "\n    Equity      :  $ " + std::to_string(equity());
-		out += "\n    Leverage    :  $ " + std::to_string(leverage());
+		out += "\n    Buy Power   :  $ " + std::to_string(buying_power());
+		out += "\n    Leverage    :  x " + std::to_string(leverage());
+		out += "\n    Fee         :  % " + std::to_string(fee());
+		out += "\n    Minimum     :    " + std::to_string(minimum());
 		out += "\n";
 		out += "\n    Net Return  :  $ " + std::to_string(net_return());
 		out += "\n    % Return    :  % " + std::to_string(pct_return() * 100.0);
 		out += "\n";
-		out += "\n    Hr Return   :  $ " + std::to_string(avg_net_per_hour());
-		out += "\n    Hr% Return  :  % " + std::to_string(avg_pct_per_hour() * 100.0);
+		out += "\n    Net / Year  :  $ " + std::to_string(net_per_year());
+		out += "\n    % / Year    :  % " + std::to_string(pct_per_year() * 100.0);
 		out += "\n";
 		out += "\n    Win Rate    :  % " + std::to_string(win_rate() * 100.0);
 		out += "\n    B Win Rate  :  % " + std::to_string(buy_win_rate() * 100.0);

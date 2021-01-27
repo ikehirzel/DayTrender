@@ -18,7 +18,7 @@ namespace daytrender
 		}
 		else
 		{
-			warningf("Arguments were not sufficient, asset '%s' cannot go live", ticker);
+			errorf("Arguments were not sufficient, asset '%s' cannot go live", ticker);
 		}
 	
 		_client = client;
@@ -54,7 +54,15 @@ namespace daytrender
 		double fee = client->paper_fee();
 		double minimum = client->paper_minimum();
 		double principal = client->get_price(ticker);
-		_paper_account = PaperAccount(PAPER_ACCOUNT_INITIAL, client->leverage(), fee, minimum, principal, interval, _ranges);
+		
+		if (_live)
+		{
+			successf("Successfully initialized asset: '%s'", ticker);
+		}
+		else
+		{
+			errorf("Errors in initializing asset: '%s'", ticker);
+		}
 	}
 	
 	void Asset::update()
@@ -71,22 +79,26 @@ namespace daytrender
 		// error handling
 		if (_data.error())
 		{
-			errorf("Action could not be handled %s", _ticker);
+			errorf("%s: error while processing algorithm, action cannot be handled", _ticker);
 			return;
 		}
 
-		// paper trading
-		if (_paper)
+		switch (_data.action())
 		{
-			_paper_account.update_price(candles.back().close);
-			action::paper_actions[_data.action()](_paper_account, _risk);
+		case Action::NOTHING:
+			successf("%s: No action taken", _ticker);
+			break;
+		case Action::BUY:
+			successf("%s: Buying", _ticker);
+			break;
+		case Action::SELL:
+			successf("%s: Selling", _ticker);
+			break;
 		}
-		// live trading
-		else
-		{
-			action::actions[_data.action()](_client, _ticker, _risk);
-			std::cout << "live action!\n";
-		}
+		return;
+
+		//action::actions[_data.action()](_client, _ticker, _risk);
+		std::cout << "live action!\n";
 	}
 
 	bool Asset::should_update() const

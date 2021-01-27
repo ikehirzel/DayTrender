@@ -5,6 +5,7 @@
 #include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
 
+#include "interface/interface.h"
 #include "interface/shell.h"
 #include "interface/server.h"
 
@@ -27,48 +28,8 @@ namespace daytrender
 
 	std::mutex mtx;
 
-	bool getline_async(std::istream& is, std::string& str, char delim = '\n')
-	{
-		std::string lineSoFar;
-		char inChar;
-		int charsRead = 0;
-		bool lineRead = false;
-		str = "";
-
-		do {
-			charsRead = is.readsome(&inChar, 1);
-			if (charsRead == 1) {
-				// if the delimiter is read then return the string so far
-				if (inChar < 32) {
-					str = lineSoFar;
-					lineSoFar = "";
-					lineRead = true;
-				} else {  // otherwise add it to the string so far
-					lineSoFar.append(1, inChar);
-				}
-			}
-		} while (charsRead != 0 && !lineRead);
-
-		return lineRead;
-	}
-
 	void init(const std::string& execpath)
 	{
-		// while (true)
-		// {
-		// 	std::string input;
-		// 	if (std::cin.rdbuf()->in_avail())
-		// 	{
-		// 		std::getline(std::cin, input);
-		// 		std::cout << "input: " << input << std::endl;
-		// 	}
-		// 	else
-		// 	{
-		// 		std::cout << "Available: " << std::cin.rdbuf()->in_avail() << std::endl;
-		// 	}
-		// 	sys::thread_sleep(1000);
-		// }
-
 		mtx.lock();
 
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
@@ -153,7 +114,7 @@ namespace daytrender
 			}
 
 			clients.push_back(cli);
-
+			infof("Initializing %s assets for %s", label, filename);
 			// allocating all the assets for the client;
 			json& assets_json = client_json["assets"];
 			for (int j = 0; j < assets_json.size(); j++)
@@ -201,7 +162,7 @@ namespace daytrender
 				int algoi = -1;
 				for (int k = 0; k < algorithms.size(); i++)
 				{
-					if (algorithms[k]->get_filename() == algorithm)
+					if (algorithms[k]->filename() == algorithm)
 					{
 						algoi = k;
 						break;
@@ -225,8 +186,8 @@ namespace daytrender
 						continue;
 					}
 				}
+
 				assets.push_back(new Asset(i, clients[i], ticker, algorithms[algoi], interval, risk, ranges, paper));	
-				successf("Successfully initialized asset: '%s'", ticker);
 			}
 		}
 
@@ -247,6 +208,50 @@ namespace daytrender
 		infof("Initialized algorithms:    %d", algorithms.size());
 
 		mtx.unlock();
+		shouldrun = false;
+
+
+		// auto acct = clients[0]->get_account_info();
+		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
+
+		// clients[0]->market_order("EUR_USD", 80000);
+
+		// sys::thread_sleep(1000);
+		// acct = clients[0]->get_account_info();
+		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
+
+		// clients[0]->market_order("EUR_USD", -40000);
+
+		// sys::thread_sleep(1000);
+		// acct = clients[0]->get_account_info();
+		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
+
+		// clients[0]->market_order("EUR_USD", -40000);
+
+		// sys::thread_sleep(1000);
+		// acct = clients[0]->get_account_info();
+		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
+
+
+		////////////////////////////////////////////
+
+		// PaperAccount acc(500.0, 10, 0.0, 1.0, 2.0, 300, { 1, 2, 3 });
+		// acc.buy(8.0);
+		// std::cout << "Buy " << acc << std::endl;
+		// acc.update_price(2.5);
+		// std::cout << "Update " << acc << std::endl;
+		// acc.sell(8.0);
+		// std::cout << "Sell " << acc << std::endl;
+		// std::cout << "Error: " << acc.error() << std::endl;
+
+		////////////////////////////////////////////
+
+
+		auto res = interface::backtest(0, 0, 7, {});
+		for (int i = 0; i < res.size(); i++)
+		{
+			std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;
+		}
 	}
 
 	// destroys clients and assets
@@ -261,8 +266,9 @@ namespace daytrender
 		{
 			for (int i = 0; i < clients.size(); i++)
 			{
-				infof("Closing all %s positions for %s", clients[i]->label(), clients[i]->filename());
-				clients[i]->close_all_positions();
+				warningf("Not actually closing positions");
+				//infof("Closing all %s positions for %s", clients[i]->label(), clients[i]->filename());
+				//clients[i]->close_all_positions();
 				delete clients[i];
 			}
 		}
@@ -380,7 +386,7 @@ namespace daytrender
 
 		for (int i = 0; i < algorithms.size(); i++)
 		{
-			out[i] = algorithms[i]->get_filename(); 
+			out[i] = algorithms[i]->filename(); 
 		}
 
 		return out;

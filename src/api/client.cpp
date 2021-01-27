@@ -151,11 +151,21 @@ namespace daytrender
 	{
 		if (!func_ok(GET_CANDLES_FUNC, (void(*)())_get_candles)) return CandleSet();
 
-		if (max > max_candles())
+		if (max == 0)
 		{
-			errorf("%s: candles requested is greater than maximum", _filename);
-			return CandleSet();
+			max = max_candles();
 		}
+		else if (max > max_candles())
+		{
+			errorf("%s: requested more candles than maximum!", _filename);
+			return {};
+		}
+		else if (max <= 0)
+		{
+			errorf("%s: requested negative amount of candles!", _filename);
+			return {};
+		}
+
 		
 		CandleSet candles(max, interval);
 		bool res = _get_candles(candles, ticker);
@@ -172,26 +182,34 @@ namespace daytrender
 		bool res = _get_account_info(info);
 		if (!res) flag_error();
 
-		// calculating money_per_share
-		info.money_per_share = info.equity * (_risk /(double)_asset_count) * info.leverage;
-
 		// handling equity_history and loss management
 		long long curr_time = hirzel::sys::get_seconds();
-		_equity_history.push_back({ curr_time, info.equity });
-		const std::pair<long long, double>& front = _equity_history[0];
-		info.pl = info.equity - front.second;
+		_equity_history.push_back({ curr_time, info.equity() });
 
-		if (info.pl <= front.second * -_max_loss)
-		{
-			errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, info.pl, _history_length);
-			close_all_positions();
-			errorf("%s client '%s' has gone offline!", _label, _filename);
-			_live = false;
-		}
-
-		while (curr_time - _equity_history[0].first >= (long long)(_history_length * 3600))
+		while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))
 		{
 			_equity_history.erase(_equity_history.begin());
+		}
+
+		const std::pair<long long, double>& front = _equity_history[0];
+		info = AccountInfo(info, front.second, _risk, _asset_count);
+		
+		// account has lost too much in last interval
+		if (info.pl() <= front.second * -_max_loss)
+		{
+			errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, info.pl(), _history_length);
+			int failures = 0;
+			while (!close_all_positions())
+			{
+				failures++;
+				if (failures >= 5)
+				{
+					errorf("Client has failed to close all positions (%d) times! Aborting...\n", failures);
+					break;
+				}
+			}
+			_live = false;
+			errorf("%s client '%s' has gone offline!", _label, _filename);
 		}
 
 		return info;

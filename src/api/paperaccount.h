@@ -12,12 +12,13 @@ namespace daytrender
 		double _principal = 0.0;
 		double _balance = 0.0;
 		double _fee = 0.0;
-		double _minimum = 0.0;
+		double _minimum = 1.0;
 		double _price = 0.0;
 		double _last_act_price = 0.0;
 		double _shares = 0.0;
 		double _leverage = 1.0;
-		
+		double _margin_used = 0.0;
+
 		int _buys = 0;
 		int _buy_wins = 0;
 		int _buy_losses = 0;
@@ -30,14 +31,14 @@ namespace daytrender
 		int _updates = 0;
 
 		std::vector<int> _ranges;
+		std::string _error;
 		
 	public:
-		PaperAccount() = default;
 		PaperAccount(double principal, int leverage, double fee, double minimum,
 			double initial_price, int interval, const std::vector<int>& ranges);
 			
-		void buy(double shares);
-		void sell(double shares);
+		bool buy(double shares);
+		bool sell(double shares);
 		
 		inline double principal() const { return _principal; }
 		inline double balance() const { return _balance; }
@@ -60,15 +61,18 @@ namespace daytrender
 		inline const std::vector<int>& ranges() const { return _ranges; };
 		
 		//non-trivial getters
-		double equity() const;
-		double buying_power() const;
+		double equity() const { return _balance + (_shares * _price) - (_margin_used * _leverage); }
+		double buying_power() const
+		{
+			double bp = (_balance - _margin_used) * (double)_leverage ;
+			return (bp >= 0.0 ? bp : 0.0);
+		}
+
 		double net_return() const;
 		double pct_return() const;
 
-		double elapsed_hours() const;
-
-		double avg_net_per_hour() const;
-		double avg_pct_per_hour() const;
+		double net_per_year() const;
+		double pct_per_year() const;
 
 		double buy_win_rate() const;
 		double buy_loss_rate() const;
@@ -78,9 +82,11 @@ namespace daytrender
 
 		double win_rate() const;
 		double loss_rate() const;
+
+		double elapsed_hours() const;
 		
 		std::string to_string() const;
-
+		inline std::string error() const { return _error; }
 		friend std::ostream& operator<<(std::ostream& out, const PaperAccount& acc);
 	};
 }

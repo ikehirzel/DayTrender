@@ -7,20 +7,20 @@
 void EMA(Indicator& data, const CandleSet& candles, int range)
 {
 	double multiplier = 2.0 / (double)(range + 1);
+	// candles.size() - ranges[0] should be the shamt
+	int start_index = candles.size() - data.size(); // this is correct
 
 	double sum = 0.0;
-	int initLength = 5;
-
-	for(int i = 0; i < initLength; i++)
+	for(int i = start_index - range + 1; i <= start_index; i++)
 	{
-		sum += candles[i].close;
+		sum += candles[i].c();
 	}
+	data[0] = sum / (double)range;
 
-	data[0] = sum / (double)initLength;
-
+	int ci = start_index + 1;
 	for (int i = 1; i < data.size(); i++)
 	{
-		data[i] = candles[i].close * multiplier + data[i - 1] * (1.0 - multiplier);
+		data[i] = candles[ci++].c() * multiplier + data[i - 1] * (1.0 - multiplier);
 	}
 }
 

@@ -26,8 +26,8 @@ namespace daytrender
 		~Algorithm();
 
 		AlgorithmData process(const CandleSet& candles, const std::vector<int>& ranges) const;
-		inline const std::string& get_filename() const { return _filename; };
-		inline int get_ranges_count() const { return _ranges_count; }
+		inline const std::string& filename() const { return _filename; };
+		inline int ranges_count() const { return _ranges_count; }
 		inline bool is_bound() const { return _bound; }
 	};
 }

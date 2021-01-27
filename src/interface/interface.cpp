@@ -8,25 +8,19 @@ namespace daytrender
 {
 	namespace interface
 	{
-		std::vector<PaperAccount> backtest(int algo_index, int asset_index, const std::vector<int>& test_ranges)
+		std::vector<PaperAccount> backtest(int algo_index, int asset_index, int granularity, const std::vector<int>& test_ranges)
 		{
 			const Asset* asset = get_asset(asset_index);
 			Client* client = asset->client();
 			const Algorithm* algo = get_algorithm(algo_index);
 
-			std::string ticker = asset->ticker();
-			double paper_initial = PAPER_ACCOUNT_INITIAL;
-			double risk = asset->risk();
-			double paper_fee = client->paper_fee();
-			double paper_minimum = client->paper_minimum();
+			// storing important info
 			std::vector<int> intervals = client->backtest_intervals();
-
-			std::vector<PaperAccount> out(intervals.size());
 
 			std::vector<CandleSet> candles_vec(intervals.size());
 			for (int i = 0; i < candles_vec.size(); i++)
 			{
-				candles_vec[i] = client->get_candles(ticker, intervals[i]);
+				candles_vec[i] = client->get_candles(asset->ticker(), intervals[i]);
 
 				if (candles_vec[i].empty())
 				{
@@ -35,21 +29,20 @@ namespace daytrender
 				}
 			}
 
-			infof("Backtesting algorithm...");
+			infof("Backtesting %s asset '%s' with algorithm '%s'...", client->label(), asset->ticker(), algo->filename());
 
 			// calculating lops
-			std::vector<int> ranges, start_ranges;
-			#define SKIP_AMT 5
+			std::vector<int> curr_ranges, start_ranges;
 			long long permutations = 1;
-			int possible_vals = ((MAX_ALGORITHM_WINDOW + 1) - MIN_ALGORITHM_WINDOW) / SKIP_AMT;
+			int possible_vals = ((MAX_ALGORITHM_WINDOW + 1) - MIN_ALGORITHM_WINDOW) / granularity;
 			// if no ranges are passed in
 			if (test_ranges.empty())
 			{
 				// setting default ranges
-				start_ranges.resize(algo->get_ranges_count(), MIN_ALGORITHM_WINDOW);
+				start_ranges.resize(algo->ranges_count(), MIN_ALGORITHM_WINDOW);
 
 				// calculate the amount of permutations of ranges
-				for (int i = 0; i < algo->get_ranges_count(); i++) permutations *= possible_vals;
+				for (int i = 0; i < algo->ranges_count(); i++) permutations *= possible_vals;
 			}
 			else
 			{
@@ -57,14 +50,19 @@ namespace daytrender
 				start_ranges = test_ranges;
 
 				// verify ranges size
-				if (start_ranges.size() !=  algo->get_ranges_count())
+				if (start_ranges.size() >  algo->ranges_count())
 				{
-					errorf("Passed in %d ranges to backtest but %d were expected! resizing ranges...", start_ranges.size(), algo->get_ranges_count());
-					start_ranges.resize(algo->get_ranges_count());
+					errorf("Backtest: Passed in %d ranges but %d were expected! Resizing ranges...", start_ranges.size(), algo->ranges_count());
+					start_ranges.resize(algo->ranges_count());
+				}
+				else if (start_ranges.size() < algo->ranges_count())
+				{
+					errorf("Backtest: Passed in %d ranges but %d were expected! Execution cannot continue.", start_ranges.size(), algo->ranges_count());
+					return {};
 				}
 
 				// verify minimums and maximums
-				for (int i = 0; i < ranges.size(); i++)
+				for (int i = 0; i < curr_ranges.size(); i++)
 				{
 					if (start_ranges[i] < MIN_ALGORITHM_WINDOW)
 					{
@@ -79,74 +77,78 @@ namespace daytrender
 				}
 			}
 
+			std::vector<PaperAccount> out(intervals.size(),
+			{
+				PAPER_ACCOUNT_INITIAL,
+				client->leverage(),
+				client->paper_fee(),
+				client->paper_minimum(),
+				candles_vec[0][0].open(),
+				intervals[0],
+				curr_ranges
+			});
+
 			// for every intervals
 			for (int i = 0; i < intervals.size(); i++)
 			{
-				PaperAccount best;
-				double bahnr = 0.0;
 				// re-init with minimum range for each arg
-				ranges = start_ranges;
+				curr_ranges = start_ranges;
 
 				// for every possible permutation of ranges for indicators/algorithm
 				for (int j = 0; j < permutations; j++)
 				{
 					// storing activity and performance data
-					PaperAccount acc(PAPER_ACCOUNT_INITIAL, client->leverage(), paper_fee, paper_minimum, intervals[i], candles_vec[i][0].open, ranges);
-
+					PaperAccount acc(PAPER_ACCOUNT_INITIAL, client->leverage(), client->paper_fee(), client->paper_minimum(), candles_vec[i][0].open(), intervals[i], curr_ranges);
+					
 					// calculating size of candles
 					int candle_count = 0;
-					int longest_indi = 0;
-					if (ranges.size() > 1)
+					if (curr_ranges.size() > 1)
 					{
-						for (int v = 1; v < ranges.size(); v++)
+						for (int v = 1; v < curr_ranges.size(); v++)
 						{
-							if (ranges[v] > longest_indi) longest_indi = ranges[v];
+							if (curr_ranges[v] > candle_count) candle_count = curr_ranges[v];
 						}
 					}
-					candle_count = ranges[0] + longest_indi;
-					//std::cout << "candle count: " << candle_count << std::endl;
-
+					candle_count += curr_ranges[0];
+					
 					// walk through every step of candles_vec[i]
 					for (int k = 0; k < candles_vec[i].size() - candle_count; k++)
 					{
-						CandleSet candles = candles_vec[i].slice(k, candle_count);
-						acc.update_price(candles.back().close);
-						AlgorithmData data = algo->process(candles, ranges);
+						CandleSet candles = candles_vec[i].slice(k, candle_count, 0);
+						acc.update_price(candles.back().close());
+						AlgorithmData data = algo->process(candles, curr_ranges);
 
 						if (data.error())
 						{
 							errorf("Backtest: %s", data.error());
+							return {};
 						}
-						else
+
+						if (!action::paper_actions[data.action()](acc, asset->risk()))
 						{
-							action::paper_actions[data.action()](acc, risk);
+							errorf("Backtest: PaperAccount: %s", acc.error());
+							return {};
 						}
 					}
 
-					// comparing account to previous, potentially storing account
-
-					double ahnr = acc.avg_net_per_hour();
-					
-					if (ahnr > bahnr)
+					if (acc.net_per_year() > out[i].net_per_year() || j == 0)
 					{
-						bahnr = ahnr;
-						best = acc;
+						out[i] = acc;
 					}
 
 					// incrementing the permutation
 
 					int pos = 0;
-					ranges[pos] += SKIP_AMT;
-					while (ranges[pos] > MAX_ALGORITHM_WINDOW)
+					curr_ranges[pos] += granularity;
+					while (curr_ranges[pos] > MAX_ALGORITHM_WINDOW)
 					{
-						ranges[pos] = MIN_ALGORITHM_WINDOW;
+						curr_ranges[pos] = MIN_ALGORITHM_WINDOW;
 						pos++;
-						ranges[pos] += SKIP_AMT;
+						curr_ranges[pos] += granularity;
 					}
 				}
 
 				std::cout << "Completed backtest " << i << '\n';
-				out[i] = best;
 			}
 
 			return out;

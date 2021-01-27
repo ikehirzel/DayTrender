@@ -42,7 +42,7 @@ bool res_ok(const Result& res)
 		error = "failed to get a response";
 		return false;
 	}
-	if (res->status < 200 || res->status > 299)
+	else if (res->status < 200 || res->status > 299)
 	{
 		error = "response status was not okay: " + std::to_string(res->status);
 		if (!res->body.empty())
@@ -51,7 +51,7 @@ bool res_ok(const Result& res)
 		}
 		return false;
 	}
-	if (res->body.empty())
+	else if (res->body.empty())
 	{
 		error = "response body was empty";
 		return false;

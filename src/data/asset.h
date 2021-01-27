@@ -29,7 +29,7 @@ namespace daytrender
 
 		long long _last_update = 0;
 
-		double _risk = 0.9;
+		double _risk = 0.0;
 
 		std::string _ticker;
 		AlgorithmData _data;
@@ -37,7 +37,6 @@ namespace daytrender
 		
 		Client* _client;
 		const Algorithm* _algo;
-		PaperAccount _paper_account;
 		
 	public:
 		Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
@@ -55,7 +54,8 @@ namespace daytrender
 		inline int interval() const { return _interval; }
 		inline int type() const { return _type; }
 		inline bool is_live() const { return _live && _client->is_live(); }
-		inline int risk() const { return _risk; }
+		inline double risk() const { return _risk; }
 		inline bool is_paper() const { return _paper; }
+		inline int data_length() const { return _ranges[0]; }
 	};
 }
