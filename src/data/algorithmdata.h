@@ -11,8 +11,9 @@ namespace daytrender
 	{
 	private:
 		Indicator* _dataset = nullptr;
-		int _size = 0;
-		int _action = 0;
+		short _capacity = 0;
+		short _size = 0;
+		short _action = 0;
 		const char* _label = nullptr;
 		const char* _error = nullptr;
 		std::vector<int> _ranges;
@@ -33,12 +34,14 @@ namespace daytrender
 		inline const Indicator& operator[](unsigned index) const { return _dataset[index]; }
 
 		inline int action() const { return _action; }
-		inline int size() const { return _size; }
+		inline short size() const { return _size; }
+		inline short capacity() const { return _capacity; }
 		inline void set_label(const char* label) { _label = label; }
 		inline void flag_error(const char* error) { _error = error; }
 		inline const char* label() const { return _label; }
 		inline const char* error() const { return _error; }
 		inline const CandleSet& candles() const { return _candles; }
 		inline const std::vector<int>& ranges() const { return _ranges; }
+		inline void increment_size() { _size++; }
 	};
 }

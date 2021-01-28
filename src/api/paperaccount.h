@@ -34,6 +34,7 @@ namespace daytrender
 		std::string _error;
 		
 	public:
+		PaperAccount() = default;
 		PaperAccount(double principal, int leverage, double fee, double minimum,
 			double initial_price, int interval, const std::vector<int>& ranges);
 			
@@ -61,10 +62,10 @@ namespace daytrender
 		inline const std::vector<int>& ranges() const { return _ranges; };
 		
 		//non-trivial getters
-		double equity() const { return _balance + (_shares * _price) - (_margin_used * _leverage); }
+		double equity() const { return _balance + (_shares * _price) - _margin_used; }
 		double buying_power() const
 		{
-			double bp = (_balance - _margin_used) * (double)_leverage ;
+			double bp = _balance * _leverage - _margin_used;
 			return (bp >= 0.0 ? bp : 0.0);
 		}
 

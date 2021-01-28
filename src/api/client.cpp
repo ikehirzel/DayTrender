@@ -92,7 +92,6 @@ namespace daytrender
 			if (!_init(credentials))
 			{
 				flag_error();
-				_live = false;
 			}
 			else
 			{
@@ -124,7 +123,7 @@ namespace daytrender
 		delete _handle;
 	}
 
-	bool Client::func_ok(const char* label, void(*func)())
+	bool Client::func_ok(const char* label, void(*func)()) const
 	{
 		if (!_live)
 		{
@@ -141,13 +140,13 @@ namespace daytrender
 		return true;
 	}
 
-	void Client::flag_error()
+	void Client::flag_error() const
 	{
 		errorf("%s: %s", _filename, get_error());
 		_live = false;
 	}
 
-	CandleSet Client::get_candles(const std::string& ticker, int interval, int max)
+	CandleSet Client::get_candles(const std::string& ticker, int interval, int max) const
 	{
 		if (!func_ok(GET_CANDLES_FUNC, (void(*)())_get_candles)) return CandleSet();
 
@@ -166,7 +165,6 @@ namespace daytrender
 			return {};
 		}
 
-		
 		CandleSet candles(max, interval);
 		bool res = _get_candles(candles, ticker);
 		if (!res) flag_error();
@@ -226,7 +224,7 @@ namespace daytrender
 		return res;
 	}
 
-	double Client::get_shares(const std::string& ticker)
+	double Client::get_shares(const std::string& ticker) const
 	{
 		if (!func_ok("get_shares", (void(*)())_get_shares)) return 0.0;
 
@@ -237,7 +235,7 @@ namespace daytrender
 		return shares;
 	}
 
-	double Client::get_price(const std::string& ticker)
+	double Client::get_price(const std::string& ticker) const
 	{
 		if (!func_ok("get_price", (void(*)())_get_price)) return 0.0;
 
@@ -264,7 +262,7 @@ namespace daytrender
 		return res;
 	}
 
-	bool Client::market_open()
+	bool Client::market_open() const
 	{
 		if (!func_ok("market_open", (void(*)())_market_open)) return false;
 
@@ -285,7 +283,7 @@ namespace daytrender
 		return res;
 	}
 
-	std::string Client::to_interval(int interval)
+	std::string Client::to_interval(int interval) const
 	{
 		if (!func_ok("set_leverage", (void(*)())_set_leverage)) return "";
 

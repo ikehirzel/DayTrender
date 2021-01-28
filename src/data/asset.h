@@ -9,7 +9,7 @@
 #include "../api/client.h"
 
 // algorithm constants
-#define MAX_ALGORITHM_WINDOW	50
+#define MAX_ALGORITHM_WINDOW	100
 #define MIN_ALGORITHM_WINDOW	4
 
 

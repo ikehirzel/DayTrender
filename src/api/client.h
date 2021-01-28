@@ -18,7 +18,7 @@ namespace daytrender
 	{
 	private:
 		bool _bound = false;
-		bool _live = false;
+		mutable bool _live = false;
 		int _asset_count = 0;
 		double _risk = 0.0;
 		double _max_loss = 0.05;
@@ -58,8 +58,8 @@ namespace daytrender
 		void (*_backtest_intervals)(std::vector<int>&) = nullptr;
 		void (*_get_error)(std::string&) = nullptr;
 
-		void flag_error();
-		bool func_ok(const char* label, void(*func)());
+		void flag_error() const;
+		bool func_ok(const char* label, void(*func)()) const;
 
 	public:
 		Client(const std::string& label, const std::string& filepath,
@@ -74,12 +74,12 @@ namespace daytrender
 		bool close_all_positions();
 		bool set_leverage(int multiplier);
 
-		CandleSet get_candles(const std::string& ticker, int interval, int max = 0);
 		AccountInfo get_account_info();
-		double get_shares(const std::string& ticker);
-		double get_price(const std::string& ticker);
-		bool market_open();
-		std::string to_interval(int interval);
+		CandleSet get_candles(const std::string& ticker, int interval, int max = 0) const;
+		double get_shares(const std::string& ticker) const;
+		double get_price(const std::string& ticker) const;
+		bool market_open() const;
+		std::string to_interval(int interval) const;
 
 		// getters for constants
 

@@ -45,7 +45,7 @@ namespace daytrender
 		unsigned _interval = 0;
 		unsigned _shamt = 0;
 		bool _slice = false;
-		mutable const char* _error;
+		mutable const char* _error = nullptr;
 	public:
 		CandleSet() = default;
 		CandleSet(int size, int interval);
@@ -78,7 +78,7 @@ namespace daytrender
 			unsigned i = index + (int)_shamt;
 			if (i >= _size)
 			{
-				_error = "out of bounds memory access! returned *data";
+				_error = "out of bounds memory access: returned *data";
 				return *_data;
 			}
 			return _data[i];
@@ -89,7 +89,7 @@ namespace daytrender
 			unsigned i = index + (int)_shamt;
 			if (i >= _size)
 			{
-				_error = "out of bounds memory access! returned *data";
+				_error = "out of bounds memory access: returned *data";
 				return *_data;
 			}
 			return _data[(_size - 1) - i];
@@ -100,7 +100,7 @@ namespace daytrender
 			unsigned i = index + (int)_shamt;
 			if (i >= _size)
 			{
-				_error = "out of bounds memory access! returned *data";
+				_error = "out of bounds memory access: returned *data";
 				return *_data;
 			}
 			return _data[i];

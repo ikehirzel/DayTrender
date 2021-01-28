@@ -6,11 +6,10 @@ namespace daytrender
 	{
 		_ranges = ranges;
 		_candles = candles;
+		_capacity = ranges.size() - 1;
+		_dataset = new Indicator[_capacity];
 
-		_size = ranges.size() - 1;
-		_dataset = new Indicator[_size];
-
-		for (int i = 0; i < _size; i++)
+		for (int i = 0; i < _capacity; i++)
 		{
 			_dataset[i] = { ranges[0] };
 		}

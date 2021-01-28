@@ -11,25 +11,23 @@ extern "C" void algorithm (AlgorithmData& out);
 
 typedef void(*IndiFunc)(Indicator&, const CandleSet&, int);
 
-unsigned indicators = 0;
-
 const Indicator& _add_indicator(AlgorithmData& out, IndiFunc indi, const char* type, const char* label)
 {
-	if (indicators >= out.size())
+	if (out.size() >= out.capacity())
 	{
 		out.flag_error("attempted to add too many indicators");
 		return out[0];
 	}
+	short i = out.size();
+	out.increment_size();
+	out[i].set_ident(type, label);
 
-	out[indicators].set_ident(type, label);
-
-	indi(out[indicators], out.candles(), out.ranges()[indicators + 1]);
-	return out[indicators++];
+	indi(out[i], out.candles(), out.ranges()[i + 1]);
+	return out[i];
 }
 
 void _init_algorithm(AlgorithmData& out, const char* label)
 {
-	indicators = 0;
 	out.set_label(label);
 	const CandleSet& candles = out.candles();
 	const std::vector<int>& ranges = out.ranges();

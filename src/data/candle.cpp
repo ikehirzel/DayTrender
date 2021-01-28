@@ -46,17 +46,22 @@ namespace daytrender
 		_shamt = shamt;
 		_interval = other.interval();
 		_data = other.data() + offset;
-		if (size > other.size())
+		
+		if (!_data)
 		{
-			_error = "CandleSet slice is larger than base CandleSet";
+			_error = "slice data is nullptr";
+		}
+		else if (offset + size > other.size())
+		{
+			_error = "slice is larger than parent";
 		}
 		else if (size == 0)
 		{
-			_error = "CandleSet size is 0";
+			_error = "size is 0";
 		}
 		else if (shamt > size)
 		{
-			_error = "Shift amount is larger than size";
+			_error = "shift amount is larger than size";
 		}
 	}
 
