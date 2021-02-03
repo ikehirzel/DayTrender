@@ -1,5 +1,5 @@
-#define PAPER_FEE 0.00007
-#define PAPER_MINIMUM 1.0
+#define FEE 0.00007
+#define ORDER_MINIMUM 1.0
 #define BACKTEST_INTERVALS MIN1, MIN5, MIN15, HOUR1
 #define MAX_CANDLES 5000
 
@@ -65,7 +65,7 @@ bool get_candles(CandleSet& candles, const std::string& ticker)
 			double l = std::stod(mid["l"].get<std::string>());
 			double c = std::stod(mid["c"].get<std::string>());
 			double v = candle_json["volume"].get<double>();
-			candles[i] = { o, h, l, c, v };
+			candles.set(i) = { o, h, l, c, v };
 		}
 
 		return true;

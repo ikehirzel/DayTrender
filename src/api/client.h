@@ -53,8 +53,8 @@ namespace daytrender
 		// getters
 
 		int (*_max_candles)() = nullptr;
-		double (*_paper_fee)() = nullptr;
-		double (*_paper_minimum)() = nullptr;
+		double (*_fee)() = nullptr;
+		double (*_order_minimum)() = nullptr;
 		void (*_backtest_intervals)(std::vector<int>&) = nullptr;
 		void (*_get_error)(std::string&) = nullptr;
 
@@ -75,7 +75,7 @@ namespace daytrender
 		bool set_leverage(int multiplier);
 
 		AccountInfo get_account_info();
-		CandleSet get_candles(const std::string& ticker, int interval, int max = 0) const;
+		CandleSet get_candles(const std::string& ticker, int interval, unsigned max0, unsigned end) const;
 		double get_shares(const std::string& ticker) const;
 		double get_price(const std::string& ticker) const;
 		bool market_open() const;
@@ -83,8 +83,8 @@ namespace daytrender
 
 		// getters for constants
 
-		inline double paper_fee() const { return _paper_fee(); }
-		inline double paper_minimum() const { return _paper_minimum(); }
+		inline double fee() const { return _fee(); }
+		inline double order_minimum() const { return _order_minimum(); }
 		inline int max_candles() const { return _max_candles(); }
 
 		inline std::vector<int> backtest_intervals() const

@@ -43,73 +43,74 @@ namespace daytrender
 		Candle* _data = nullptr;
 		unsigned _size = 0;
 		unsigned _interval = 0;
-		unsigned _shamt = 0;
+		unsigned _end = 0;
 		bool _slice = false;
 		mutable const char* _error = nullptr;
+
+		CandleSet(Candle* parent_data, unsigned parent_size, int parent_interval, unsigned offset, unsigned size, unsigned end);
+
 	public:
 		CandleSet() = default;
-		CandleSet(int size, int interval);
+		CandleSet(unsigned size, unsigned end, int interval);
+		CandleSet(CandleSet&& other);
 		CandleSet(const CandleSet& other);
-		CandleSet(const CandleSet& other, unsigned offset, unsigned size, unsigned shamt);
 		~CandleSet();
 
-		inline CandleSet slice(unsigned offset, unsigned size, unsigned shamt)
+		CandleSet& operator=(const CandleSet& other);
+		inline CandleSet slice(unsigned offset, unsigned size, unsigned end)
 		{
-			return CandleSet(*this, offset, size, shamt);
+			return CandleSet(_data, _size, _interval, offset, size, end);
 		}
 
-		CandleSet& operator=(const CandleSet& other);
-
-		inline Candle& operator[] (int index)
+		inline Candle& set(unsigned index)
 		{
 			// this account for shamt but allows for only one check
-			unsigned i = index + (int)_shamt;
-			if (i >= _size)
+			if (index >= _size)
 			{
-				_error = "out of bounds memory access! returned *data";
+				_error = "out of bounds memory access";
 				return *_data;
 			}
-			return _data[i];
+			return _data[index];
 		}
 
 		inline const Candle& operator[] (int index) const
 		{
 			// this account for shamt but allows for only one check
-			unsigned i = index + (int)_shamt;
+			unsigned i = index + (int)(_size - _end);
+			//std::cout << "getting candle : " << i << std::endl;
 			if (i >= _size)
 			{
-				_error = "out of bounds memory access: returned *data";
+				_error = "out of bounds memory access";
 				return *_data;
 			}
 			return _data[i];
 		}
 
-		inline const Candle& back(int index = 0) const
+		inline const Candle& back(unsigned index = 0) const
 		{
-			unsigned i = index + (int)_shamt;
-			if (i >= _size)
+			if (index >= _size)
 			{
-				_error = "out of bounds memory access: returned *data";
+				_error = "out of bounds memory access";
 				return *_data;
 			}
-			return _data[(_size - 1) - i];
+			return _data[(_size - 1) - index];
 		}
 
-		inline const Candle& front(int index = 0) const
+		inline const Candle& front(unsigned index = 0) const
 		{
-			unsigned i = index + (int)_shamt;
-			if (i >= _size)
+			if (index >= _size)
 			{
-				_error = "out of bounds memory access: returned *data";
+				_error = "out of bounds memory access";
 				return *_data;
 			}
-			return _data[i];
+			return _data[index];
 		}
 
+		inline bool is_slice() const { return _slice; }
 		inline bool empty() const { return _size == 0; }
-		inline int size() const { return _size; }
+		inline unsigned size() const { return _size; }
+		inline unsigned end() const { return _end; }
 		inline int interval() const { return _interval; }
-		inline Candle* data() const { return _data; }
-		const char* error() { return _error; _error = nullptr; }
+		const char* error() const { return _error; }
 	};
 }

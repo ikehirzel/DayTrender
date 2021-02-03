@@ -2,7 +2,7 @@
 
 #include "indicator.h"
 #include "candle.h"
-#include "actionenum.h"
+#include "action.h"
 #include <vector>
 
 namespace daytrender
@@ -19,10 +19,13 @@ namespace daytrender
 		std::vector<int> _ranges;
 		CandleSet _candles;
 
+
 	public:
-		inline void do_nothing() { _action = Action::NOTHING; }
-		inline void sell() { _action = Action::SELL; }
-		inline void buy() { _action = Action::BUY; }
+		inline void do_nothing() {};
+		inline void enter_long() { _action = Action::ENTER_LONG; }
+		inline void exit_long() { _action = Action::EXIT_LONG; }
+		inline void enter_short() { _action = Action::ENTER_SHORT; }
+		inline void exit_short() { _action = Action::EXIT_SHORT; }
 
 		AlgorithmData() = default;
 		AlgorithmData(const std::vector<int>& ranges, const CandleSet& candles);

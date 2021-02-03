@@ -2,9 +2,8 @@ DayTrender
 ==============
 Forex, Stock, and Crypto trading bot/ framework written in C++
 
-Supports plugin-style algorithms by making use of TinyPlug (https://github.com/ikehirzel/TinyPlug)
+Makes use of libraries i've made:
 
-Logging system making use of HLog (https://github.com/ikehirzel/hlog)
-
-Networking calls handled by cpp-httplib (https://github.com/yhirose/cpp-httplib)
-
+Plugin system for algorithms and clients: pluginlib (https://github.com/ikehirzel/pluginlib)
+General utilities: hxutils (https://github.com/ikehirzel/hxutils)
+Logging system: fountain (https://github.com/ikehirzel/fountain)

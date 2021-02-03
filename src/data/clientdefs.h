@@ -1,11 +1,11 @@
 #pragma once
 
-#ifndef PAPER_FEE
+#ifndef FEE
 #error PAPER_FEE must be defined!
 #endif
 
-#ifndef PAPER_MINIMUM
-#error PAPER_MINIMUM must be defined!
+#ifndef ORDER_MINIMUM
+#error ORDER_MINIMUM must be defined!
 #endif
 
 #ifndef BACKTEST_INTERVALS
@@ -65,7 +65,7 @@ extern "C"
 	// non-returning functions
 
 	bool init(const std::vector<std::string>& credentials);
-	bool market_order(const std::string& ticker, double amount);\
+	bool market_order(const std::string& ticker, double amount);
 	bool close_all_positions();
 	bool set_leverage(int numerator);
 
@@ -81,8 +81,8 @@ extern "C"
 	// const functions
 
 	void backtest_intervals(std::vector<int>& out) { out = { BACKTEST_INTERVALS }; }
-	double paper_fee() { return PAPER_FEE; }
-	double paper_minimum() { return PAPER_MINIMUM; }
+	double fee() { return FEE; }
+	double order_minimum() { return ORDER_MINIMUM; }
 	int max_candles() { return MAX_CANDLES; }
 
 	void get_error(std::string& out)

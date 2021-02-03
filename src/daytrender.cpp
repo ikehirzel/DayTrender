@@ -82,7 +82,7 @@ namespace daytrender
 			
 			if (label.empty())
 			{
-				errorf("No label given for client[%d]!");
+				errorf("No label given for client[%d]!", i);
 				continue;
 			}
 			
@@ -246,12 +246,14 @@ namespace daytrender
 
 		////////////////////////////////////////////
 
-
-		auto res = interface::backtest(0, 0, 7, {});
+		auto res = interface::backtest(0, 0, 7, { });
 		for (int i = 0; i < res.size(); i++)
 		{
 			std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;
 		}
+		// std::cout << "\n\n";
+		// assets[0]->update();
+		// std::cout << "\n\n";
 	}
 
 	// destroys clients and assets
@@ -264,6 +266,7 @@ namespace daytrender
 		}
 		else
 		{
+			infof("Destructing clients...");
 			for (int i = 0; i < clients.size(); i++)
 			{
 				warningf("Not actually closing positions");
@@ -279,6 +282,7 @@ namespace daytrender
 		}
 		else
 		{
+			infof("Destructing assets...");
 			for (int i = 0; i < assets.size(); i++)
 			{
 				delete assets[i];	
@@ -291,6 +295,7 @@ namespace daytrender
 		}
 		else
 		{
+			infof("Destructing algorithms...");
 			for (int i = 0; i < algorithms.size(); i++)
 			{
 				delete algorithms[i];

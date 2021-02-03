@@ -72,11 +72,11 @@ namespace daytrender
 		_max_candles = (int(*)())_handle->bind_function(MAX_CANDLES_FUNC);
 		if (!_max_candles) flag_error();
 
-		_paper_fee = (double(*)())_handle->bind_function(PAPER_FEE_FUNC);
-		if (!_paper_fee) flag_error();
+		_fee = (double(*)())_handle->bind_function("fee");
+		if (!_fee) flag_error();
 
-		_paper_minimum = (double(*)())_handle->bind_function(PAPER_MINIMUM_FUNC);
-		if (!_paper_minimum) flag_error();
+		_order_minimum = (double(*)())_handle->bind_function("order_minimum");
+		if (!_order_minimum) flag_error();
 
 		_backtest_intervals = (void(*)(std::vector<int>&))_handle->bind_function(BACKTEST_INTERVALS_FUNC);
 		if (!_backtest_intervals) flag_error();
@@ -146,7 +146,7 @@ namespace daytrender
 		_live = false;
 	}
 
-	CandleSet Client::get_candles(const std::string& ticker, int interval, int max) const
+	CandleSet Client::get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const
 	{
 		if (!func_ok(GET_CANDLES_FUNC, (void(*)())_get_candles)) return CandleSet();
 
@@ -159,16 +159,20 @@ namespace daytrender
 			errorf("%s: requested more candles than maximum!", _filename);
 			return {};
 		}
-		else if (max <= 0)
+
+		if (end == 0)
 		{
-			errorf("%s: requested negative amount of candles!", _filename);
+			end = max;
+		}
+		else if (end > max)
+		{
+			errorf("%s: attempted to set candleset end as greater than max", _filename);
 			return {};
 		}
 
-		CandleSet candles(max, interval);
+		CandleSet candles(max, end, interval);
 		bool res = _get_candles(candles, ticker);
 		if (!res) flag_error();
-
 		return candles;
 	}
 

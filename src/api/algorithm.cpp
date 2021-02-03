@@ -8,7 +8,7 @@ namespace daytrender
 	Algorithm::Algorithm(const std::string& _filepath)
 	{
 		_filename = hirzel::str::get_filename(_filepath);
-		_plugin = new hirzel::Plugin(_filepath, { "ranges_size", "algorithm" });
+		_plugin = new hirzel::Plugin(_filepath, { "indicator_count", "data_length", "algorithm" });
 		
 		if (!_plugin->all_bound())
 		{
@@ -16,7 +16,8 @@ namespace daytrender
 			return;
 		}
 
-		_ranges_count = _plugin->execute<int>("ranges_size");
+		_indicator_count = _plugin->execute<int>("indicator_count");
+		_data_length = _plugin->execute<int>("data_length");
 		_algorithm_ptr = (void(*)(AlgorithmData&))_plugin->get_func("algorithm");
 		_bound = true;
 		successf("Successfully loaded algorithm: '%s'", _filename);

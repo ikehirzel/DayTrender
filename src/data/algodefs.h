@@ -4,9 +4,14 @@
 #error INDICATORS must be defined
 #endif
 
+#ifndef DATA_LENGTH
+#error DATA_LENGTH must be defined
+#endif
+
 using namespace daytrender;
 
-extern "C" int ranges_size() { return INDICATORS + 1; }
+extern "C" int indicator_count() { return INDICATORS; }
+extern "C" int data_length() { return DATA_LENGTH; }
 extern "C" void algorithm (AlgorithmData& out);
 
 typedef void(*IndiFunc)(Indicator&, const CandleSet&, int);
@@ -22,7 +27,7 @@ const Indicator& _add_indicator(AlgorithmData& out, IndiFunc indi, const char* t
 	out.increment_size();
 	out[i].set_ident(type, label);
 
-	indi(out[i], out.candles(), out.ranges()[i + 1]);
+	indi(out[i], out.candles(), out.ranges()[i]);
 	return out[i];
 }
 
@@ -39,7 +44,7 @@ void _init_algorithm(AlgorithmData& out, const char* label)
 	{
 		out.flag_error("algorithm data has not been initialized");
 	}
-	else if (ranges.size() != ranges_size())
+	else if (ranges.size() != indicator_count())
 	{
 		out.flag_error("algorithm dataset size did not match expected size");
 	}

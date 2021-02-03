@@ -5,8 +5,10 @@ namespace daytrender
 	enum Action
 	{
 		NOTHING,
-		SELL,
-		BUY,
+		ENTER_LONG,
+		EXIT_LONG,
+		ENTER_SHORT,
+		EXIT_SHORT,
 		COUNT
 	};
-}
+};

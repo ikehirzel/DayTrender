@@ -17,9 +17,10 @@ namespace daytrender
 	private:
 		bool _bound = false;
 		hirzel::Plugin* _plugin = nullptr;
+		int _indicator_count = 0;
+		int _data_length = 0;
+		void(*_algorithm_ptr)(AlgorithmData&) = nullptr;
 		std::string _filename;
-		int _ranges_count = 0;
-		void(*_algorithm_ptr)(AlgorithmData&);
 
 	public:
 		Algorithm(const std::string& _filepath);
@@ -27,7 +28,8 @@ namespace daytrender
 
 		AlgorithmData process(const CandleSet& candles, const std::vector<int>& ranges) const;
 		inline const std::string& filename() const { return _filename; };
-		inline int ranges_count() const { return _ranges_count; }
+		inline int indicator_count() const { return _indicator_count; }
 		inline bool is_bound() const { return _bound; }
+		inline int data_length() const { return _data_length; }
 	};
 }

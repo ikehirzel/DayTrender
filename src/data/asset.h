@@ -37,14 +37,27 @@ namespace daytrender
 		
 		Client* _client;
 		const Algorithm* _algo;
+		typedef bool (Asset::*AssetAction)();
+		AssetAction _actions[Action::COUNT];
 		
+		// client wrappers
+		inline CandleSet get_candles() const
+		{
+			return _client->get_candles(_ticker, _interval, _candle_count, _algo->data_length());
+		}
+
+		bool enter_long();
+		bool exit_long();
+		bool enter_short();
+		bool exit_short();
+
 	public:
 		Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
 			int interval, double risk, const std::vector<int>& ranges, bool paper);
 
 		void update();
-		//AssetInfo info() const;
 		bool should_update() const;
+
 
 		// inline getter functions
 		inline AlgorithmData data() const { return _data; }
@@ -56,6 +69,6 @@ namespace daytrender
 		inline bool is_live() const { return _live && _client->is_live(); }
 		inline double risk() const { return _risk; }
 		inline bool is_paper() const { return _paper; }
-		inline int data_length() const { return _ranges[0]; }
+		inline int data_length() const { return _algo->data_length(); }
 	};
 }

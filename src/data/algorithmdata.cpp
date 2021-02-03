@@ -5,13 +5,14 @@ namespace daytrender
 	AlgorithmData::AlgorithmData(const std::vector<int>& ranges, const CandleSet& candles)
 	{
 		_ranges = ranges;
+
 		_candles = candles;
-		_capacity = ranges.size() - 1;
+		_capacity = ranges.size();
 		_dataset = new Indicator[_capacity];
 
 		for (int i = 0; i < _capacity; i++)
 		{
-			_dataset[i] = { ranges[0] };
+			_dataset[i] = { candles.end() };
 		}
 	}
 

@@ -283,6 +283,11 @@ namespace daytrender
 					curr["ranges"][j] = ranges[j];
 				}
 
+				/*
+					TODO :
+						Redo all of these assignments to fit with current system
+				*/
+
 				curr["elapsedhrs"] = results[i].elapsed_hours();
 				curr["initial"] = results[i].principal();
 				curr["shares"] = results[i].shares();
@@ -292,9 +297,9 @@ namespace daytrender
 				curr["preturn"] = results[i].pct_return();
 				curr["hrreturn"] = results[i].net_per_year();
 				curr["phrreturn"] = results[i].pct_per_year();
-				curr["winrate"] = results[i].win_rate();
-				curr["bwinrate"] = results[i].buy_win_rate();
-				curr["swinrate"] = results[i].sale_win_rate();
+				curr["winrate"] = results[i].long_win_rate();
+				curr["bwinrate"] = results[i].long_win_rate();
+				curr["swinrate"] = results[i].long_win_rate();
 			}
 
 			res.set_content(response.dump(), JSON_FORMAT);

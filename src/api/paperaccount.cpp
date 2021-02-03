@@ -4,97 +4,79 @@
 
 namespace daytrender
 {
-	PaperAccount::PaperAccount(double principal, int leverage, double fee, double minimum,
-		double initial_price, int interval, const std::vector<int>& ranges)
+	PaperAccount::PaperAccount(double principal, int leverage, double fee, double order_minimum,
+		double initial_price, bool shorting_enabled, int interval, const std::vector<int>& ranges)
 	{
 		_principal = principal;
-		_leverage = (double)leverage;
 		_balance = principal;
+		_leverage = (double)leverage;
 		_fee = fee;
-		_minimum = minimum;
+		_order_minimum = order_minimum;
 		_price = initial_price;
-		_last_act_price = initial_price;
+		_shorting_enabled = shorting_enabled;
 		_interval = interval;
 		_ranges = ranges;
 	}
 
-	bool PaperAccount::buy(double shares)
+	bool PaperAccount::enter_long()
 	{
-		if (shares < _minimum)
-		{
-			_error = "attempt to buy " + std::to_string(shares) + " shares with trade minimum of " + std::to_string(_minimum);
-			return false;
-		}
-
-		double cost = shares * _price * (_fee + 1.0);
-		
-		if (cost > buying_power())
-		{			
-			_error = "attempt to buy " + std::to_string(shares) + " shares @ $" + std::to_string(cost) + "/share ($" + std::to_string(cost) + ") with insufficient buying power: $" + std::to_string(buying_power());
-			return false;
-		}
-		
-		// updating action to price to see if is loss
-
 		_buys++;
-		if (_price > _last_act_price)
-		{
-			_buy_losses++;
-		}
-		else if (_price < _last_act_price)
-		{
-			_buy_wins++;
-		}
-		_last_act_price = _price;
-		
-		// actual calculations
 
-		_margin_used += cost;
-		_shares += shares;
+		double money_available = buying_power() / (1.0 + _fee);
+		double max_shares = money_available / _price;
+		double shares_to_order = std::floor(max_shares / _order_minimum) * _order_minimum - _shares;
+
+		_margin_used += shares_to_order * _price * (_fee + 1.0);
+		_shares += shares_to_order;
 
 		return true;
 	}
 
-	bool PaperAccount::sell(double shares)
-	{
-		if (shares < _minimum)
-		{
-			_error = "attempt to sell " + std::to_string(shares) + " shares with trade minimum of " + std::to_string(_minimum);
-			return false;
-		}
-
-		if (shares > _shares)
-		{
-			_error = "attempt to sell " + std::to_string(shares) + " shares with insufficient amount: " + std::to_string(_shares);
-			return false;
-		}
-		
+	bool PaperAccount::exit_long()
+	{		
 		_sales++;
-		if (_price > _last_act_price)
-		{
-			_sale_wins++;
-		}
-		else if (_price < _last_act_price)
-		{
-			_sale_losses++;
-		}
-		_last_act_price = _price;
+		// the avg price paid for each share as well as the fee
+		double return_per_share = _price * (1.0 - _fee);
+		double avg_cost = _margin_used / _shares;
+		if (return_per_share > avg_cost) _long_wins++;
 
 		// actual calculations
-		double returns = shares * _price * (1.0 - _fee);
-		double margin_change = _margin_used * (shares / _shares);
-		_margin_used -= margin_change;
-		_balance -= (margin_change - returns);
-		_shares -= shares;
+		double returns = _shares * return_per_share;
+		_margin_used -= returns;
+		_balance -= _margin_used;
+
+		if (_margin_used < 0.0)
+		{
+			_long_profits -= _margin_used;
+		}
+		else
+		{
+			_long_losses += _margin_used;
+		}
+
+		_margin_used = 0;
+		_shares = 0;
 
 		if (_balance < 0.0)
 		{
 			_error = "application of returns caused balance to go negative: " + std::to_string(_balance);
 			return false;
 		}
-		// need to make sure that once the shares close out, it undoes the margin, this is wrong
+
 		return true;
-	}	
+	}
+
+	bool PaperAccount::enter_short()
+	{
+		if (!_shorting_enabled) return true;
+		return false;
+	}
+
+	bool PaperAccount::exit_short()
+	{
+		if (!_shorting_enabled) return true;
+		return false;
+	}
 
 	double PaperAccount::net_return() const
 	{
@@ -129,62 +111,28 @@ namespace daytrender
 		return 0.0;
 	}
 
-	double PaperAccount::buy_win_rate() const
-	{
-		if(_buys > 0)
-		{
-			return (double)_buy_wins / (double)_buys;
-		}
-		return 0.0;
-	}
-
-	double PaperAccount::buy_loss_rate() const
-	{
-		if (_buys > 0)
-		{
-			return (double)_buy_losses / (double)_buys;
-		}
-		return 0.0;
-	}
-
-	double PaperAccount::sale_win_rate() const
-	{
-		if (_sales > 0)
-		{
-			return (double)_sale_wins / (double)_sales;
-		}
-		return 0.0;
-	}
-
-	double PaperAccount::sale_loss_rate() const
-	{
-		if (_sales > 0)
-		{
-			return (double)_sale_losses / (double)_sales;
-		}
-		return 0.0;
-	}
-
-	double PaperAccount::win_rate() const
-	{
-		if	(trades() > 0)
-		{
-			return (double)(_buy_wins + _sale_wins) / (double)trades();
-		}
-		return 0.0;
-	}
-
-	double PaperAccount::loss_rate() const
+	double PaperAccount::long_win_rate() const
 	{
 		if (trades() > 0)
 		{
-			return (double)(_buy_losses + _sale_losses) / (double)trades();
+			return (double)_long_wins / (double)_sales;
+		}
+		return 0.0;
+	}
+
+	double PaperAccount::long_profit_rate() const
+	{
+		if (long_movement() > 0)
+		{
+			return _long_profits / long_movement();
 		}
 		return 0.0;
 	}
 
 	std::string PaperAccount::to_string() const
 	{
+		std::cout << "sales: " << _sales << std::endl;
+
 		std::string out;
 		out = "PaperAccount:\n{";
 		out += "\n    Buys        :    " + std::to_string(_buys);
@@ -204,22 +152,19 @@ namespace daytrender
 		out += "\n    Equity      :  $ " + std::to_string(equity());
 		out += "\n    Buy Power   :  $ " + std::to_string(buying_power());
 		out += "\n    Leverage    :  x " + std::to_string(leverage());
-		out += "\n    Fee         :  % " + std::to_string(fee());
-		out += "\n    Minimum     :    " + std::to_string(minimum());
+		out += "\n    Fee         :  % " + std::to_string(_fee);
+		out += "\n    Order Min   :    " + std::to_string(_order_minimum);
 		out += "\n";
+		out += "\n    L Profits   :  $ " + std::to_string(_long_profits);
+		out += "\n    L Losses    :  $ " + std::to_string(_long_losses);
 		out += "\n    Net Return  :  $ " + std::to_string(net_return());
-		out += "\n    % Return    :  % " + std::to_string(pct_return() * 100.0);
+		out += "\n    Pct Return  :  % " + std::to_string(pct_return() * 100.0);
 		out += "\n";
 		out += "\n    Net / Year  :  $ " + std::to_string(net_per_year());
-		out += "\n    % / Year    :  % " + std::to_string(pct_per_year() * 100.0);
+		out += "\n    Pct / Year  :  % " + std::to_string(pct_per_year() * 100.0);
 		out += "\n";
-		out += "\n    Win Rate    :  % " + std::to_string(win_rate() * 100.0);
-		out += "\n    B Win Rate  :  % " + std::to_string(buy_win_rate() * 100.0);
-		out += "\n    S Win Rate  :  % " + std::to_string(sale_win_rate() * 100.0);
-		out += "\n";
-		out += "\n    Loss Rate   :  % " + std::to_string(loss_rate() * 100.0);
-		out += "\n    B Loss Rate :  % " + std::to_string(buy_loss_rate() * 100.0);
-		out += "\n    S Loss Rate :  % " + std::to_string(sale_loss_rate() * 100.0);
+		out += "\n    Long W Rate :  % " + std::to_string(long_win_rate() * 100.0);
+		out += "\n    Long P Rate :  % " + std::to_string(long_profit_rate() * 100.0);
 		out += "\n}";
 		return out;
 	}

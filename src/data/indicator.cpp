@@ -5,7 +5,7 @@
 
 namespace daytrender
 {
-	Indicator::Indicator(int size)
+	Indicator::Indicator(unsigned size)
 	{
 		_size = size;
 		_data = new double[_size];

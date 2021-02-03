@@ -1,31 +1,35 @@
 #include "interface.h"
 
 #include "../daytrender.h"
-#include "../api/action.h"
 
 #include <hirzel/fountain.h>
 
 #include <future>
-#include <mutex>
+#include <chrono>
 
 namespace daytrender
 {
 	namespace interface
 	{
-		std::mutex mtx;
+		//bool backtest_permutation(
 
 		bool backtest_interval(PaperAccount* best, const Asset* asset, const Algorithm* algo,
 			int interval, long long permutations, int granularity, const std::vector<int>& start_ranges)
 		{
 			std::vector<int> curr_ranges = start_ranges;
 			const Client* client = asset->client();
-			CandleSet candles = client->get_candles(asset->ticker(), interval);
+			CandleSet candles = client->get_candles(asset->ticker(), interval, 0, 0);
 			
 			for (int i = 0; i < permutations; i++)
 			{
+				/*
+				 	TODO:
+					 	Implement shorting enabled
+				*/
+
 				// storing activity and performance data
-				PaperAccount acc(PAPER_ACCOUNT_INITIAL, client->leverage(), client->paper_fee(),
-					client->paper_minimum(), candles[0].open(), interval, curr_ranges);
+				PaperAccount acc(PAPER_ACCOUNT_INITIAL, client->leverage(), client->fee(),
+					client->order_minimum(), candles.front().open(), false, interval, curr_ranges);
 				
 				// calculating size of candles
 				int candle_count = 0;
@@ -39,12 +43,19 @@ namespace daytrender
 				candle_count += curr_ranges[0];
 
 
-				for (int j = 0; j < candles.size() - candle_count; j++)
+				for (long j = 0; j < candles.size() - candle_count; j++)
 				{
-					CandleSet slice = candles.slice(j, candle_count, 0);
-					if (candles.error())
+					CandleSet slice = candles.slice(j, candle_count, algo->data_length());
+					if (slice.empty())
 					{
-						errorf("Backtest: %s", candles.error());
+						std::cout << "Candles size: " << candles.size() << std::endl;
+						std::cout << "size: " << slice.size() <<  std::endl;
+						std::cout << "end: " << slice.end() <<  std::endl;
+					}
+
+					if (slice.error())
+					{
+						errorf("Backtest: CandleSet: %s", slice.error());
 						return false;
 					}
 					
@@ -53,13 +64,13 @@ namespace daytrender
 
 					if (data.error())
 					{
-						errorf("Backtest: %s", data.error());
+						errorf("Backtest: Algorithm: %s", data.error());
 						return false;
 					}
 
-					if (!action::paper_actions[data.action()](acc, asset->risk()))
+					if (!acc.handle_action(data.action()))
 					{
-						errorf("Backtest: %s", acc.error());
+						errorf("Backtest: Account: %s", acc.error());
 						return false;
 					}
 				}
@@ -86,6 +97,7 @@ namespace daytrender
 		std::vector<PaperAccount> backtest(int algo_index, int asset_index, int granularity,
 			const std::vector<int>& test_ranges)
 		{
+			auto t0 = std::chrono::system_clock::now();
 			const Asset* asset = get_asset(asset_index);
 			const Client* client = asset->client();
 			const Algorithm* algo = get_algorithm(algo_index);
@@ -104,10 +116,10 @@ namespace daytrender
 			if (test_ranges.empty())
 			{
 				// setting default ranges
-				start_ranges.resize(algo->ranges_count(), MIN_ALGORITHM_WINDOW);
+				start_ranges.resize(algo->indicator_count(), MIN_ALGORITHM_WINDOW);
 
 				// calculate the amount of permutations of ranges
-				for (int i = 0; i < algo->ranges_count(); i++) permutations *= possible_vals;
+				for (int i = 0; i < algo->indicator_count(); i++) permutations *= possible_vals;
 			}
 			else
 			{
@@ -115,14 +127,14 @@ namespace daytrender
 				start_ranges = test_ranges;
 
 				// verify ranges size
-				if (start_ranges.size() >  algo->ranges_count())
+				if (start_ranges.size() >  algo->indicator_count())
 				{
-					errorf("Backtest: Passed in %d ranges but %d were expected! Resizing ranges...", start_ranges.size(), algo->ranges_count());
-					start_ranges.resize(algo->ranges_count());
+					errorf("Backtest: Passed in %d ranges but %d were expected! Resizing ranges...", start_ranges.size(), algo->indicator_count());
+					start_ranges.resize(algo->indicator_count());
 				}
-				else if (start_ranges.size() < algo->ranges_count())
+				else if (start_ranges.size() < algo->indicator_count())
 				{
-					errorf("Backtest: Passed in %d ranges but %d were expected! Execution cannot continue.", start_ranges.size(), algo->ranges_count());
+					errorf("Backtest: Passed in %d ranges but %d were expected! Execution cannot continue.", start_ranges.size(), algo->indicator_count());
 					return {};
 				}
 
@@ -148,6 +160,7 @@ namespace daytrender
 			for (int i = 0; i < intervals.size(); i++)
 			{
 				threads[i] = std::async(std::launch::async, backtest_interval, &out[i], asset, algo, intervals[i], permutations, granularity, start_ranges);
+				
 			}
 
 			for (int i = 0; i < threads.size(); i++)
@@ -160,9 +173,13 @@ namespace daytrender
 				{
 					errorf("Backtest %d failed", i);
 				}
+				
 			}
+			auto t = std::chrono::system_clock::now();
+			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t - t0);
+			double secs = ms.count() / 1000.0;
 
-			successf("Backtesting of %s has completed", asset->ticker());
+			successf("Backtesting of %s has completed in %fs", asset->ticker(), secs);
 
 			return out;
 		}
