@@ -189,7 +189,7 @@ namespace daytrender
 			jacc["risk"] = asset->risk();
 			jacc["shares"] = client->get_shares(asset->ticker());
 			jacc["live"] = asset->is_live();
-			jacc["paper"] = asset->is_paper();
+			jacc["paper"] = false;
 
 			response["interval"] = data.candles().interval();
 			response["ticker"] = asset->ticker();
@@ -224,6 +224,11 @@ namespace daytrender
 			res.set_content(response.dump(), JSON_FORMAT);
 		}
 
+		/*
+			TODO:
+			Implement shorting in backtest call
+		*/
+
 		void get_backtest(const httplib::Request& req,  httplib::Response& res)
 		{
 			debugf("Server GET @ %s", req.path);
@@ -237,7 +242,7 @@ namespace daytrender
 			
 			if (sranges.empty())
 			{
-				results = interface::backtest(algo_index, asset_index, 5, {});
+				results = interface::backtest(algo_index, asset_index, false, 5, {});
 			}
 			else
 			{	
@@ -265,7 +270,7 @@ namespace daytrender
 				}
 
 				std::cout << "Ranges: " << ranges.size() << std::endl;
-				results = interface::backtest(algo_index, asset_index, 5, ranges);
+				results = interface::backtest(algo_index, asset_index, false, 5, ranges);
 			}
 			std::cout << "Got result!\n";
 

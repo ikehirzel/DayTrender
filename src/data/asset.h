@@ -20,9 +20,9 @@ namespace daytrender
 	class Asset
 	{
 	private:
-		bool _paper = true;
+		bool _shorting_enabled = false;
 		bool _live = false;
-
+		
 		int _interval = 0;
 		int _candle_count = 0;
 		int _type = 0;
@@ -68,7 +68,7 @@ namespace daytrender
 		inline int type() const { return _type; }
 		inline bool is_live() const { return _live && _client->is_live(); }
 		inline double risk() const { return _risk; }
-		inline bool is_paper() const { return _paper; }
+		inline bool shorting_enabled() const { return _shorting_enabled; }
 		inline int data_length() const { return _algo->data_length(); }
 	};
 }

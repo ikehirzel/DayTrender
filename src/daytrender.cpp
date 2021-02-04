@@ -246,7 +246,7 @@ namespace daytrender
 
 		////////////////////////////////////////////
 
-		auto res = interface::backtest(0, 0, 7, { });
+		auto res = interface::backtest(0, 0, false, 7, { });
 		for (int i = 0; i < res.size(); i++)
 		{
 			std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;

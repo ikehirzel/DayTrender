@@ -49,6 +49,7 @@ namespace daytrender
 		bool (*_get_price)(double&, const std::string&) = nullptr;
 		bool (*_market_open)(bool&) = nullptr;
 		bool (*_to_interval)(const char*, int) = nullptr;
+		bool (*_shorting_enabled)(bool&) = nullptr;
 
 		// getters
 
@@ -74,6 +75,7 @@ namespace daytrender
 		bool close_all_positions();
 		bool set_leverage(int multiplier);
 
+		// returning
 		AccountInfo get_account_info();
 		CandleSet get_candles(const std::string& ticker, int interval, unsigned max0, unsigned end) const;
 		double get_shares(const std::string& ticker) const;

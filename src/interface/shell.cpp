@@ -10,6 +10,11 @@
 #include <hirzel/fountain.h>
 #include <hirzel/strutil.h>
 
+/*
+	TODO:
+		Implement shorting_enabled in backtest call
+*/
+
 namespace daytrender
 {
 	namespace shell
@@ -77,7 +82,7 @@ namespace daytrender
 					return;
 				}
 
-				auto result = interface::backtest(algo_index, asset_index, 5, {});
+				auto result = interface::backtest(algo_index, asset_index, false, 5, {});
 
 				for (const PaperAccount& p : result)
 				{

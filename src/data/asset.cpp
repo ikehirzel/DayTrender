@@ -18,7 +18,7 @@ namespace daytrender
 		_ticker = ticker;
 		_interval = interval;
 		_type = type;
-		_paper = paper;
+		//_paper = paper;
 		_risk = risk;
 		_ranges = ranges;
 
@@ -124,13 +124,13 @@ namespace daytrender
 	bool Asset::should_update() const
 	{
 		if ((hirzel::sys::get_seconds() - _last_update) > _interval)
+		{
+			if (_client->market_open())
 			{
-				if (_client->market_open())
-				{
-					return true;
-				}
+				return true;
 			}
-			return false;
+		}
+		return false;
 	}
 
 	bool Asset::enter_long()
@@ -159,18 +159,35 @@ namespace daytrender
 	{
 		double curr_shares = _client->get_shares(_ticker);
 		if (curr_shares == 0.0) return true;
+		return false;
 		return _client->market_order(_ticker, -curr_shares);
 	}
 
 	bool Asset::enter_short()
 	{
-		return false;
+		if (_shorting_enabled)
+		{
+			AccountInfo acct = _client->get_account_info();
+			if (acct.shorting_enabled())
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 
 	bool Asset::exit_short()
 	{
-		double curr_shares = _client->get_shares(_ticker);
-		if (curr_shares == 0.0) return true;
-		return _client->market_order(_ticker, -curr_shares);
+		if (_shorting_enabled)
+		{
+			AccountInfo acct = _client->get_account_info();
+			if (acct.shorting_enabled())
+			{
+				double curr_shares = _client->get_shares(_ticker);
+				if (curr_shares == 0.0) return true;
+				return _client->market_order(_ticker, -curr_shares);
+			}
+		}
+		return true;
 	}
 }
