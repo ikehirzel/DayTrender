@@ -210,8 +210,13 @@ namespace daytrender
 		mtx.unlock();
 		shouldrun = false;
 
-
 		// auto acct = clients[0]->get_account_info();
+		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
+
+		// clients[0]->market_order("EUR_USD", -40000);
+
+		// sys::thread_sleep(1000);
+		// acct = clients[0]->get_account_info();
 		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
 
 		// clients[0]->market_order("EUR_USD", 80000);
@@ -226,30 +231,25 @@ namespace daytrender
 		// acct = clients[0]->get_account_info();
 		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
 
-		// clients[0]->market_order("EUR_USD", -40000);
-
-		// sys::thread_sleep(1000);
-		// acct = clients[0]->get_account_info();
-		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
-
 
 		////////////////////////////////////////////
 
-		// PaperAccount acc(500.0, 10, 0.0, 1.0, 2.0, 300, { 1, 2, 3 });
-		// acc.buy(8.0);
-		// std::cout << "Buy " << acc << std::endl;
-		// acc.update_price(2.5);
+		// PaperAccount acc(500.0, 10, 0.0, 1.0, 2.0, true, 300, { 1, 2, 3 });
+		// acc.handle_action(Action::ENTER_SHORT);
+		// std::cout << "Enter long " << acc << std::endl;
+		// acc.update_price(1.5);
 		// std::cout << "Update " << acc << std::endl;
-		// acc.sell(8.0);
-		// std::cout << "Sell " << acc << std::endl;
+		// acc.handle_action(Action::EXIT_SHORT);
+		// std::cout << "Exit short " << acc << std::endl;
 		// std::cout << "Error: " << acc.error() << std::endl;
 
 		////////////////////////////////////////////
 
-		auto res = interface::backtest(0, 0, false, 7, { });
+		auto res = interface::backtest(0, 0, true, 5, { 69, 64 });
 		for (int i = 0; i < res.size(); i++)
 		{
 			std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;
+			break;
 		}
 		// std::cout << "\n\n";
 		// assets[0]->update();

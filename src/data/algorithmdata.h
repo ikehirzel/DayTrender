@@ -21,7 +21,6 @@ namespace daytrender
 
 
 	public:
-		inline void do_nothing() {};
 		inline void enter_long() { _action = Action::ENTER_LONG; }
 		inline void exit_long() { _action = Action::EXIT_LONG; }
 		inline void enter_short() { _action = Action::ENTER_SHORT; }

@@ -24,7 +24,7 @@ namespace daytrender
 			{
 				// storing activity and performance data
 				PaperAccount acc(PAPER_ACCOUNT_INITIAL, client->leverage(), client->fee(),
-					client->order_minimum(), candles.front().open(), false, interval, curr_ranges);
+					client->order_minimum(), candles.front().open(), shorting_enabled, interval, curr_ranges);
 				
 				// calculating size of candles
 				int candle_count = 0;
@@ -70,7 +70,13 @@ namespace daytrender
 					}
 				}
 
-				if (acc.net_per_year() > best->net_per_year() || i == 0)
+				if (!acc.close_position())
+				{
+					errorf("Backtest: Account: %s", acc.error());
+					return false;
+				}
+
+				if (acc.equity() > best->equity() || i == 0)
 				{
 					*best = acc;
 				}
@@ -155,7 +161,7 @@ namespace daytrender
 			for (int i = 0; i < intervals.size(); i++)
 			{
 				threads[i] = std::async(std::launch::async, backtest_interval, &out[i], asset, algo, intervals[i], permutations, shorting_enabled, granularity, start_ranges);
-				
+				break;
 			}
 
 			for (int i = 0; i < threads.size(); i++)
@@ -168,7 +174,7 @@ namespace daytrender
 				{
 					errorf("Backtest %d failed", i);
 				}
-				
+				break;
 			}
 			auto t = std::chrono::system_clock::now();
 			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t - t0);

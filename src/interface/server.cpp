@@ -278,8 +278,8 @@ namespace daytrender
 			{
 				json& curr = response[i];
 
-				curr["buys"] = results[i].buys();
-				curr["sells"] = results[i].sales();
+				curr["buys"] = results[i].long_entrances();
+				curr["sells"] = results[i].long_exits();
 				curr["interval"] = results[i].interval();
 
 				auto ranges = results[i].ranges();

@@ -22,6 +22,7 @@ void EMA(Indicator& data, const CandleSet& candles, int range)
 	}
 }
 
+
 void algorithm (AlgorithmData& out)
 {
 	init_algorithm(out, "Simple MA");
@@ -31,9 +32,11 @@ void algorithm (AlgorithmData& out)
 	if (shortma.back() > longma.back() && shortma.back(1) < longma.back(1))
 	{
 		out.enter_long();
+		//out.exit_short();
 	}
 	else if (shortma.back() < longma.back() && shortma.back(1) > longma.back(1))
 	{
-		out.exit_long();
+		out.enter_short();
+		//out.exit_long();
 	}
 }
