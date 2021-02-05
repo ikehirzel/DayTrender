@@ -4,16 +4,8 @@
 #include <vector>
 
 #include "candle.h"
-#include "../api/paperaccount.h"
 #include "../api/algorithm.h"
 #include "../api/client.h"
-
-// algorithm constants
-#define MAX_ALGORITHM_WINDOW	100
-#define MIN_ALGORITHM_WINDOW	4
-
-
-#define PAPER_ACCOUNT_INITIAL 500.0
 
 namespace daytrender
 {
@@ -26,6 +18,7 @@ namespace daytrender
 		int _interval = 0;
 		int _candle_count = 0;
 		int _type = 0;
+		int _closeout_buffer = 15; // time to close out position 
 
 		long long _last_update = 0;
 
@@ -44,6 +37,21 @@ namespace daytrender
 		inline CandleSet get_candles() const
 		{
 			return _client->get_candles(_ticker, _interval, _candle_count, _algo->data_length());
+		}
+
+		inline double get_price() const 
+		{
+			return _client->get_price(_ticker);
+		}
+
+		inline double get_shares() const
+		{
+			return _client->get_shares(_ticker);
+		}
+
+		inline bool close_position()
+		{
+			return _client->market_order(_ticker, _client->get_shares(_ticker));
 		}
 
 		bool enter_long();

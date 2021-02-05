@@ -7,6 +7,17 @@
 #include <future>
 #include <chrono>
 
+// algorithm constants
+#define MAX_BACKTEST_RANGE	100
+
+/*
+	CHANGING THE MIN BACKTEST RANGE CAUSE IT TO NOT CRASH
+	KNOWN CRASHES AT MIN = 2
+*/
+
+#define MIN_BACKTEST_RANGE	5
+#define PAPER_ACCOUNT_INITIAL 500.0
+
 namespace daytrender
 {
 	namespace interface
@@ -41,12 +52,6 @@ namespace daytrender
 				for (long j = 0; j < candles.size() - candle_count; j++)
 				{
 					CandleSet slice = candles.slice(j, candle_count, algo->data_length());
-					if (slice.empty())
-					{
-						std::cout << "Candles size: " << candles.size() << std::endl;
-						std::cout << "size: " << slice.size() <<  std::endl;
-						std::cout << "end: " << slice.end() <<  std::endl;
-					}
 
 					if (slice.error())
 					{
@@ -85,9 +90,9 @@ namespace daytrender
 
 				int pos = 0;
 				curr_ranges[pos] += granularity;
-				while (curr_ranges[pos] > MAX_ALGORITHM_WINDOW)
+				while (curr_ranges[pos] > MAX_BACKTEST_RANGE)
 				{
-					curr_ranges[pos] = MIN_ALGORITHM_WINDOW;
+					curr_ranges[pos] = MIN_BACKTEST_RANGE;
 					pos++;
 					curr_ranges[pos] += granularity;
 				}
@@ -111,13 +116,13 @@ namespace daytrender
 			// calculating lops
 			std::vector<int> start_ranges;
 			long long permutations = 1;
-			int possible_vals = ((MAX_ALGORITHM_WINDOW + 1) - MIN_ALGORITHM_WINDOW) / granularity;
+			int possible_vals = ((MAX_BACKTEST_RANGE + 1) - MIN_BACKTEST_RANGE) / granularity;
 
 			// if no ranges are passed in
 			if (test_ranges.empty())
 			{
 				// setting default ranges
-				start_ranges.resize(algo->indicator_count(), MIN_ALGORITHM_WINDOW);
+				start_ranges.resize(algo->indicator_count(), MIN_BACKTEST_RANGE);
 
 				// calculate the amount of permutations of ranges
 				for (int i = 0; i < algo->indicator_count(); i++) permutations *= possible_vals;
@@ -142,15 +147,15 @@ namespace daytrender
 				// verify minimums and maximums
 				for (int i = 0; i < start_ranges.size(); i++)
 				{
-					if (start_ranges[i] < MIN_ALGORITHM_WINDOW)
+					if (start_ranges[i] < MIN_BACKTEST_RANGE)
 					{
-						start_ranges[i] = MIN_ALGORITHM_WINDOW;
-						warningf("test_ranges[%d] was less than the minimum (%d). Readjusting...", start_ranges[i], MIN_ALGORITHM_WINDOW);
+						start_ranges[i] = MIN_BACKTEST_RANGE;
+						warningf("test_ranges[%d] was less than the minimum (%d). Readjusting...", start_ranges[i], MIN_BACKTEST_RANGE);
 					}
-					else if (start_ranges[i] > MAX_ALGORITHM_WINDOW)
+					else if (start_ranges[i] > MAX_BACKTEST_RANGE)
 					{
-						start_ranges[i] = MAX_ALGORITHM_WINDOW;
-						warningf("test_ranges[%d] was greater than the maximum (%d). Readjusting...", start_ranges[i], MIN_ALGORITHM_WINDOW);
+						start_ranges[i] = MAX_BACKTEST_RANGE;
+						warningf("test_ranges[%d] was greater than the maximum (%d). Readjusting...", start_ranges[i], MIN_BACKTEST_RANGE);
 					}
 				}
 			}
@@ -161,7 +166,7 @@ namespace daytrender
 			for (int i = 0; i < intervals.size(); i++)
 			{
 				threads[i] = std::async(std::launch::async, backtest_interval, &out[i], asset, algo, intervals[i], permutations, shorting_enabled, granularity, start_ranges);
-				break;
+				
 			}
 
 			for (int i = 0; i < threads.size(); i++)
@@ -174,7 +179,7 @@ namespace daytrender
 				{
 					errorf("Backtest %d failed", i);
 				}
-				break;
+				
 			}
 			auto t = std::chrono::system_clock::now();
 			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t - t0);

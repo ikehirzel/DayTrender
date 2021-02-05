@@ -73,7 +73,7 @@ extern "C"
 
 	bool get_candles(CandleSet& candles, const std::string& ticker);
 	bool get_account_info(AccountInfo& info);
-	bool market_open(bool&);
+	bool secs_till_market_close(int&);
 	bool get_shares(double&, const std::string& ticker);
 	bool get_price(double&, const std::string& ticker);
 	bool to_interval(const char*& interval_str, int interval);

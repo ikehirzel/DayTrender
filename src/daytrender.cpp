@@ -245,11 +245,14 @@ namespace daytrender
 
 		////////////////////////////////////////////
 
-		auto res = interface::backtest(0, 0, true, 5, { 69, 64 });
+		auto res = interface::backtest(0, 0, true, 7, { });
 		for (int i = 0; i < res.size(); i++)
 		{
 			std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;
-			break;
+			std::cout << "Sharpe: " << res[i].sharpe_ratio() << std::endl;
+			std::cout << "Kelly: " << res[i].kelly_criterion() << std::endl;
+			//break;
+			
 		}
 		// std::cout << "\n\n";
 		// assets[0]->update();

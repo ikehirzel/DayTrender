@@ -20,6 +20,7 @@ namespace daytrender
 		bool _bound = false;
 		mutable bool _live = false;
 		int _asset_count = 0;
+		double _pl = 0.0;
 		double _risk = 0.0;
 		double _max_loss = 0.05;
 		double _history_length = 24.0;
@@ -47,7 +48,7 @@ namespace daytrender
 		bool (*_get_candles)(CandleSet&, const std::string&) = nullptr;
 		bool (*_get_shares)(double&, const std::string&) = nullptr;
 		bool (*_get_price)(double&, const std::string&) = nullptr;
-		bool (*_market_open)(bool&) = nullptr;
+		bool (*_secs_till_market_close)(int&) = nullptr;
 		bool (*_to_interval)(const char*, int) = nullptr;
 		bool (*_shorting_enabled)(bool&) = nullptr;
 
@@ -77,10 +78,11 @@ namespace daytrender
 
 		// returning
 		AccountInfo get_account_info();
-		CandleSet get_candles(const std::string& ticker, int interval, unsigned max0, unsigned end) const;
+		CandleSet get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const;
 		double get_shares(const std::string& ticker) const;
 		double get_price(const std::string& ticker) const;
-		bool market_open() const;
+		int secs_till_market_close() const;
+		inline bool market_open() const { return secs_till_market_close() > 0; }
 		std::string to_interval(int interval) const;
 
 		// getters for constants
@@ -111,6 +113,8 @@ namespace daytrender
 		inline const std::string& filename() const { return _filename; }
 		inline hirzel::Plugin* handle() const { return _handle; }
 		inline double risk() const { return _risk; }
+		inline double pl() const { return _pl; }
+		inline int asset_count() const { return _asset_count; }
 		inline void increment_assets() { _asset_count++; }
 		inline int leverage() const { return _leverage; }
 	};

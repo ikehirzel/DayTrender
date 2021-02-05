@@ -7,7 +7,7 @@
 #include "../data/action.h"
 
 namespace daytrender
-{	
+{
 	class PaperAccount
 	{
 	private:
@@ -16,9 +16,12 @@ namespace daytrender
 		double _fee = 0.0;
 		double _order_minimum = 1.0;
 		double _price = 0.0;
+		double _initial_price = 0.0;
 		double _shares = 0.0;
 		double _leverage = 1.0;
 		double _margin_used = 0.0;
+		double _price_sum = 0.0;
+		std::vector<double> _return_history;
 
 		bool _shorting_enabled = false;
 
@@ -26,13 +29,15 @@ namespace daytrender
 		int _long_exits = 0;
 		double _long_profits = 0.0;
 		double _long_losses = 0.0;
-		int _long_wins = 0;
+		int _long_win_count = 0;
+		int _long_loss_count = 0;
 
 		int _short_entrances = 0;
 		int _short_exits = 0;
 		double _short_profits = 0.0;
 		double _short_losses = 0.0;
-		int _short_wins = 0;
+		int _short_win_count = 0;
+		int _short_loss_count = 0;
 
 		int _interval = 0;
 		int _updates = 0;
@@ -101,6 +106,7 @@ namespace daytrender
 		inline void update_price(double price)
 		{
 			_price = price;
+			_price_sum += _price;
 			_updates++; 
 		};
 		
@@ -132,13 +138,16 @@ namespace daytrender
 		double net_per_year() const;
 		double pct_per_year() const;
 
+		double return_volatility() const;
+		double sharpe_ratio() const;
+		double kelly_criterion() const;
+
 		double long_win_rate() const;
 		double long_profit_rate() const;
-
 		double short_win_rate() const;
 		double short_profit_rate() const;
-
 		double win_rate() const;
+		double loss_rate() const;
 		double profit_rate() const;
 
 		double elapsed_hours() const;

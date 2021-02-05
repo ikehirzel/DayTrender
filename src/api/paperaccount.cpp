@@ -1,6 +1,6 @@
 #include "paperaccount.h"
 
-#include <cmath>
+#include "../data/mathutil.h"
 
 namespace daytrender
 {
@@ -12,7 +12,9 @@ namespace daytrender
 		_leverage = (double)leverage;
 		_fee = fee;
 		_order_minimum = order_minimum;
+		_initial_price = initial_price;
 		_price = initial_price;
+		_price_sum = _price;
 		_shorting_enabled = shorting_enabled;
 		_interval = interval;
 		_ranges = ranges;
@@ -28,10 +30,8 @@ namespace daytrender
 		_long_entrances++;
 		// if shorting, exit the short position before entering long position
 
-		double fee_mult = 1.0 + _fee;
-		double shares_to_order = std::floor(((buying_power() / fee_mult) / _price) / _order_minimum) * _order_minimum;
-
-		_margin_used += shares_to_order * _price * fee_mult;
+		double shares_to_order = get_shares_to_order(buying_power(), _price, _order_minimum, _fee);
+		_margin_used += shares_to_order * _price * (1.0 + _fee);
 		_shares += shares_to_order;
 
 		return true;
@@ -40,24 +40,27 @@ namespace daytrender
 	bool PaperAccount::exit_long()
 	{
 		if (_shares <= 0.0) return true;
-
+		//std::cout << "Avg diffus: " << diffus_sum / (double)diffus_count << std::endl;
 		_long_exits++;
 
 		// the avg price paid for each share as well as the fee
 		double fee_mult = 1.0 + _fee;
-		double returns = _margin_used - (_shares * _price * fee_mult);
-		_balance += returns;
+		double returns = (_shares * _price * (1.0 - _fee)) - _margin_used;
 
 		if (returns > 0.0)
 		{
-			_long_wins++;
+			_long_win_count++;
 			_long_profits += returns;
 		}
-		else
+		else if (returns < 0.0)
 		{
+			_long_loss_count++;
 			_long_losses -= returns;
 		}
 
+		_return_history.push_back(returns / _balance);
+
+		_balance += returns;
 		_margin_used = 0;
 		_shares = 0;
 
@@ -72,7 +75,6 @@ namespace daytrender
 	
 	bool PaperAccount::enter_short()
 	{
-		
 		// regardless of whether shorting is enabled or not, exit long position
 		if (_shares > 0.0)
 		{
@@ -84,10 +86,9 @@ namespace daytrender
 		_short_entrances++;
 
 		// calculation for short buying
-		double fee_mult = 1.0 + _fee;
-		double shares_to_short = std::floor(((buying_power() / fee_mult) / _price) / _order_minimum) * _order_minimum;
+		double shares_to_short = get_shares_to_order(buying_power(), _price, _order_minimum, _fee);
 
-		_margin_used += shares_to_short * _price * fee_mult;
+		_margin_used += shares_to_short * _price * (1.0 - _fee);
 		_shares -= shares_to_short;
 
 		return true;
@@ -99,20 +100,22 @@ namespace daytrender
 		_short_exits++;
 
 		// the avg price paid for each share as well as the fee
-		double fee_mult = 1.0 + _fee;
-		double returns = _margin_used + _shares * _price * fee_mult;
-		_balance += returns;
+		double returns = _margin_used - (-_shares * _price * (1.0 + _fee));
 
 		if (returns > 0.0)
 		{
-			_short_wins++;
+			_short_win_count++;
 			_short_profits += returns;
 		}
-		else
+		else if (returns < 0.0)
 		{
+			_short_loss_count++;
 			_short_losses -= returns;
 		}
 
+		_return_history.push_back(returns / _balance);
+
+		_balance += returns;
 		_margin_used = 0.0;
 		_shares = 0;
 
@@ -162,7 +165,7 @@ namespace daytrender
 	{
 		if (_long_exits > 0)
 		{
-			return (double)_long_wins / (double)_long_exits;
+			return (double)_long_win_count / (double)_long_exits;
 		}
 		return 0.0;
 	}
@@ -180,7 +183,7 @@ namespace daytrender
 	{
 		if (_short_exits > 0)
 		{
-			return (double)_short_wins / (double)_short_exits;
+			return (double)_short_win_count / (double)_short_exits;
 		}
 		return 0.0;
 	}
@@ -192,6 +195,71 @@ namespace daytrender
 			return _short_profits / short_movement();
 		}
 		return 0.0;
+	}
+
+	double PaperAccount::win_rate() const
+	{
+		double exits = _long_exits + _short_exits;
+		if (exits > 0.0)
+		{
+			return (double)(_long_win_count + _short_win_count) / exits;
+		}
+		return 0.0;
+	}
+
+	double PaperAccount::loss_rate() const
+	{
+		double exits = _long_exits + _short_exits;
+		if (exits > 0.0)
+		{
+			return (double)(_long_loss_count + _short_loss_count) / exits;
+		}
+		return 0.0;
+	}
+
+	double PaperAccount::profit_rate() const
+	{
+		double movement = _long_profits + _short_profits + _long_losses + _short_losses;
+		if (movement > 0.0)
+		{
+			return (_long_profits + _short_profits) / movement;
+		}
+		return 0.0;
+	}
+
+	double PaperAccount::return_volatility() const
+	{
+		if (_return_history.empty()) return 0.0;
+		// getting mean return
+		double return_mean = 0.0;
+		for (double ret : _return_history) return_mean += ret;
+		return_mean /= _return_history.size();
+
+		// getting squared deviation sum
+		double sq_sum = 0.0;
+		for (double ret : _return_history)
+		{
+			double deviation = ret - return_mean;
+			sq_sum += (deviation * deviation);
+		}
+		// standard deviation calc
+		return std::sqrt(sq_sum / (_return_history.size() - 1));
+	}
+
+	double PaperAccount::sharpe_ratio() const 
+	{
+		double avg_price = _price_sum / (double)_updates;
+		double risk_free_rate = _price / _initial_price - 1.0;
+		risk_free_rate += (avg_price / _initial_price - 1.0) * 2.0;
+		risk_free_rate += (_price / avg_price - 1.0) * 2.0;
+		risk_free_rate /= 3.0;
+
+		return (pct_return() - risk_free_rate) / return_volatility();
+	}
+
+	double PaperAccount::kelly_criterion() const
+	{
+		return win_rate() - loss_rate() / profit_rate();
 	}
 
 	std::string PaperAccount::to_string() const

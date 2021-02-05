@@ -55,8 +55,8 @@ namespace daytrender
 		_close_all_positions = (bool(*)())_handle->bind_function("close_all_positions");
 		if (!_close_all_positions) flag_error();
 
-		_market_open = (bool(*)(bool&))_handle->bind_function("market_open");
-		if (!_market_open) flag_error();
+		_secs_till_market_close = (bool(*)(int&))_handle->bind_function("secs_till_market_close");
+		if (!_secs_till_market_close) flag_error();
 
 		_get_price = (bool(*)(double&, const std::string&))_handle->bind_function("get_price");
 		if (!_get_price) flag_error();
@@ -193,23 +193,14 @@ namespace daytrender
 			_equity_history.erase(_equity_history.begin());
 		}
 
-		const std::pair<long long, double>& front = _equity_history[0];
-		info = AccountInfo(info, front.second, _risk, _asset_count);
-		
+		double prev_equity = _equity_history.front().second;
+		_pl = info.equity() - prev_equity;
+
 		// account has lost too much in last interval
-		if (info.pl() <= front.second * -_max_loss)
+		if (_pl <= prev_equity * -_max_loss)
 		{
-			errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, info.pl(), _history_length);
-			int failures = 0;
-			while (!close_all_positions())
-			{
-				failures++;
-				if (failures >= 5)
-				{
-					errorf("Client has failed to close all positions (%d) times! Aborting...\n", failures);
-					break;
-				}
-			}
+			errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, _pl, _history_length);
+			close_all_positions();
 			_live = false;
 			errorf("%s client '%s' has gone offline!", _label, _filename);
 		}
@@ -266,15 +257,15 @@ namespace daytrender
 		return res;
 	}
 
-	bool Client::market_open() const
+	int Client::secs_till_market_close() const
 	{
-		if (!func_ok("market_open", (void(*)())_market_open)) return false;
+		if (!func_ok("secs_till_market_close", (void(*)())_secs_till_market_close)) return false;
 
-		bool open = false;
-		bool res = _market_open(open);
+		int seconds;
+		bool res = _secs_till_market_close(seconds);
 		if (!res) flag_error();
 
-		return open;
+		return seconds;
 	}
 
 	bool Client::set_leverage(int multiplier)

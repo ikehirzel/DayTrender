@@ -5,7 +5,7 @@
 
 #include <iostream>
 #include <clientdefs.h>
-#include <chrono>
+#include <ctime>
 
 std::string accountid, token;
 
@@ -239,22 +239,30 @@ bool close_all_positions()
 	return false;
 }
 
-bool market_open(bool& open)
+bool secs_till_market_close(int& seconds)
 {
-	auto res = client.Get("/v3/instruments/EUR_USD/candles?count=1&granularity=S5", {{ "Accept-Datetime-Format", "UNIX" }});
-	if (res_ok(res))
-	{
-		json res_json = json::parse(res->body);
-		long long candle_time = std::stoll(res_json["candles"][0]["time"].get<std::string>());
-		long long sys_time = std::chrono::duration_cast<std::chrono::seconds>
-				(std::chrono::system_clock::now().time_since_epoch()).count();
-		if (sys_time - candle_time < 15)
-		{
-			open = true;
-		}
-		return true;
-	}
-	return false;
+	seconds = 0;
+	time_t time_since_epoch = time(NULL);
+	tm* curr_time = gmtime(&time_since_epoch);
+
+	int second = curr_time->tm_sec;
+	int minute = curr_time->tm_min;
+	int hour = curr_time->tm_hour;
+	int weekday = curr_time->tm_wday;
+	int month = curr_time->tm_mon;
+	int monthday = curr_time->tm_mday;
+
+	// if is between christmas eve and jan 1
+	if ((month == 0 && monthday == 1) || (month == 11 && monthday >= 24)) return true;
+	// if is market weekend
+	if (weekday == 6 || (weekday == 5 && hour >= 22) || (weekday == 0 && hour < 22)) return true;
+
+	// every calculation following is needs to find time till friday at 10pm
+	int days_till_close = 5 - weekday;
+	int hours_till_close = (22 - hour) + days_till_close * 24;
+	int mins_till_close = -minute + hours_till_close * 60;
+	seconds = -second + mins_till_close * 60;
+	return true;
 }
 
 bool to_interval(const char*& interval_str, int interval)
@@ -264,51 +272,67 @@ bool to_interval(const char*& interval_str, int interval)
 		case MIN1:
 			interval_str = "M1";
 			return true;
+
 		case MIN2:
 			interval_str = "M2";
 			return true;
+
 		case MIN4:
 			interval_str = "M4";
 			return true;
+
 		case MIN5:
 			interval_str = "M5";
 			return true;
+
 		case MIN10:
 			interval_str = "M10";
 			return true;
+
 		case MIN15:
 			interval_str = "M15";
 			return true;
+
 		case MIN30:
 			interval_str = "M30";
 			return true;
+
 		case HOUR1:
 			interval_str = "H1";
 			return true;
+
 		case HOUR2:
 			interval_str = "H2";
 			return true;
+
 		case HOUR3:
 			interval_str = "H3";
 			return true;
+
 		case HOUR4:
 			interval_str = "H4";
 			return true;
+
 		case HOUR6:
 			interval_str = "H6";
 			return true;
+
 		case HOUR8:
 			interval_str = "H8";
 			return true;
+
 		case HOUR12:
 			interval_str = "H12";
 			return true;
+
 		case DAY:
 			interval_str = "D";
 			return true;
+
 		case WEEK:
 			interval_str = "W";
 			return true;
+
 		case MONTH:
 			interval_str = "M";
 			return true;

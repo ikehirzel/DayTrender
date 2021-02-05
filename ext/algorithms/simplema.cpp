@@ -36,7 +36,7 @@ void algorithm (AlgorithmData& out)
 	}
 	else if (shortma.back() < longma.back() && shortma.back(1) > longma.back(1))
 	{
-		out.enter_short();
-		//out.exit_long();
+		//out.enter_short();
+		out.exit_long();
 	}
 }

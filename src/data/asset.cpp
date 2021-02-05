@@ -80,7 +80,7 @@ namespace daytrender
 
 		if (_data.candles().error())
 		{
-			errorf("%s: Candles: %s", _ticker, _data.candles().error());
+			errorf("%s: Algorithm candles: %s", _ticker, _data.candles().error());
 			return;
 		}
 		
@@ -123,12 +123,22 @@ namespace daytrender
 
 	bool Asset::should_update() const
 	{
-		if ((hirzel::sys::get_seconds() - _last_update) > _interval)
+		if (_live)
 		{
-			if (_client->market_open())
+			if ((hirzel::sys::get_seconds() - _last_update) > _interval)
 			{
-				return true;
+				int secs = _client->secs_till_market_close();
+				if (secs > 0)
+				{
+					
+					if (secs <= _closeout_buffer * 60)
+					return true;
+				}
 			}
+		}
+		else
+		{
+
 		}
 		return false;
 	}
@@ -141,17 +151,20 @@ namespace daytrender
 		AccountInfo acct = _client->get_account_info();
 		double fee = _client->fee();
 		double order_minimum = _client->order_minimum();
-		double curr_shares = _client->get_shares(_ticker);
-		double price = _client->get_price(_ticker);
+		double curr_shares = get_shares();
+		double curr_price = get_price();
 
-		// calculations
-		double money_available = (acct.bp_per_asset() * _risk) / (1.0 + fee);
-		double max_shares = money_available / price;
-		double shares_to_order = std::floor(max_shares / order_minimum) * order_minimum - curr_shares;
-
-		// calling in order
+		// getting share of current buying power
+		double base_buying_power = acct.balance() * acct.leverage() * _client->risk() / _client->asset_count();
+		// getting amount not spent
+		double available_bp = base_buying_power - curr_shares * curr_price;
+		// calculating amount of shares that can be purchaes
+		double max_shares = available_bp / (1.0 + fee);
+		double shares_to_order = std::floor(max_shares / order_minimum) * order_minimum;
+		// exit if not ordering any
 		if (shares_to_order == 0.0) return true;
-		return false;
+		// calling in order
+		return false; // but not acutally though
 		return _client->market_order(_ticker, shares_to_order);
 	}
 
@@ -165,28 +178,23 @@ namespace daytrender
 
 	bool Asset::enter_short()
 	{
-		if (_shorting_enabled)
+		AccountInfo acct = _client->get_account_info();
+
+		if (_shorting_enabled && acct.shorting_enabled())
 		{
-			AccountInfo acct = _client->get_account_info();
-			if (acct.shorting_enabled())
-			{
-				return false;
-			}
+			return false;
 		}
 		return true;
 	}
 
 	bool Asset::exit_short()
 	{
-		if (_shorting_enabled)
+		AccountInfo acct = _client->get_account_info();
+		if (acct.shorting_enabled())
 		{
-			AccountInfo acct = _client->get_account_info();
-			if (acct.shorting_enabled())
-			{
-				double curr_shares = _client->get_shares(_ticker);
-				if (curr_shares == 0.0) return true;
-				return _client->market_order(_ticker, -curr_shares);
-			}
+			double curr_shares = _client->get_shares(_ticker);
+			if (curr_shares == 0.0) return true;
+			if (curr_shares < 0.0) return _client->market_order(_ticker, -curr_shares);
 		}
 		return true;
 	}
