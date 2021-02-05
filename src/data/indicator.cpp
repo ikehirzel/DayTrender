@@ -16,6 +16,16 @@ namespace daytrender
 		*this = other;
 	}
 
+	Indicator::Indicator(Indicator&& other)
+	{
+		_data = other._data;
+		_size = other._size;
+		_type = other._type;
+		_label = other._label;
+		
+		other._data = nullptr;
+	}
+
 	Indicator::~Indicator()
 	{
 		delete[] _data;

@@ -15,6 +15,7 @@ namespace daytrender
 		Indicator() = default;
 		Indicator(unsigned size);
 		Indicator(const Indicator& other);
+		Indicator(Indicator&& other);
 		~Indicator();
 		Indicator& operator=(const Indicator& other);
 		
