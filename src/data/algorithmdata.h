@@ -29,6 +29,7 @@ namespace daytrender
 		AlgorithmData() = default;
 		AlgorithmData(const std::vector<int>& ranges, const CandleSet& candles);
 		AlgorithmData(const AlgorithmData& other);
+		AlgorithmData(AlgorithmData&& other);
 		~AlgorithmData();
 
 		AlgorithmData& operator=(const AlgorithmData& other);

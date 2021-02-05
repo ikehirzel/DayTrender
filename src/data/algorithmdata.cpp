@@ -21,6 +21,20 @@ namespace daytrender
 		*this = other;
 	}
 
+	AlgorithmData::AlgorithmData(AlgorithmData&& other)
+	{
+		_dataset = other._dataset;
+		_capacity = other._capacity;
+		_size = other._size;
+		_action = other._action;
+		_label = other._label;
+		_error = other._error;
+		_ranges = other._ranges;
+		_candles = other._candles;
+
+		other._dataset = nullptr;
+	}
+
 	AlgorithmData::~AlgorithmData()
 	{
 		delete[] _dataset;
