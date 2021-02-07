@@ -19,8 +19,8 @@ namespace daytrender
 		//bool backtest_permutation(
 
 		bool backtest_interval(PaperAccount* best, const Asset* asset, const Algorithm* algo,
-			int interval, long long permutations, double principal, bool shorting_enabled, int leverage,
-			int min_range, int max_range, int granularity, const std::vector<int>& start_ranges)
+			int interval, long long permutations, double principal, double fee, bool shorting_enabled,
+			int leverage, int min_range, int max_range, int granularity, const std::vector<int>& start_ranges)
 		{
 			std::vector<int> curr_ranges = start_ranges;
 			const Client* client = asset->client();
@@ -29,7 +29,7 @@ namespace daytrender
 			for (int i = 0; i < permutations; i++)
 			{
 				// storing activity and performance data
-				PaperAccount acc(principal, leverage, client->fee(),
+				PaperAccount acc(principal, leverage, fee,
 					client->order_minimum(), candles.front().open(), shorting_enabled, interval, curr_ranges);
 				
 				// calculating size of candles
@@ -156,15 +156,15 @@ namespace daytrender
 				}
 			}
 
-			AccountInfo info = client->get_account_info();
-
+			AccountInfo acct = client->get_account_info();
+			AssetInfo info = client->get_asset_info(asset->ticker());
 			std::vector<PaperAccount> out(intervals.size());
 			std::vector<std::future<bool>> threads(intervals.size());
 			// for every intervals
 			for (int i = 0; i < intervals.size(); i++)
 			{
 				threads[i] = std::async(std::launch::async, backtest_interval, &out[i], asset,
-				algo, intervals[i], permutations, principal, shorting_enabled, info.leverage(),
+				algo, intervals[i], permutations, principal, info.fee(), shorting_enabled, acct.leverage(),
 				min_range, max_range, granularity, start_ranges);
 				
 			}

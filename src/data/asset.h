@@ -35,20 +35,25 @@ namespace daytrender
 			return _client->get_candles(_ticker, _interval, _candle_count, _algo->data_length());
 		}
 
-		inline double get_price() const 
+		inline AssetInfo get_asset_info() const 
 		{
-			return _client->get_price(_ticker);
+			return _client->get_asset_info(_ticker);
 		}
 
-		inline double get_shares() const
-		{
-			return _client->get_shares(_ticker);
-		}
+		// inline double get_price() const 
+		// {
+		// 	return _client->get_price(_ticker);
+		// }
 
-		inline bool close_position()
-		{
-			return _client->market_order(_ticker, _client->get_shares(_ticker));
-		}
+		// inline double get_shares() const
+		// {
+		// 	return _client->get_shares(_ticker);
+		// }
+
+		// inline bool close_position()
+		// {
+		// 	return _client->market_order(_ticker, _client->get_shares(_ticker));
+		// }
 
 		bool enter_long();
 		bool exit_long();

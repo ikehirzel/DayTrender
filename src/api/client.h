@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../data/candle.h"
-
 #include "../data/accountinfo.h"
+#include "../data/assetinfo.h"
 
 #include <string>
 #include <vector>
@@ -46,17 +46,14 @@ namespace daytrender
 		// returning
 		bool (*_get_account_info)(AccountInfo&) = nullptr;
 		bool (*_get_candles)(CandleSet&, const std::string&) = nullptr;
-		bool (*_get_shares)(double&, const std::string&) = nullptr;
-		bool (*_get_price)(double&, const std::string&) = nullptr;
+		bool (*_get_asset_info)(AssetInfo&, const std::string&) = nullptr;
 		bool (*_secs_till_market_close)(int&) = nullptr;
 		const char* (*_to_interval)(int) = nullptr;
-		bool (*_shorting_enabled)(bool&) = nullptr;
 
 		// getters
 
 		int (*_key_count)() = nullptr;
 		int (*_max_candles)() = nullptr;
-		double (*_fee)() = nullptr;
 		double (*_order_minimum)() = nullptr;
 		void (*_backtest_intervals)(std::vector<int>&) = nullptr;
 		void (*_get_error)(std::string&) = nullptr;
@@ -83,16 +80,13 @@ namespace daytrender
 		// returning
 		AccountInfo get_account_info() const;
 		CandleSet get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const;
-		double get_shares(const std::string& ticker) const;
-		double get_price(const std::string& ticker) const;
+		AssetInfo get_asset_info(const std::string& ticker) const;
 		int secs_till_market_close() const;
-		inline bool market_open() const { return secs_till_market_close() > 0; }
 		std::string to_interval(int interval) const;
 
 		// getters for constants
 
 		int key_count() const { return _key_count(); }
-		inline double fee() const { return _fee(); }
 		inline double order_minimum() const { return _order_minimum(); }
 		inline int max_candles() const { return _max_candles(); }
 

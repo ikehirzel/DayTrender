@@ -1,4 +1,3 @@
-#define FEE 0.00014
 #define KEY_COUNT 2
 #define ORDER_MINIMUM 1.0
 #define BACKTEST_INTERVALS MIN1, MIN5, MIN15, HOUR1
@@ -133,6 +132,40 @@ bool market_order(const std::string& ticker, double amount)
 		return true;
 	}
 	return false;
+}
+
+bool get_asset_info(AssetInfo& info, const std::string& ticker)
+{
+	// getting share count
+	std::string url = "/v3/accounts/" + accountid + "/positions/" + ticker;
+	auto res = client.Get(url.c_str());
+	if (!res_ok(res)) return false;
+
+	json res_json = json::parse(res->body);
+	double longu = std::stod(res_json["position"]["long"]["units"].get<std::string>());
+	double shortu = std::stod(res_json["position"]["short"]["units"].get<std::string>());
+	double shares = longu + shortu;	
+
+	// getting fee and price
+	url = "/v3/instruments/" + ticker + "/candles?count=5000&granularity=S5&price=BAM";
+	res = client.Get(url.c_str());
+	if (!res_ok(res)) return false;
+	
+	res_json = json::parse(res->body);
+	const json& candles_json = res_json["candles"];
+	const json& last_json = candles_json.back();
+	double price = last_json["mid"]["c"];
+	double fee = 0.0;
+	for (const json& candle : candles_json)
+	{
+		double ask = std::stod(candle["ask"]["c"].get<std::string>());
+		double bid = std::stod(candle["bid"]["c"].get<std::string>());
+		fee += ask - bid;
+	}
+	fee /= ((double)candles_json.size() * 2.0);
+	info = { fee, price, shares };
+	
+	return true;
 }
 
 bool get_shares(double& shares, const std::string& ticker)
@@ -270,56 +303,23 @@ const char* to_interval(int interval)
 {
 	switch(interval)
 	{
-		case MIN1:
-			return "M1";
-
-		case MIN2:
-			return "M2";
-
-		case MIN4:
-			return "M4";
-
-		case MIN5:
-			return "M5";
-
-		case MIN10:
-			return "M10";
-
-		case MIN15:
-			return "M15";
-
-		case MIN30:
-			return "M30";
-
-		case HOUR1:
-			return "H1";
-
-		case HOUR2:
-			return "H2";
-
-		case HOUR3:
-			return "H3";
-
-		case HOUR4:
-			return "H4";
-
-		case HOUR6:
-			return "H6";
-
-		case HOUR8:
-			return "H8";
-
-		case HOUR12:
-			return "H12";
-
-		case DAY:
-			return "D";
-
-		case WEEK:
-			return "W";
-
-		case MONTH:
-			return "M";
+	case MIN1:		return "M1";
+	case MIN2:		return "M2";
+	case MIN4:		return "M4";
+	case MIN5:		return "M5";
+	case MIN10:		return "M10";
+	case MIN15:		return "M15";
+	case MIN30:		return "M30";
+	case HOUR1:		return "H1";
+	case HOUR2:		return "H2";
+	case HOUR3:		return "H3";
+	case HOUR4:		return "H4";
+	case HOUR6:		return "H6";
+	case HOUR8:		return "H8";
+	case HOUR12:	return "H12";
+	case DAY:		return "D";
+	case WEEK:		return "W";
+	case MONTH:		return "M";
 	}
 	return nullptr;
 }

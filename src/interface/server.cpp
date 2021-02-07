@@ -182,12 +182,12 @@ namespace daytrender
 			const Asset* asset = get_asset(index);
 			const AlgorithmData& data = asset->data();
 			const Client* client = asset->client();
-			//const AssetInfo& ainfo = asset->info();
+			AssetInfo info = client->get_asset_info(asset->ticker());
 
 			json response;
 			json& jacc = response["asset"];
 			jacc["risk"] = asset->risk();
-			jacc["shares"] = client->get_shares(asset->ticker());
+			jacc["shares"] = info.shares();
 			jacc["live"] = asset->is_live();
 			jacc["paper"] = false;
 

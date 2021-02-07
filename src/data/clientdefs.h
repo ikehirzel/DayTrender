@@ -4,10 +4,6 @@
 
 #ifndef API_VERSION_CHECK
 
-#ifndef FEE
-#error PAPER_FEE must be defined!
-#endif
-
 #ifndef ORDER_MINIMUM
 #error ORDER_MINIMUM must be defined!
 #endif
@@ -27,6 +23,7 @@
 #include "candle.h"
 #include "interval.h"
 #include "accountinfo.h"
+#include "assetinfo.h"
 
 #include <string>
 #include <vector>
@@ -82,13 +79,11 @@ extern "C"
 	bool get_candles(CandleSet& candles, const std::string& ticker);
 	bool get_account_info(AccountInfo& info);
 	bool secs_till_market_close(int&);
-	bool get_shares(double&, const std::string& ticker);
-	bool get_price(double&, const std::string& ticker);
+	bool get_asset_info(AssetInfo&, const std::string& ticker);
 	const char* to_interval(int interval);
 
 	// const functions
 	int key_count() { return KEY_COUNT; }
-	double fee() { return FEE; }
 	void backtest_intervals(std::vector<int>& out) { out = { BACKTEST_INTERVALS }; }
 	double order_minimum() { return ORDER_MINIMUM; }
 	int max_candles() { return MAX_CANDLES; }

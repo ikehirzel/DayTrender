@@ -111,17 +111,15 @@ namespace daytrender
 
 		// api calls
 		AccountInfo acct = _client->get_account_info();
-		double fee = _client->fee();
+		AssetInfo info = get_asset_info();
 		double order_minimum = _client->order_minimum();
-		double curr_shares = get_shares();
-		double curr_price = get_price();
 
 		// getting share of current buying power
 		double base_buying_power = acct.balance() * acct.leverage() * _client->risk() / _client->asset_count();
 		// getting amount not spent
-		double available_bp = base_buying_power - curr_shares * curr_price;
+		double available_bp = base_buying_power - info.shares() * info.price();
 		// calculating amount of shares that can be purchaes
-		double max_shares = available_bp / (1.0 + fee);
+		double max_shares = available_bp / (1.0 + info.fee());
 		double shares_to_order = std::floor(max_shares / order_minimum) * order_minimum;
 		// exit if not ordering any
 		if (shares_to_order == 0.0) return true;
@@ -132,10 +130,9 @@ namespace daytrender
 
 	bool Asset::exit_long()
 	{
-		double curr_shares = _client->get_shares(_ticker);
-		if (curr_shares == 0.0) return true;
-		return false;
-		return _client->market_order(_ticker, -curr_shares);
+		AssetInfo info = get_asset_info();
+		if (info.shares() == 0.0) return true;
+		return _client->market_order(_ticker, -info.shares());
 	}
 
 	bool Asset::enter_short()
@@ -152,11 +149,12 @@ namespace daytrender
 	bool Asset::exit_short()
 	{
 		AccountInfo acct = _client->get_account_info();
+		AssetInfo info = get_asset_info();
+
 		if (acct.shorting_enabled())
 		{
-			double curr_shares = _client->get_shares(_ticker);
-			if (curr_shares == 0.0) return true;
-			if (curr_shares < 0.0) return _client->market_order(_ticker, -curr_shares);
+			if (info.shares() == 0.0) return true;
+			if (info.shares() < 0.0) return _client->market_order(_ticker, -info.shares());
 		}
 		return true;
 	}

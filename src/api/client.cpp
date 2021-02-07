@@ -45,20 +45,17 @@ namespace daytrender
 		_get_account_info = (bool(*)(AccountInfo&))_handle->bind_function("get_account_info");
 		if (!_get_account_info) flag_error();
 
+		_get_asset_info = (bool(*)(AssetInfo&, const std::string&))_handle->bind_function("get_asset_info");
+		if (!_get_asset_info) flag_error();
+
 		_market_order = (bool(*)(const std::string&, double))_handle->bind_function("market_order");
 		if (!_market_order) flag_error();
-
-		_get_shares = (bool(*)(double&, const std::string&))_handle->bind_function("get_shares");
-		if (!_get_shares) flag_error();
 
 		_close_all_positions = (bool(*)())_handle->bind_function("close_all_positions");
 		if (!_close_all_positions) flag_error();
 
 		_secs_till_market_close = (bool(*)(int&))_handle->bind_function("secs_till_market_close");
 		if (!_secs_till_market_close) flag_error();
-
-		_get_price = (bool(*)(double&, const std::string&))_handle->bind_function("get_price");
-		if (!_get_price) flag_error();
 
 		_set_leverage = (bool(*)(int))_handle->bind_function("set_leverage");
 		if (!_set_leverage) flag_error();
@@ -71,7 +68,6 @@ namespace daytrender
 		// all of these are guaranteed as a result of compilation and don't need to be checked
 		_key_count = (int(*)())_handle->bind_function("key_count");
 		_max_candles = (int(*)())_handle->bind_function("max_candles");
-		_fee = (double(*)())_handle->bind_function("fee");
 		_order_minimum = (double(*)())_handle->bind_function("order_minimum");
 		_backtest_intervals = (void(*)(std::vector<int>&))_handle->bind_function("backtest_intervals");
 		_get_error = (void(*)(std::string&))_handle->bind_function("get_error");
@@ -232,34 +228,18 @@ namespace daytrender
 	bool Client::market_order(const std::string& ticker, double amount)
 	{
 		if (!func_ok("market_order", (void(*)())_market_order)) return false;
-
 		bool res = _market_order(ticker, amount);
-
 		if (!res) flag_error();
-
 		return res;
 	}
 
-	double Client::get_shares(const std::string& ticker) const
+	AssetInfo Client::get_asset_info(const std::string& ticker) const
 	{
-		if (!func_ok("get_shares", (void(*)())_get_shares)) return 0.0;
-
-		double shares = 0.0;
-		bool res = _get_shares(shares, ticker);
+		if (!func_ok("get_asset_info", (void(*)())_get_asset_info)) return {};
+		AssetInfo info;
+		bool res = _get_asset_info(info, ticker);
 		if (!res) flag_error();
-
-		return shares;
-	}
-
-	double Client::get_price(const std::string& ticker) const
-	{
-		if (!func_ok("get_price", (void(*)())_get_price)) return 0.0;
-
-		double price = 0.0;
-		bool res = _get_price(price, ticker);
-		if (!res) flag_error();
-
-		return price;
+		return info;
 	}
 
 	bool Client::close_all_positions()
