@@ -44,8 +44,7 @@ namespace daytrender
 		_long_exits++;
 
 		// the avg price paid for each share as well as the fee
-		double fee_mult = 1.0 + _fee;
-		double returns = (_shares * _price * (1.0 - _fee)) - _margin_used;
+		double returns = (_shares * _price / (1.0 + _fee)) - _margin_used;
 
 		if (returns > 0.0)
 		{
@@ -87,8 +86,7 @@ namespace daytrender
 
 		// calculation for short buying
 		double shares_to_short = get_shares_to_order(buying_power(), _price, _order_minimum, _fee);
-
-		_margin_used += shares_to_short * _price * (1.0 - _fee);
+		_margin_used += shares_to_short * _price * (1.0 + _fee);
 		_shares -= shares_to_short;
 
 		return true;
@@ -100,7 +98,7 @@ namespace daytrender
 		_short_exits++;
 
 		// the avg price paid for each share as well as the fee
-		double returns = _margin_used - (-_shares * _price * (1.0 + _fee));
+		double returns = _margin_used + (_shares * _price * (1.0 + _fee));
 
 		if (returns > 0.0)
 		{
@@ -249,17 +247,15 @@ namespace daytrender
 	double PaperAccount::sharpe_ratio() const 
 	{
 		double avg_price = _price_sum / (double)_updates;
-		double risk_free_rate = _price / _initial_price - 1.0;
-		risk_free_rate += (avg_price / _initial_price - 1.0) * 2.0;
-		risk_free_rate += (_price / avg_price - 1.0) * 2.0;
-		risk_free_rate /= 3.0;
-
+		double risk_free_rate = ((_price / _initial_price - 1.0) + ((avg_price / _initial_price - 1.0) * 2.0) + ((_price / avg_price - 1.0) * 2.0)) / 3.0;
 		return (pct_return() - risk_free_rate) / return_volatility();
 	}
 
 	double PaperAccount::kelly_criterion() const
 	{
-		return win_rate() - loss_rate() / profit_rate();
+		double rate = win_rate() - loss_rate() / ((_long_profits + _short_profits) / (_long_losses + _short_losses));
+		//if (rate < 0.0) rate = 0.0;
+		return rate;
 	}
 
 	std::string PaperAccount::to_string() const
@@ -303,6 +299,8 @@ namespace daytrender
 		out += "\n    L Prft Rate :  % " + std::to_string(long_profit_rate() * 100.0);
 		out += "\n    S Win Rate  :  % " + std::to_string(short_win_rate() * 100.0);
 		out += "\n    S Prft Rate :  % " + std::to_string(short_profit_rate() * 100.0);
+		out += "\n    Sharpe R    :    " + std::to_string(sharpe_ratio());
+		out += "\n    Kelly R     :    " + std::to_string(kelly_criterion());
 		out += "\n}";
 		return out;
 	}

@@ -28,16 +28,15 @@ namespace daytrender
 
 	std::mutex mtx;
 
+	bool init_client(const json& config);
+	bool init_asset(const json& config, int type);
+	int init_strategy(const std::string& filename);
+
 	void init(const std::string& execpath)
 	{
 		mtx.lock();
 
 		dtdir = std::filesystem::current_path().string() + "/" + execpath;
-
-		//**************************************************
-
-		infof("Initializing clients...");
-		// loading credentials for apis
 
 		std::string clients_str = file::read_file_as_string(dtdir + "/clients.json");
 
@@ -67,145 +66,25 @@ namespace daytrender
 			successf("Successfully loaded server.json");
 		}
 
+		infof("Initializing clients...");
 		json clients_json = json::parse(clients_str);
+
 		for (int i = 0; i < clients_json.size(); i++)
 		{
-			json& client_json = clients_json[i];
-			json& credentials = client_json["keys"];
-			std::string label = client_json["label"].get<std::string>();
-			std::string filename = client_json["filename"].get<std::string>();
-			double history_length = client_json["history_length"].get<double>();
-			double max_loss = client_json["max_loss"].get<double>();
-			int leverage = client_json["leverage"].get<int>();
-			double risk = client_json["risk"].get<double>();
-			std::vector<std::string> args(credentials.begin(), credentials.end());
-			
-			if (label.empty())
-			{
-				errorf("No label given for client[%d]!", i);
-				continue;
-			}
-			
-			if (filename.empty())
-			{
-				errorf("No filename given for %s client in config.json!", label);
-				continue;
-			}
-
-			if (args.empty())
-			{
-				warningf("No credentials were passed to %s client in config.json", label);
-			}
-
-			Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, risk, max_loss, history_length, leverage);
-		
-			if (!cli->bound())
-			{
-				errorf("%s client %s failed to bind!", label, filename);
-				delete cli;
-				continue;
-			}
-
-			if (!cli->is_live())
-			{
-				errorf("%s assets cannot be initialized!", label);
-				delete cli;
-				continue;
-			}
-
-			clients.push_back(cli);
-			infof("Initializing %s assets for %s", label, filename);
-			// allocating all the assets for the client;
-			json& assets_json = client_json["assets"];
-			for (int j = 0; j < assets_json.size(); j++)
-			{
-				json& asset_json = assets_json[j];
-
-				std::string ticker = asset_json["ticker"];
-				std::string algorithm = asset_json["algorithm"];
-				
-				bool paper = asset_json["paper"].get<bool>();
-				int interval = asset_json["interval"].get<int>();
-				double risk = asset_json["risk"].get<double>();
-				std::vector<int> ranges(asset_json["ranges"].begin(), asset_json["ranges"].end());
-
-				if (ticker.empty())
-				{
-					errorf("No ticker defined for asset[%d] of %s client", j, label);
-					continue;
-				}
-
-				if (algorithm.empty())
-				{
-					errorf("No algorithm defined for %s of %s client", ticker, label);
-					continue;
-				}
-
-				if (interval == 0)
-				{
-					errorf("No interval defined for %s of %s client", ticker, label);
-					continue;
-				}
-
-				if (risk == 0.0)
-				{
-					errorf("No risk defined for %s of %s client", ticker, label);
-					continue;
-				}
-
-				if (ranges.empty())
-				{
-					errorf("No ranges defined for %s of %s client", ticker, label);
-					continue;
-				}
-
-				int algoi = -1;
-				for (int k = 0; k < algorithms.size(); i++)
-				{
-					if (algorithms[k]->filename() == algorithm)
-					{
-						algoi = k;
-						break;
-					}
-				}
-
-				if (algoi < 0)
-				{
-					algoi = algorithms.size();
-					Algorithm* algo = new Algorithm(dtdir + ALGORITHM_DIR + algorithm);
-
-					if (algo->is_bound())
-					{
-						algorithms.push_back(algo);
-					}
-					else
-					{
-						errorf("Algorithm '%s' did not bind correctly. '%s' cannot be initialized.", algorithm, ticker);
-						delete algo;
-						algorithms.pop_back();
-						continue;
-					}
-				}
-
-				assets.push_back(new Asset(i, clients[i], ticker, algorithms[algoi], interval, risk, ranges, paper));	
-			}
-		}
-
-		json server_json = json::parse(server_str);
-
-		if(server::init(server_json, dtdir))
-		{
-			successf("Successfully initialized server");
-		}
-		else
-		{
-			errorf("Failed to initialize server! aborting...");
-			shouldrun = false;
+			init_client(clients_json[i]);
 		}
 
 		infof("Initialized clients:       %d", clients.size());
 		infof("Initialized assets:        %d", assets.size());
 		infof("Initialized algorithms:    %d", algorithms.size());
+
+		json server_json = json::parse(server_str);
+
+		if(!server::init(server_json, dtdir))
+		{
+			errorf("Failed to initialize server! aborting...");
+			shouldrun = false;
+		}
 
 		mtx.unlock();
 		shouldrun = false;
@@ -245,19 +124,196 @@ namespace daytrender
 
 		////////////////////////////////////////////
 
-		auto res = interface::backtest(0, 0, true, 7, { });
-		for (int i = 0; i < res.size(); i++)
-		{
-			std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;
-			std::cout << "Sharpe: " << res[i].sharpe_ratio() << std::endl;
-			std::cout << "Kelly: " << res[i].kelly_criterion() << std::endl;
-			//break;
+		// auto res = interface::backtest(0, 0, 500, true, 5, 155, 10, { });
+		// for (int i = 0; i < res.size(); i++)
+		// {
+		// 	std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;
+		// 	//break;
 			
-		}
+		// }
 		// std::cout << "\n\n";
 		// assets[0]->update();
 		// std::cout << "\n\n";
 	}
+
+	bool check_is_defined(const std::string& name, const json& config, const std::vector<std::string>& var_names)
+	{
+		for (int i = 0; i < var_names.size(); i++)
+		{
+			if (config.find(var_names[i]) == config.end())
+			{
+				errorf("%s: '%s' was not defined", name, var_names[i]);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool check_is_in_range(const std::string& name, const json& config, double min, double max, const std::vector<std::string>& var_names)
+	{
+		for (int i = 0; i < var_names.size(); i++)
+		{
+			double val = config[var_names[i]].get<double>();
+			// if max is set to min, it'll just check for min
+			if (val > max && min < max)
+			{
+				errorf("%s: '%s' was above maximum: %f", name, var_names[i], max);
+				return false;
+			}
+			else if (val < min)
+			{
+				errorf("%s: '%s' was below minimum: %f", name, var_names[i], min);
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool init_client(const json& config)
+	{
+		std::string filename = config["filename"].get<std::string>();
+		// checking if vars are defined
+		if (!check_is_defined(filename, config, {
+			"label",
+			"filename",
+			"risk",
+			"max_loss",
+			"history_length",
+			"leverage",
+			"closeout_buffer",
+			"assets"
+		})) return false;
+
+		// checking if vars are between 0 and 1
+		if (!check_is_in_range(filename, config, 0, 1.0, {
+			"max_loss",
+			"risk",
+		})) return false;
+
+		// checking if vars are at least 0
+		if (!check_is_in_range(filename, config, 0, 0, {
+			"history_length",
+			"leverage",
+			"closeout_buffer"
+		})) return false;
+
+		const json& credentials = config["keys"];
+		std::string label = config["label"].get<std::string>();
+		double history_length = config["history_length"].get<double>();
+		double max_loss = config["max_loss"].get<double>();
+		int leverage = config["leverage"].get<int>();
+		double risk = config["risk"].get<double>();
+		int closeout_buffer = config["closeout_buffer"].get<int>();
+		std::vector<std::string> args(credentials.begin(), credentials.end());
+
+		/*
+			TODO:
+			Add an "expected credential count" to clients so that this can be upgraded to an error
+		*/
+
+
+
+		Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, risk, max_loss, leverage, history_length, closeout_buffer);
+	
+		if (credentials.size() != cli->key_count())
+		{
+			errorf("%s: Expected %d keys but %s were supplied", filename, cli->key_count(), credentials.size());
+			delete cli;
+			return false;
+		}
+
+		if (!cli->bound())
+		{
+			errorf("%s: Client failed to bind", filename);
+			delete cli;
+			return false;
+		}
+
+		if (!cli->is_live())
+		{
+			errorf("%s: Client could not go live", label);
+			delete cli;
+			return false;
+		}
+
+		clients.push_back(cli);
+
+		infof("%s: Initializing %s assets...", filename, label);
+		// allocating all the assets for the client;
+		const json& assets_json = config["assets"];
+		for (int i = 0; i < assets_json.size(); i++)
+		{
+			init_asset(assets_json[i], clients.size() - 1);
+		}
+		successf("Successfully initialized %s client: '%s'", label, filename);
+		return true;
+	}
+
+	bool init_asset(const json& config, int type)
+	{
+		std::string ticker = config["ticker"].get<std::string>();
+
+		if (!check_is_defined(ticker, config, {
+			"ticker",
+			"algorithm",
+			"interval",
+			"ranges"
+		})) return false;
+
+		std::string algorithm_filename = config["algorithm"];
+		int interval = config["interval"].get<int>();
+		std::vector<int> ranges(config["ranges"].begin(), config["ranges"].end());
+
+		if (clients[type]->to_interval(interval) == "")
+		{
+			errorf("%s: Interval was improperly defined", ticker);
+			return false;
+		}
+
+		int strat_index = init_strategy(algorithm_filename);
+		if (strat_index < 0)
+		{
+			errorf("%s: Asset cannot be initialized without strategy", ticker);
+			return false;
+		}
+
+		if (ranges.size() != algorithms[strat_index]->indicator_count())
+		{
+			errorf("%s: Expected %d ranges but %d were supplied", ticker, algorithms[strat_index]->indicator_count(), ranges.size());
+			return false;
+		}
+
+		assets.push_back(new Asset(type, clients[type], ticker, algorithms[strat_index], interval, ranges));	
+		successf("Successfully initialized asset: '%s'", ticker);
+		return true;
+	}
+
+	int init_strategy(const std::string& filename)
+	{
+		for (int i = 0; i < algorithms.size(); i++)
+		{
+			if (algorithms[i]->filename() == filename)
+			{
+				return i;
+			}
+		}
+
+		Algorithm* algo = new Algorithm(dtdir + ALGORITHM_DIR + filename);
+
+		if (algo->is_bound())
+		{
+			algorithms.push_back(algo);
+			successf("Successfully initialized strategy: '%s'", filename);
+			return algorithms.size() - 1;
+		}
+		else
+		{
+			errorf("Algorithm '%s' did not bind correctly", filename);
+			delete algo;
+			return -1;
+		}
+	}
+
 
 	// destroys clients and assets
 	void free()
@@ -335,20 +391,18 @@ namespace daytrender
 
 		while (running)
 		{
-			int live_assets = 0;
 			// check if every asset needs to update every 500ms, update each asset as needed 
 			for (Asset* asset : assets)
 			{
 				if (asset->is_live())
 				{
-					if (asset->should_update()) asset->update();
-					live_assets++;
+					asset->update();
 				}
 			}
-			if (live_assets == 0)
+
+			for (Client* client : clients)
 			{
-				warningf("No assets were live for updating. Excecution cannot continue.");
-				stop();
+				client->update();
 			}
 			sys::thread_sleep(500);
 		}

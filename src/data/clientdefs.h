@@ -1,5 +1,9 @@
 #pragma once
 
+#define CLIENT_API_VERSION 1
+
+#ifndef API_VERSION_CHECK
+
 #ifndef FEE
 #error PAPER_FEE must be defined!
 #endif
@@ -14,6 +18,10 @@
 
 #ifndef MAX_CANDLES
 #error MAX_CANDLES must be defined!
+#endif
+
+#ifndef KEY_COUNT
+#error KEY_COUNT must be defined!
 #endif
 
 #include "candle.h"
@@ -76,14 +84,15 @@ extern "C"
 	bool secs_till_market_close(int&);
 	bool get_shares(double&, const std::string& ticker);
 	bool get_price(double&, const std::string& ticker);
-	bool to_interval(const char*& interval_str, int interval);
+	const char* to_interval(int interval);
 
 	// const functions
-
-	void backtest_intervals(std::vector<int>& out) { out = { BACKTEST_INTERVALS }; }
+	int key_count() { return KEY_COUNT; }
 	double fee() { return FEE; }
+	void backtest_intervals(std::vector<int>& out) { out = { BACKTEST_INTERVALS }; }
 	double order_minimum() { return ORDER_MINIMUM; }
 	int max_candles() { return MAX_CANDLES; }
+	int api_version() { return CLIENT_API_VERSION; }
 
 	void get_error(std::string& out)
 	{
@@ -91,3 +100,4 @@ extern "C"
 		error.clear();
 	}
 }
+#endif

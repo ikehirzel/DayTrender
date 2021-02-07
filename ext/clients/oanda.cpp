@@ -1,4 +1,5 @@
-#define FEE 0.00007
+#define FEE 0.00014
+#define KEY_COUNT 2
 #define ORDER_MINIMUM 1.0
 #define BACKTEST_INTERVALS MIN1, MIN5, MIN15, HOUR1
 #define MAX_CANDLES 5000
@@ -23,9 +24,9 @@ bool get_candles(CandleSet& candles, const std::string& ticker)
 {
 	std::string url = "/v3/instruments/" + ticker + "/candles";
 	
-	const char* interval_str = nullptr;
+	const char* interval_str = to_interval(candles.interval());
 
-	if (!to_interval(interval_str, candles.interval()))
+	if (!interval_str)
 	{
 		error = "interval given (" + std::to_string(candles.interval()) + ") is not valid";
 		return false;
@@ -265,77 +266,60 @@ bool secs_till_market_close(int& seconds)
 	return true;
 }
 
-bool to_interval(const char*& interval_str, int interval)
+const char* to_interval(int interval)
 {
 	switch(interval)
 	{
 		case MIN1:
-			interval_str = "M1";
-			return true;
+			return "M1";
 
 		case MIN2:
-			interval_str = "M2";
-			return true;
+			return "M2";
 
 		case MIN4:
-			interval_str = "M4";
-			return true;
+			return "M4";
 
 		case MIN5:
-			interval_str = "M5";
-			return true;
+			return "M5";
 
 		case MIN10:
-			interval_str = "M10";
-			return true;
+			return "M10";
 
 		case MIN15:
-			interval_str = "M15";
-			return true;
+			return "M15";
 
 		case MIN30:
-			interval_str = "M30";
-			return true;
+			return "M30";
 
 		case HOUR1:
-			interval_str = "H1";
-			return true;
+			return "H1";
 
 		case HOUR2:
-			interval_str = "H2";
-			return true;
+			return "H2";
 
 		case HOUR3:
-			interval_str = "H3";
-			return true;
+			return "H3";
 
 		case HOUR4:
-			interval_str = "H4";
-			return true;
+			return "H4";
 
 		case HOUR6:
-			interval_str = "H6";
-			return true;
+			return "H6";
 
 		case HOUR8:
-			interval_str = "H8";
-			return true;
+			return "H8";
 
 		case HOUR12:
-			interval_str = "H12";
-			return true;
+			return "H12";
 
 		case DAY:
-			interval_str = "D";
-			return true;
+			return "D";
 
 		case WEEK:
-			interval_str = "W";
-			return true;
+			return "W";
 
 		case MONTH:
-			interval_str = "M";
-			return true;
+			return "M";
 	}
-	return false;
+	return nullptr;
 }

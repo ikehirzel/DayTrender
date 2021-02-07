@@ -1,3 +1,10 @@
+
+#pragma once
+
+#define ALGORITHM_API_VERSION 1
+
+#ifndef API_VERSION_CHECK
+
 #include "algorithmdata.h"
 
 #ifndef INDICATORS
@@ -10,10 +17,13 @@
 
 using namespace daytrender;
 
-extern "C" int indicator_count() { return INDICATORS; }
-extern "C" int data_length() { return DATA_LENGTH; }
-extern "C" void algorithm (AlgorithmData& out);
-
+extern "C"
+{
+	int indicator_count() { return INDICATORS; }
+	int data_length() { return DATA_LENGTH; }
+	int api_version() { return ALGORITHM_API_VERSION; }
+	void algorithm (AlgorithmData& out);
+}
 typedef void(*IndiFunc)(Indicator&, const CandleSet&, int);
 
 const Indicator& _add_indicator(AlgorithmData& out, IndiFunc indi, const char* type, const char* label)
@@ -52,3 +62,5 @@ void _init_algorithm(AlgorithmData& out, const char* label)
 
 #define add_indicator(out, func, label) _add_indicator(out, func, #func, label); if (out.error()) return
 #define init_algorithm(out, label) _init_algorithm(out, label); if(out.error()) return
+
+#endif

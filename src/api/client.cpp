@@ -5,30 +5,21 @@
 #include <hirzel/plugin.h>
 #include <hirzel/fountain.h>
 
-#define GET_ERROR_FUNC			"get_error"
-#define MAX_CANDLES_FUNC		"max_candles"
-#define INIT_FUNC				"init"
-#define GET_CANDLES_FUNC		"get_candles"
-#define MARKET_ORDER_FUNC		"marker_order"
-#define TO_INTERVAL_FUNC		"to_interval"
-#define GET_ACCT_INFO_FUNC		"get_account_info"
-#define PAPER_MINIMUM_FUNC		"paper_minimum"
-#define PAPER_FEE_FUNC			"paper_fee"
-#define BACKTEST_INTERVALS_FUNC	"backtest_intervals"
+#define API_VERSION_CHECK
+#include "../data/clientdefs.h"
 
 namespace daytrender
 {
 	Client::Client(const std::string& label, const std::string& filepath,
-		const std::vector<std::string>& credentials, double risk, double max_loss,
-		double history_length, int leverage)
+		const std::vector<std::string>& credentials, double risk, double max_loss, int leverage,
+		double history_length, int closeout_buffer)
 	{
 		_label = label;
 		_risk = risk;
 		_filename = hirzel::str::get_filename(filepath);
 		_max_loss = max_loss;
 		_history_length = history_length;
-		_leverage = leverage;
-
+		_closeout_buffer = closeout_buffer * 60;
 		_handle = new hirzel::Plugin(filepath);
 
 		if (!_handle->is_lib_bound())
@@ -37,13 +28,21 @@ namespace daytrender
 			return;
 		}
 
-		_init = (bool(*)(const std::vector<std::string>&))_handle->bind_function(INIT_FUNC);
+		int api_version = ((int(*)())_handle->bind_function("api_version"))();
+		if (api_version != CLIENT_API_VERSION)
+		{
+			errorf("%s: api version for (%d) did not match current api version: %d)", api_version, CLIENT_API_VERSION);
+			errorf("Failed to initialize client: '%s'", _filename);
+			return;
+		}
+
+		_init = (bool(*)(const std::vector<std::string>&))_handle->bind_function("init");
 		if (!_init) flag_error();
 
-		_get_candles = (bool(*)(CandleSet&, const std::string&))_handle->bind_function(GET_CANDLES_FUNC);
+		_get_candles = (bool(*)(CandleSet&, const std::string&))_handle->bind_function("get_candles");
 		if (!_get_candles) flag_error();
 
-		_get_account_info = (bool(*)(AccountInfo&))_handle->bind_function(GET_ACCT_INFO_FUNC);
+		_get_account_info = (bool(*)(AccountInfo&))_handle->bind_function("get_account_info");
 		if (!_get_account_info) flag_error();
 
 		_market_order = (bool(*)(const std::string&, double))_handle->bind_function("market_order");
@@ -66,23 +65,16 @@ namespace daytrender
 
 		// getters
 
-		_to_interval = (bool(*)(const char*, int))_handle->bind_function(TO_INTERVAL_FUNC);
+		_to_interval = (const char*(*)(int))_handle->bind_function("to_interval");
 		if (!_to_interval) flag_error();
 
-		_max_candles = (int(*)())_handle->bind_function(MAX_CANDLES_FUNC);
-		if (!_max_candles) flag_error();
-
+		// all of these are guaranteed as a result of compilation and don't need to be checked
+		_key_count = (int(*)())_handle->bind_function("key_count");
+		_max_candles = (int(*)())_handle->bind_function("max_candles");
 		_fee = (double(*)())_handle->bind_function("fee");
-		if (!_fee) flag_error();
-
 		_order_minimum = (double(*)())_handle->bind_function("order_minimum");
-		if (!_order_minimum) flag_error();
-
-		_backtest_intervals = (void(*)(std::vector<int>&))_handle->bind_function(BACKTEST_INTERVALS_FUNC);
-		if (!_backtest_intervals) flag_error();
-
-		_get_error = (void(*)(std::string&))_handle->bind_function(GET_ERROR_FUNC);
-		if (!_get_error) flag_error();
+		_backtest_intervals = (void(*)(std::vector<int>&))_handle->bind_function("backtest_intervals");
+		_get_error = (void(*)(std::string&))_handle->bind_function("get_error");
 
 		_bound = _handle->all_bound();
 
@@ -98,18 +90,9 @@ namespace daytrender
 				_live = true;
 			}
 			
-			if (!set_leverage(_leverage))
+			if (!set_leverage(leverage))
 			{
 				_live = false;
-			}
-
-			if (_live)
-			{
-				successf("Successfully loaded %s client: '%s'", _label, _filename);
-			}
-			else
-			{
-				errorf("Failed initialize %s client: '%s'", _label, _filename);
 			}
 		}
 		else
@@ -127,13 +110,20 @@ namespace daytrender
 	{
 		if (!_live)
 		{
-			errorf("%s: '%s': client is not live.", _filename, label);
+			errorf("Client '%s': client is not live.", _filename);
+			return false;
+		}
+
+		if (!_bound)
+		{
+			errorf("Client '%s': client is not bound.", _filename);
+
 			return false;
 		}
 
 		if (func == nullptr)
 		{
-			errorf("%s: %s is not bound and cannot be executed!", _filename, label);
+			errorf("Client '%s': function is not bound and cannot be executed!", _filename);
 			return false;
 		}
 
@@ -146,9 +136,61 @@ namespace daytrender
 		_live = false;
 	}
 
+	void Client::update()
+	{
+		if (!_bound) return;
+
+		int till_close = secs_till_market_close();
+
+		if (_live)
+		{
+			// updating pl of client
+			AccountInfo info = get_account_info();
+			long long curr_time = hirzel::sys::get_seconds();
+			_equity_history.push_back({ curr_time, info.equity() });
+
+			while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))
+			{
+				_equity_history.erase(_equity_history.begin());
+			}
+
+			double prev_equity = _equity_history.front().second;
+			_pl = info.equity() - prev_equity;
+
+			// account has lost too much in last interval
+			if (_pl <= prev_equity * -_max_loss)
+			{
+				errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, _pl, _history_length);
+				close_all_positions();
+				_bound = false;
+				errorf("%s client '%s' has gone offline!", _label, _filename);
+				return;
+			}
+
+			// checking to see if in range of closeout buffer
+			
+			if (till_close <= _closeout_buffer)
+			{
+				infof("Client '%s': Market will close in %d minutes. Closing all positions...", _filename, _closeout_buffer / 60);
+				_live = false;
+				if (!close_all_positions())
+				{
+					errorf("Client '%s': Failed to close positions!", _filename);
+				}
+			}
+		}
+		else
+		{
+			if (till_close > 0)
+			{
+				_live = true;
+			}
+		}
+	}
+
 	CandleSet Client::get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const
 	{
-		if (!func_ok(GET_CANDLES_FUNC, (void(*)())_get_candles)) return CandleSet();
+		if (!func_ok("get_candles", (void(*)())_get_candles)) return CandleSet();
 
 		if (max == 0)
 		{
@@ -156,7 +198,7 @@ namespace daytrender
 		}
 		else if (max > max_candles())
 		{
-			errorf("%s: requested more candles than maximum!", _filename);
+			errorf("Client '%s': requested more candles than maximum!", _filename);
 			return {};
 		}
 
@@ -166,7 +208,7 @@ namespace daytrender
 		}
 		else if (end > max)
 		{
-			errorf("%s: attempted to set candleset end as greater than max", _filename);
+			errorf("Client '%s': attempted to set candleset end as greater than max", _filename);
 			return {};
 		}
 
@@ -176,34 +218,13 @@ namespace daytrender
 		return candles;
 	}
 
-	AccountInfo Client::get_account_info()
+	AccountInfo Client::get_account_info() const
 	{
 		if (!func_ok("get_account_info", (void(*)())_get_account_info)) return AccountInfo();
 
 		AccountInfo info;
 		bool res = _get_account_info(info);
 		if (!res) flag_error();
-
-		// handling equity_history and loss management
-		long long curr_time = hirzel::sys::get_seconds();
-		_equity_history.push_back({ curr_time, info.equity() });
-
-		while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))
-		{
-			_equity_history.erase(_equity_history.begin());
-		}
-
-		double prev_equity = _equity_history.front().second;
-		_pl = info.equity() - prev_equity;
-
-		// account has lost too much in last interval
-		if (_pl <= prev_equity * -_max_loss)
-		{
-			errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, _pl, _history_length);
-			close_all_positions();
-			_live = false;
-			errorf("%s client '%s' has gone offline!", _label, _filename);
-		}
 
 		return info;
 	}
@@ -280,11 +301,13 @@ namespace daytrender
 
 	std::string Client::to_interval(int interval) const
 	{
-		if (!func_ok("set_leverage", (void(*)())_set_leverage)) return "";
-
-		const char* interval_str = "";
-		bool res = _to_interval(interval_str, interval);
-		if (!res) flag_error();
+		if (!func_ok("to_interval", (void(*)())_to_interval)) return "";
+		
+		const char* interval_str = _to_interval(interval);
+		if (!interval_str)
+		{
+			return "";
+		}
 
 		return std::string(interval_str);
 	}

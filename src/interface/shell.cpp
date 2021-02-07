@@ -82,7 +82,7 @@ namespace daytrender
 					return;
 				}
 
-				auto result = interface::backtest(algo_index, asset_index, false, 5, {});
+				auto result = interface::backtest(algo_index, asset_index, 500.0, false, 5, 155, 10, {});
 
 				for (const PaperAccount& p : result)
 				{

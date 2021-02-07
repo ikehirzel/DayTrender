@@ -9,7 +9,7 @@
 namespace daytrender
 {
 	Asset::Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
-		int interval, double risk, const std::vector<int>& ranges, bool paper)
+		int interval, const std::vector<int>& ranges)
 	{
 		// assigning variables
 		_client = client;
@@ -18,8 +18,6 @@ namespace daytrender
 		_ticker = ticker;
 		_interval = interval;
 		_type = type;
-		//_paper = paper;
-		_risk = risk;
 		_ranges = ranges;
 
 		// calculating candle_count
@@ -29,31 +27,17 @@ namespace daytrender
 		}
 		_candle_count += _algo->data_length();
 
-		// readjusting risk
-		if (_risk > 1.0)
-		{
-			warningf("%s: risk (%f) should be a maximum of 1.0. It will be readjusted.", _ticker, _risk);
-			_risk = 1.0;
-		}
-		else if (_risk < 0.0)
-		{
-			warningf("%s: risk (%f) should me a minimum of 0.0; It will be readjusted.", _ticker, _risk);
-			_risk = 0.0;
-		}
-		
-		if (!_ranges.empty())
-		{
-			_live = true;
-			successf("Successfully initialized asset: '%s'", _ticker);
-		}
-		else
-		{
-			errorf("Arguments were not sufficient, asset '%s' cannot go live", _ticker);
-		}
+		_live = true;
 	}
 	
 	void Asset::update()
 	{
+		// if the client is currently not live, do not update
+		if (!_client->is_live()) return;
+
+		// if the proper amount of time has not passed, do not update
+		if ((hirzel::sys::get_seconds() - _last_update) < _interval) return;
+		// updating previously updated time
 		long long curr_time = hirzel::sys::get_seconds();
 		_last_update = curr_time - (curr_time % _interval);
 
@@ -86,7 +70,7 @@ namespace daytrender
 		
 		return;
 
-		bool res;
+		bool res = false;
 		switch (_data.action())
 		{
 		case ENTER_LONG:
@@ -119,28 +103,6 @@ namespace daytrender
 		{
 			errorf("%s: Failed to handle action", _ticker);
 		}
-	}
-
-	bool Asset::should_update() const
-	{
-		if (_live)
-		{
-			if ((hirzel::sys::get_seconds() - _last_update) > _interval)
-			{
-				int secs = _client->secs_till_market_close();
-				if (secs > 0)
-				{
-					
-					if (secs <= _closeout_buffer * 60)
-					return true;
-				}
-			}
-		}
-		else
-		{
-
-		}
-		return false;
 	}
 
 	bool Asset::enter_long()

@@ -7,16 +7,10 @@
 #include <future>
 #include <chrono>
 
-// algorithm constants
-#define MAX_BACKTEST_RANGE	100
-
 /*
 	CHANGING THE MIN BACKTEST RANGE CAUSE IT TO NOT CRASH
 	KNOWN CRASHES AT MIN = 2
 */
-
-#define MIN_BACKTEST_RANGE	5
-#define PAPER_ACCOUNT_INITIAL 500.0
 
 namespace daytrender
 {
@@ -25,7 +19,8 @@ namespace daytrender
 		//bool backtest_permutation(
 
 		bool backtest_interval(PaperAccount* best, const Asset* asset, const Algorithm* algo,
-			int interval, long long permutations, bool shorting_enabled, int granularity, const std::vector<int>& start_ranges)
+			int interval, long long permutations, double principal, bool shorting_enabled, int leverage,
+			int min_range, int max_range, int granularity, const std::vector<int>& start_ranges)
 		{
 			std::vector<int> curr_ranges = start_ranges;
 			const Client* client = asset->client();
@@ -34,7 +29,7 @@ namespace daytrender
 			for (int i = 0; i < permutations; i++)
 			{
 				// storing activity and performance data
-				PaperAccount acc(PAPER_ACCOUNT_INITIAL, client->leverage(), client->fee(),
+				PaperAccount acc(principal, leverage, client->fee(),
 					client->order_minimum(), candles.front().open(), shorting_enabled, interval, curr_ranges);
 				
 				// calculating size of candles
@@ -90,9 +85,9 @@ namespace daytrender
 
 				int pos = 0;
 				curr_ranges[pos] += granularity;
-				while (curr_ranges[pos] > MAX_BACKTEST_RANGE)
+				while (curr_ranges[pos] > max_range)
 				{
-					curr_ranges[pos] = MIN_BACKTEST_RANGE;
+					curr_ranges[pos] = min_range;
 					pos++;
 					curr_ranges[pos] += granularity;
 				}
@@ -100,7 +95,8 @@ namespace daytrender
 			return true;
 		}
 
-		std::vector<PaperAccount> backtest(int algo_index, int asset_index, bool shorting_enabled, int granularity,
+		std::vector<PaperAccount> backtest(int algo_index, int asset_index, double principal,
+			bool shorting_enabled, int min_range, int max_range, int granularity,
 			const std::vector<int>& test_ranges)
 		{
 			auto t0 = std::chrono::system_clock::now();
@@ -116,13 +112,13 @@ namespace daytrender
 			// calculating lops
 			std::vector<int> start_ranges;
 			long long permutations = 1;
-			int possible_vals = ((MAX_BACKTEST_RANGE + 1) - MIN_BACKTEST_RANGE) / granularity;
+			int possible_vals = ((max_range + 1) - min_range) / granularity;
 
 			// if no ranges are passed in
 			if (test_ranges.empty())
 			{
 				// setting default ranges
-				start_ranges.resize(algo->indicator_count(), MIN_BACKTEST_RANGE);
+				start_ranges.resize(algo->indicator_count(), min_range);
 
 				// calculate the amount of permutations of ranges
 				for (int i = 0; i < algo->indicator_count(); i++) permutations *= possible_vals;
@@ -147,25 +143,29 @@ namespace daytrender
 				// verify minimums and maximums
 				for (int i = 0; i < start_ranges.size(); i++)
 				{
-					if (start_ranges[i] < MIN_BACKTEST_RANGE)
+					if (start_ranges[i] < min_range)
 					{
-						start_ranges[i] = MIN_BACKTEST_RANGE;
-						warningf("test_ranges[%d] was less than the minimum (%d). Readjusting...", start_ranges[i], MIN_BACKTEST_RANGE);
+						start_ranges[i] = min_range;
+						warningf("test_ranges[%d] was less than the minimum (%d). Readjusting...", start_ranges[i], min_range);
 					}
-					else if (start_ranges[i] > MAX_BACKTEST_RANGE)
+					else if (start_ranges[i] > max_range)
 					{
-						start_ranges[i] = MAX_BACKTEST_RANGE;
-						warningf("test_ranges[%d] was greater than the maximum (%d). Readjusting...", start_ranges[i], MIN_BACKTEST_RANGE);
+						start_ranges[i] = max_range;
+						warningf("test_ranges[%d] was greater than the maximum (%d). Readjusting...", start_ranges[i], max_range);
 					}
 				}
 			}
+
+			AccountInfo info = client->get_account_info();
 
 			std::vector<PaperAccount> out(intervals.size());
 			std::vector<std::future<bool>> threads(intervals.size());
 			// for every intervals
 			for (int i = 0; i < intervals.size(); i++)
 			{
-				threads[i] = std::async(std::launch::async, backtest_interval, &out[i], asset, algo, intervals[i], permutations, shorting_enabled, granularity, start_ranges);
+				threads[i] = std::async(std::launch::async, backtest_interval, &out[i], asset,
+				algo, intervals[i], permutations, principal, shorting_enabled, info.leverage(),
+				min_range, max_range, granularity, start_ranges);
 				
 			}
 
@@ -173,11 +173,11 @@ namespace daytrender
 			{
 				if (threads[i].get())
 				{
-					successf("Backtest %d succeeded", i);
+					successf("Backtest %d succeeded", i + 1);
 				}
 				else
 				{
-					errorf("Backtest %d failed", i);
+					errorf("Backtest %d failed", i + 1);
 				}
 				
 			}

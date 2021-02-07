@@ -13,15 +13,11 @@ namespace daytrender
 	{
 	private:
 		bool _shorting_enabled = false;
-		bool _live = false;
-		
+		mutable bool _live = false;
 		int _interval = 0;
 		int _candle_count = 0;
 		int _type = 0;
-		int _closeout_buffer = 15; // time to close out position 
-
 		long long _last_update = 0;
-
 		double _risk = 0.0;
 
 		std::string _ticker;
@@ -61,16 +57,14 @@ namespace daytrender
 
 	public:
 		Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
-			int interval, double risk, const std::vector<int>& ranges, bool paper);
+			int interval, const std::vector<int>& ranges);
 
 		void update();
-		bool should_update() const;
-
 
 		// inline getter functions
 		inline AlgorithmData data() const { return _data; }
 		inline const Algorithm* algorithm() const { return _algo; }
-		inline Client* client() const { return _client; }
+		inline const Client* client() const { return _client; }
 		inline const std::string& ticker() const { return _ticker; }
 		inline int interval() const { return _interval; }
 		inline int type() const { return _type; }

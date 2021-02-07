@@ -24,7 +24,7 @@ namespace daytrender
 		double _risk = 0.0;
 		double _max_loss = 0.05;
 		double _history_length = 24.0;
-		int _leverage = 1;
+		int _closeout_buffer = 15 * 60;
 
 		std::vector<std::pair<long long, double>> _equity_history;
 		std::string _filename;
@@ -49,25 +49,29 @@ namespace daytrender
 		bool (*_get_shares)(double&, const std::string&) = nullptr;
 		bool (*_get_price)(double&, const std::string&) = nullptr;
 		bool (*_secs_till_market_close)(int&) = nullptr;
-		bool (*_to_interval)(const char*, int) = nullptr;
+		const char* (*_to_interval)(int) = nullptr;
 		bool (*_shorting_enabled)(bool&) = nullptr;
 
 		// getters
 
+		int (*_key_count)() = nullptr;
 		int (*_max_candles)() = nullptr;
 		double (*_fee)() = nullptr;
 		double (*_order_minimum)() = nullptr;
 		void (*_backtest_intervals)(std::vector<int>&) = nullptr;
 		void (*_get_error)(std::string&) = nullptr;
+		int (*_api_version)() = nullptr;
 
 		void flag_error() const;
 		bool func_ok(const char* label, void(*func)()) const;
 
 	public:
 		Client(const std::string& label, const std::string& filepath,
-			const std::vector<std::string>& credentials, double risk, double max_loss,
-			double history_length, int leverage);
+			const std::vector<std::string>& credentials, double risk, double max_loss, int leverage,
+			double history_length, int closeout_buffer);
 		~Client();
+
+		void update();
 
 		// api functions
 
@@ -77,7 +81,7 @@ namespace daytrender
 		bool set_leverage(int multiplier);
 
 		// returning
-		AccountInfo get_account_info();
+		AccountInfo get_account_info() const;
 		CandleSet get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const;
 		double get_shares(const std::string& ticker) const;
 		double get_price(const std::string& ticker) const;
@@ -87,6 +91,7 @@ namespace daytrender
 
 		// getters for constants
 
+		int key_count() const { return _key_count(); }
 		inline double fee() const { return _fee(); }
 		inline double order_minimum() const { return _order_minimum(); }
 		inline int max_candles() const { return _max_candles(); }
@@ -116,6 +121,5 @@ namespace daytrender
 		inline double pl() const { return _pl; }
 		inline int asset_count() const { return _asset_count; }
 		inline void increment_assets() { _asset_count++; }
-		inline int leverage() const { return _leverage; }
 	};
 }

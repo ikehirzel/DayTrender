@@ -181,7 +181,7 @@ namespace daytrender
 			int index = std::stoi(req.get_param_value("index"));
 			const Asset* asset = get_asset(index);
 			const AlgorithmData& data = asset->data();
-			Client* client = asset->client();
+			const Client* client = asset->client();
 			//const AssetInfo& ainfo = asset->info();
 
 			json response;
@@ -226,7 +226,7 @@ namespace daytrender
 
 		/*
 			TODO:
-			Implement shorting in backtest call
+			Add customizability to the backtest calls
 		*/
 
 		void get_backtest(const httplib::Request& req,  httplib::Response& res)
@@ -242,7 +242,7 @@ namespace daytrender
 			
 			if (sranges.empty())
 			{
-				results = interface::backtest(algo_index, asset_index, false, 5, {});
+				results = interface::backtest(algo_index, asset_index, 500.0, false, 5, 155, 10, {});
 			}
 			else
 			{	
@@ -270,7 +270,7 @@ namespace daytrender
 				}
 
 				std::cout << "Ranges: " << ranges.size() << std::endl;
-				results = interface::backtest(algo_index, asset_index, false, 5, ranges);
+				results = interface::backtest(algo_index, asset_index, 500, false, 5, 155, 10, ranges);
 			}
 			std::cout << "Got result!\n";
 

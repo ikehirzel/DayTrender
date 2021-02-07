@@ -3,12 +3,15 @@
 #include <hirzel/fountain.h>
 #include <hirzel/strutil.h>
 
+#define API_VERSION_CHECK
+#include "../data/algodefs.h"
+
 namespace daytrender
 {
 	Algorithm::Algorithm(const std::string& _filepath)
 	{
 		_filename = hirzel::str::get_filename(_filepath);
-		_plugin = new hirzel::Plugin(_filepath, { "indicator_count", "data_length", "algorithm" });
+		_plugin = new hirzel::Plugin(_filepath, { "indicator_count", "data_length", "algorithm", "api_version" });
 		
 		if (!_plugin->all_bound())
 		{
@@ -16,11 +19,15 @@ namespace daytrender
 			return;
 		}
 
+		int api_version = _plugin->execute<int>("api_version");
+		if (api_version != ALGORITHM_API_VERSION)
+		{
+			errorf("%s: api version (%d) did not match current api version: %d)", _filename, api_version, ALGORITHM_API_VERSION);
+			return;
+		}
 		_indicator_count = _plugin->execute<int>("indicator_count");
 		_data_length = _plugin->execute<int>("data_length");
 		_algorithm_ptr = (void(*)(AlgorithmData&))_plugin->get_func("algorithm");
-		_bound = true;
-		successf("Successfully loaded algorithm: '%s'", _filename);
 	}
 
 	Algorithm::~Algorithm()
@@ -30,11 +37,12 @@ namespace daytrender
 	
 	AlgorithmData Algorithm::process(const CandleSet& candles, const std::vector<int>& ranges) const
 	{
+
 		AlgorithmData data(ranges, candles);
 
 		if (!_algorithm_ptr)
 		{
-			errorf("%s: algorithm function is now bound!", _filename);
+			errorf("%s: algorithm function is not bound!", _filename);
 			return data;
 		}
 
