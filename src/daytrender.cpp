@@ -176,6 +176,7 @@ namespace daytrender
 		if (!check_is_defined(filename, config, {
 			"label",
 			"filename",
+			"shorting_enabled",
 			"risk",
 			"max_loss",
 			"history_length",
@@ -202,6 +203,7 @@ namespace daytrender
 		double history_length = config["history_length"].get<double>();
 		double max_loss = config["max_loss"].get<double>();
 		int leverage = config["leverage"].get<int>();
+		bool shorting_enabled = config["shorting_enabled"].get<bool>();
 		double risk = config["risk"].get<double>();
 		int closeout_buffer = config["closeout_buffer"].get<int>();
 		std::vector<std::string> args(credentials.begin(), credentials.end());
@@ -213,7 +215,8 @@ namespace daytrender
 
 
 
-		Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, risk, max_loss, leverage, history_length, closeout_buffer);
+		Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, shorting_enabled,
+			risk, max_loss, leverage, history_length, closeout_buffer);
 	
 		if (credentials.size() != cli->key_count())
 		{

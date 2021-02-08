@@ -10,7 +10,7 @@
 #include <vector>
 
 
-#include "data/asset.h"
+#include "api/asset.h"
 #include "api/client.h"
 #include "api/paperaccount.h"
 

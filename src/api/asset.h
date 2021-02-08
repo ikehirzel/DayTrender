@@ -3,16 +3,15 @@
 #include <string>
 #include <vector>
 
-#include "candle.h"
-#include "../api/algorithm.h"
-#include "../api/client.h"
+#include "../data/candle.h"
+#include "algorithm.h"
+#include "client.h"
 
 namespace daytrender
 {
 	class Asset
 	{
 	private:
-		bool _shorting_enabled = false;
 		mutable bool _live = false;
 		int _interval = 0;
 		int _candle_count = 0;
@@ -35,31 +34,6 @@ namespace daytrender
 			return _client->get_candles(_ticker, _interval, _candle_count, _algo->data_length());
 		}
 
-		inline AssetInfo get_asset_info() const 
-		{
-			return _client->get_asset_info(_ticker);
-		}
-
-		// inline double get_price() const 
-		// {
-		// 	return _client->get_price(_ticker);
-		// }
-
-		// inline double get_shares() const
-		// {
-		// 	return _client->get_shares(_ticker);
-		// }
-
-		// inline bool close_position()
-		// {
-		// 	return _client->market_order(_ticker, _client->get_shares(_ticker));
-		// }
-
-		bool enter_long();
-		bool exit_long();
-		bool enter_short();
-		bool exit_short();
-
 	public:
 		Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
 			int interval, const std::vector<int>& ranges);
@@ -75,7 +49,6 @@ namespace daytrender
 		inline int type() const { return _type; }
 		inline bool is_live() const { return _live && _client->is_live(); }
 		inline double risk() const { return _risk; }
-		inline bool shorting_enabled() const { return _shorting_enabled; }
 		inline int data_length() const { return _algo->data_length(); }
 	};
 }

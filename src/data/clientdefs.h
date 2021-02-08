@@ -4,10 +4,6 @@
 
 #ifndef API_VERSION_CHECK
 
-#ifndef ORDER_MINIMUM
-#error ORDER_MINIMUM must be defined!
-#endif
-
 #ifndef BACKTEST_INTERVALS
 #error BACKTEST_INTERVALS must be defined!
 #endif
@@ -85,7 +81,6 @@ extern "C"
 	// const functions
 	int key_count() { return KEY_COUNT; }
 	void backtest_intervals(std::vector<int>& out) { out = { BACKTEST_INTERVALS }; }
-	double order_minimum() { return ORDER_MINIMUM; }
 	int max_candles() { return MAX_CANDLES; }
 	int api_version() { return CLIENT_API_VERSION; }
 

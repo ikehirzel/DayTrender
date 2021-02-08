@@ -2,7 +2,7 @@
 
 #include "interface.h"
 #include "../daytrender.h"
-#include "../data/asset.h"
+#include "../api/asset.h"
 #include <mutex>
 #include <string>
 

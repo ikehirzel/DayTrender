@@ -1,5 +1,4 @@
 #define KEY_COUNT 2
-#define ORDER_MINIMUM 1.0
 #define BACKTEST_INTERVALS MIN1, MIN5, MIN15, HOUR1
 #define MAX_CANDLES 5000
 
@@ -87,10 +86,11 @@ bool get_account_info(AccountInfo& info)
 		double balance = std::stod(acc["balance"].get<std::string>());
 		double margin_rate = std::stod(acc["marginRate"].get<std::string>());
 		double buying_power = std::stod(acc["marginAvailable"].get<std::string>()) / margin_rate;
+		double margin_used = std::stod(acc["marginUsed"].get<std::string>());
 		double equity = std::stod(acc["NAV"].get<std::string>());
 		int leverage = (int)(1.0 / margin_rate);
 		bool shorting_enabled = true;
-		info = { balance, buying_power, equity, leverage, shorting_enabled };
+		info = { balance, buying_power, margin_used, equity, leverage, shorting_enabled };
 		return true;
 	}
 
@@ -163,7 +163,7 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 		fee += ask - bid;
 	}
 	fee /= ((double)candles_json.size() * 2.0);
-	info = { fee, price, shares };
+	info = { fee, price, shares, 1.0 };
 	
 	return true;
 }

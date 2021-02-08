@@ -1,5 +1,7 @@
 #include "client.h"
 
+#include "../data/mathutil.h"
+
 #include <hirzel/strutil.h>
 #include <hirzel/sysutil.h>
 #include <hirzel/plugin.h>
@@ -11,10 +13,11 @@
 namespace daytrender
 {
 	Client::Client(const std::string& label, const std::string& filepath,
-		const std::vector<std::string>& credentials, double risk, double max_loss, int leverage,
-		double history_length, int closeout_buffer)
+		const std::vector<std::string>& credentials, bool shorting_enabled, double risk,
+		double max_loss, int leverage, double history_length, int closeout_buffer)
 	{
 		_label = label;
+		_shorting_enabled = shorting_enabled;
 		_risk = risk;
 		_filename = hirzel::str::get_filename(filepath);
 		_max_loss = max_loss;
@@ -68,7 +71,6 @@ namespace daytrender
 		// all of these are guaranteed as a result of compilation and don't need to be checked
 		_key_count = (int(*)())_handle->bind_function("key_count");
 		_max_candles = (int(*)())_handle->bind_function("max_candles");
-		_order_minimum = (double(*)())_handle->bind_function("order_minimum");
 		_backtest_intervals = (void(*)(std::vector<int>&))_handle->bind_function("backtest_intervals");
 		_get_error = (void(*)(std::string&))_handle->bind_function("get_error");
 
@@ -182,6 +184,70 @@ namespace daytrender
 				_live = true;
 			}
 		}
+	}
+
+	bool Client::enter_long(const std::string ticker, double pct)
+	{
+		// api calls
+		AccountInfo acct = get_account_info();  
+		AssetInfo info = get_asset_info(ticker);
+
+		// if we are in a short position, exit it
+		// here we don't call exit_short mainly because that would guarantee
+		// 3 api calls, where as this only guarantees 3 if it needs to exit the short position
+		if (info.shares() < 0.0)
+		{
+			if (!market_order(ticker, -info.shares())) return false;
+			acct = get_account_info();
+		}
+
+		// calculating the amount of shares to order
+		double available_bp = acct.buying_power() + acct.margin_used() - info.shares() * info.price();
+		double shares_to_order = get_shares_to_order(available_bp, info.price(), info.minimum(),
+			info.fee());
+
+		// verifying that it doesn't attempt to buy more shares than allowed
+		if (shares_to_order * info.price() * (1.0 + info.fee()) > available_bp) return false; 
+		// exit if not ordering any
+		if (shares_to_order == 0.0) return true;
+		// calling in order
+		return market_order(ticker, shares_to_order);
+	}
+
+	bool Client::exit_long(const std::string ticker, double pct)
+	{
+		AssetInfo info = get_asset_info(ticker);
+		if (info.shares() <= 0.0) return true;
+		return market_order(ticker, -info.shares());
+	}
+
+	bool Client::enter_short(const std::string ticker, double pct)
+	{
+		AccountInfo acct = get_account_info();
+		AssetInfo info = get_asset_info(ticker);
+		// if shorting is not allowed by either the account or the asset
+		if (!_shorting_enabled || !acct.shorting_enabled()) return true;
+
+		if (info.shares() > 0.0)
+		{
+			if (!market_order(ticker, -info.shares())) return false;
+			acct = get_account_info();
+		}
+
+		double available_bp = (acct.buying_power() + acct.margin_used()) + info.shares() * info.price();
+		double shares_to_order = get_shares_to_order(available_bp, info.price(), info.minimum(), info.fee());
+
+		if (shares_to_order * info.price() * (1.0 * info.fee()) > available_bp) return false;
+		if (shares_to_order == 0.0) return true;
+
+		return market_order(ticker, -shares_to_order);
+	}
+
+	bool Client::exit_short(const std::string ticker, double pct)
+	{
+		AssetInfo info = get_asset_info(ticker);
+		if (info.shares() >= 0.0) return true;
+		return market_order(ticker, -info.shares());
 	}
 
 	CandleSet Client::get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const

@@ -1,6 +1,6 @@
 #include "asset.h"
 
-#include "candle.h"
+#include "../data/mathutil.h"
 
 #include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
@@ -74,22 +74,22 @@ namespace daytrender
 		switch (_data.action())
 		{
 		case ENTER_LONG:
-			res = enter_long();
+			res = _client->enter_long(_ticker, _risk);
 			successf("%s: Entered long position", _ticker);
 			break;
 
 		case EXIT_LONG:
-			res = exit_long();
+			res = _client->exit_long(_ticker, _risk);
 			successf("%s: Exited long position", _ticker);
 			break;
 
 		case ENTER_SHORT:
-			res = enter_short();
+			res = _client->enter_short(_ticker, _risk);
 			successf("%s: Entered short position", _ticker);
 			break;
 
 		case EXIT_SHORT:
-			res = exit_short();
+			res = _client->exit_short(_ticker, _risk);
 			successf("%s: Exited short position", _ticker);
 			break;
 
@@ -103,59 +103,5 @@ namespace daytrender
 		{
 			errorf("%s: Failed to handle action", _ticker);
 		}
-	}
-
-	bool Asset::enter_long()
-	{
-		successf("%s: entering long position", _ticker);
-
-		// api calls
-		AccountInfo acct = _client->get_account_info();
-		AssetInfo info = get_asset_info();
-		double order_minimum = _client->order_minimum();
-
-		// getting share of current buying power
-		double base_buying_power = acct.balance() * acct.leverage() * _client->risk() / _client->asset_count();
-		// getting amount not spent
-		double available_bp = base_buying_power - info.shares() * info.price();
-		// calculating amount of shares that can be purchaes
-		double max_shares = available_bp / (1.0 + info.fee());
-		double shares_to_order = std::floor(max_shares / order_minimum) * order_minimum;
-		// exit if not ordering any
-		if (shares_to_order == 0.0) return true;
-		// calling in order
-		return false; // but not acutally though
-		return _client->market_order(_ticker, shares_to_order);
-	}
-
-	bool Asset::exit_long()
-	{
-		AssetInfo info = get_asset_info();
-		if (info.shares() == 0.0) return true;
-		return _client->market_order(_ticker, -info.shares());
-	}
-
-	bool Asset::enter_short()
-	{
-		AccountInfo acct = _client->get_account_info();
-
-		if (_shorting_enabled && acct.shorting_enabled())
-		{
-			return false;
-		}
-		return true;
-	}
-
-	bool Asset::exit_short()
-	{
-		AccountInfo acct = _client->get_account_info();
-		AssetInfo info = get_asset_info();
-
-		if (acct.shorting_enabled())
-		{
-			if (info.shares() == 0.0) return true;
-			if (info.shares() < 0.0) return _client->market_order(_ticker, -info.shares());
-		}
-		return true;
 	}
 }

@@ -19,6 +19,7 @@ namespace daytrender
 	private:
 		bool _bound = false;
 		mutable bool _live = false;
+		bool _shorting_enabled = false;
 		int _asset_count = 0;
 		double _pl = 0.0;
 		double _risk = 0.0;
@@ -54,7 +55,6 @@ namespace daytrender
 
 		int (*_key_count)() = nullptr;
 		int (*_max_candles)() = nullptr;
-		double (*_order_minimum)() = nullptr;
 		void (*_backtest_intervals)(std::vector<int>&) = nullptr;
 		void (*_get_error)(std::string&) = nullptr;
 		int (*_api_version)() = nullptr;
@@ -64,11 +64,16 @@ namespace daytrender
 
 	public:
 		Client(const std::string& label, const std::string& filepath,
-			const std::vector<std::string>& credentials, double risk, double max_loss, int leverage,
-			double history_length, int closeout_buffer);
+			const std::vector<std::string>& credentials, bool shorting_enabled, double risk,
+			double max_loss, int leverage, double history_length, int closeout_buffer);
 		~Client();
 
 		void update();
+
+		bool enter_long(const std::string ticker, double pct);
+		bool exit_long(const std::string ticker, double pct);
+		bool enter_short(const std::string ticker, double pct);
+		bool exit_short(const std::string ticker, double pct);
 
 		// api functions
 
@@ -87,7 +92,6 @@ namespace daytrender
 		// getters for constants
 
 		int key_count() const { return _key_count(); }
-		inline double order_minimum() const { return _order_minimum(); }
 		inline int max_candles() const { return _max_candles(); }
 
 		inline std::vector<int> backtest_intervals() const
@@ -108,6 +112,7 @@ namespace daytrender
 
 		inline bool bound() const { return _bound; }
 		inline bool is_live() const { return _live; }
+		inline bool shorting_enabled() const { return _shorting_enabled; }
 		inline const std::string& label() const { return _label; }
 		inline const std::string& filename() const { return _filename; }
 		inline hirzel::Plugin* handle() const { return _handle; }
