@@ -88,25 +88,24 @@ namespace daytrender
 
 		mtx.unlock();
 		shouldrun = false;
-
+		
+		///////////////////////////////////////////////
+		// std::cout << "Getting account\n";
 		// auto acct = clients[0]->get_account_info();
 		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
 
-		// clients[0]->market_order("EUR_USD", -40000);
+		// clients[0]->enter_long("EUR_USD", 0.1);
 
 		// sys::thread_sleep(1000);
+		// std::cout << "Getting account\n";
 		// acct = clients[0]->get_account_info();
 		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
 
-		// clients[0]->market_order("EUR_USD", 80000);
+		// //std::cout << "Exiting\n";
+		// clients[0]->exit_long("EUR_USD");
 
 		// sys::thread_sleep(1000);
-		// acct = clients[0]->get_account_info();
-		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
-
-		// clients[0]->market_order("EUR_USD", -40000);
-
-		// sys::thread_sleep(1000);
+		// std::cout << "Getting account\n";
 		// acct = clients[0]->get_account_info();
 		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
 

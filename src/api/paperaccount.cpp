@@ -44,7 +44,7 @@ namespace daytrender
 		_long_exits++;
 
 		// the avg price paid for each share as well as the fee
-		double returns = (_shares * _price / (1.0 + _fee)) - _margin_used;
+		double returns = (_shares * _price * (1.0 - _fee)) - _margin_used;
 
 		if (returns > 0.0)
 		{

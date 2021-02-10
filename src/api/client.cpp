@@ -8,7 +8,7 @@
 #include <hirzel/fountain.h>
 
 #define API_VERSION_CHECK
-#include "../data/clientdefs.h"
+#include "clientdefs.h"
 
 namespace daytrender
 {
@@ -186,67 +186,60 @@ namespace daytrender
 		}
 	}
 
-	bool Client::enter_long(const std::string ticker, double pct)
-	{
-		// api calls
-		AccountInfo acct = get_account_info();  
-		AssetInfo info = get_asset_info(ticker);
+	/**
+	 * Calculates the amount of shares orderable with current capital and risk allowance.
+	 * Returns the api success of the order
+	 * 
+	 * @param	ticker			the symbol that will be evalutated
+	 * @param	pct				the percentage of available buying power to use
+	 * @param	short_shares	true if going short shares, false if going long on shares
+	 * @return					the amount of shares to order
+	 */
 
-		// if we are in a short position, exit it
-		// here we don't call exit_short mainly because that would guarantee
-		// 3 api calls, where as this only guarantees 3 if it needs to exit the short position
-		if (info.shares() < 0.0)
+	bool Client::enter_position(const std::string& ticker, double pct, bool short_shares)
+	{
+		// will be -1.0 if short_shares is true or 1.0 if it's false
+		double multiplier = (double)short_shares * -2.0 + 1.0;
+
+		// getting current account information
+		AccountInfo account = get_account_info();
+		// getting position info
+		AssetInfo asset = get_asset_info(ticker);
+
+		// base buying power
+		double buying_power = (account.buying_power() + account.margin_used()) * _risk / (double)_asset_count;
+
+		// if we are already in a position of the same type as requested
+		if (asset.shares() * multiplier > 0.0)
 		{
-			if (!market_order(ticker, -info.shares())) return false;
-			acct = get_account_info();
+			// remove the current share of the buying power
+			buying_power -= asset.amt_invested();
+		}
+		// we are in a position that is opposite to type requested
+		else if (asset.shares() * multiplier < 0.0)
+		{
+			// calculate returns upon exiting position for correct buying power calculation
+			buying_power += asset.shares() * asset.price() * (1.0 - multiplier * asset.fee());
 		}
 
-		// calculating the amount of shares to order
-		double available_bp = acct.buying_power() + acct.margin_used() - info.shares() * info.price();
-		double shares_to_order = get_shares_to_order(available_bp, info.price(), info.minimum(),
-			info.fee());
+		// limits buying power to a ratio of itself.
+		// this is applied afterwards as it logarithmically limits the amount of money to spend
+		// when multiple entrances occur before an exit
+		buying_power *= pct;
 
-		// verifying that it doesn't attempt to buy more shares than allowed
-		if (shares_to_order * info.price() * (1.0 + info.fee()) > available_bp) return false; 
-		// exit if not ordering any
-		if (shares_to_order == 0.0) return true;
-		// calling in order
-		return market_order(ticker, shares_to_order);
+		double shares = multiplier * std::floor(((buying_power / (1.0 + asset.fee())) / asset.price()) / asset.minimum()) * asset.minimum();
+		infof("Placing order for %f shares!!!", shares);
+		return market_order(ticker, shares);
 	}
 
-	bool Client::exit_long(const std::string ticker, double pct)
+	bool Client::exit_position(const std::string& ticker, bool short_shares)
 	{
+		double multiplier = (double)short_shares * -2.0 + 1.0;
 		AssetInfo info = get_asset_info(ticker);
-		if (info.shares() <= 0.0) return true;
-		return market_order(ticker, -info.shares());
-	}
-
-	bool Client::enter_short(const std::string ticker, double pct)
-	{
-		AccountInfo acct = get_account_info();
-		AssetInfo info = get_asset_info(ticker);
-		// if shorting is not allowed by either the account or the asset
-		if (!_shorting_enabled || !acct.shorting_enabled()) return true;
-
-		if (info.shares() > 0.0)
-		{
-			if (!market_order(ticker, -info.shares())) return false;
-			acct = get_account_info();
-		}
-
-		double available_bp = (acct.buying_power() + acct.margin_used()) + info.shares() * info.price();
-		double shares_to_order = get_shares_to_order(available_bp, info.price(), info.minimum(), info.fee());
-
-		if (shares_to_order * info.price() * (1.0 * info.fee()) > available_bp) return false;
-		if (shares_to_order == 0.0) return true;
-
-		return market_order(ticker, -shares_to_order);
-	}
-
-	bool Client::exit_short(const std::string ticker, double pct)
-	{
-		AssetInfo info = get_asset_info(ticker);
-		if (info.shares() >= 0.0) return true;
+		// if we are in a short position or have no shares, do nothing
+		infof("%s: Exiting position of %f shares", ticker, info.shares());
+		if (info.shares() * multiplier <= 0.0) return true;
+		// exit position
 		return market_order(ticker, -info.shares());
 	}
 
@@ -291,9 +284,20 @@ namespace daytrender
 		return info;
 	}
 
+	/**
+	 * Places an immediately returning order on the market. If the amount
+	 * is set to zero, it'll return true and not place an order. If the amount
+	 * is positive, it'll place a long order and a short order if the shares
+	 * are negative.
+	 * 
+	 * @param	ticker	the symbol that the client should place the order for
+	 * @param	amount	the amount of shares the client should order
+	 * @return			a bool representing success or failure of the function
+	 */
 	bool Client::market_order(const std::string& ticker, double amount)
 	{
 		if (!func_ok("market_order", (void(*)())_market_order)) return false;
+		if (amount == 0.0) return true;
 		bool res = _market_order(ticker, amount);
 		if (!res) flag_error();
 		return res;

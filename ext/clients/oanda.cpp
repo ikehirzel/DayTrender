@@ -80,7 +80,7 @@ bool get_account_info(AccountInfo& info)
 
 	if (res_ok(res))
 	{
-		std::cout << res->body << "\n\n";
+		//std::cout << res->body << "\n\n";
 		json res_json = json::parse(res->body);
 		json& acc = res_json["account"];
 		double balance = std::stod(acc["balance"].get<std::string>());
@@ -142,9 +142,32 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 	if (!res_ok(res)) return false;
 
 	json res_json = json::parse(res->body);
-	double longu = std::stod(res_json["position"]["long"]["units"].get<std::string>());
-	double shortu = std::stod(res_json["position"]["short"]["units"].get<std::string>());
+	const json& long_json = res_json["position"]["long"];
+	const json& short_json = res_json["position"]["short"];
+	double longu = std::stod(long_json["units"].get<std::string>());
+	double shortu = std::stod(short_json["units"].get<std::string>());
+
+	if (longu > 0.0 && shortu < 0.0)
+	{
+		error = "shares were both negative and positive!";
+		return false;
+	}
+	
 	double shares = longu + shortu;	
+	double amt_invested = 0.0;
+
+	// long position
+	if (longu > 0.0)
+	{
+		double avg_price = std::stod(long_json["averagePrice"].get<std::string>());
+		amt_invested = longu * avg_price;
+	}
+	// short position
+	else if (shortu < 0.0)
+	{
+		double avg_price = std::stod(short_json["averagePrice"].get<std::string>());
+		amt_invested = -shortu * avg_price;
+	}
 
 	// getting fee and price
 	url = "/v3/instruments/" + ticker + "/candles?count=5000&granularity=S5&price=BAM";
@@ -154,7 +177,9 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 	res_json = json::parse(res->body);
 	const json& candles_json = res_json["candles"];
 	const json& last_json = candles_json.back();
-	double price = last_json["mid"]["c"];
+	double price = std::stod(last_json["mid"]["c"].get<std::string>());
+
+	// calculating half spread cost as a percentage
 	double fee = 0.0;
 	for (const json& candle : candles_json)
 	{
@@ -163,38 +188,12 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 		fee += ask - bid;
 	}
 	fee /= ((double)candles_json.size() * 2.0);
-	info = { fee, price, shares, 1.0 };
+	fee /= price;
+
+	// constructing info
+	info = { amt_invested, fee, 1.0, price, shares };
 	
 	return true;
-}
-
-bool get_shares(double& shares, const std::string& ticker)
-{
-	std::string url = "/v3/accounts/" + accountid + "/positions/" + ticker;
-	auto res = client.Get(url.c_str());
-	if (res_ok(res))
-	{
-		json res_json = json::parse(res->body);
-		double longu = std::stod(res_json["position"]["long"]["units"].get<std::string>());
-		double shortu = std::stod(res_json["position"]["short"]["units"].get<std::string>());
-		
-		shares = longu + shortu;
-		return true;
-	}
-	return false;
-}
-
-bool get_price(double& price, const std::string& ticker)
-{
-	std::string url = "/v3/instruments/" + ticker + "/candles?count=1&granularity=S5";
-	auto res = client.Get(url.c_str());
-	if (res_ok(res))
-	{
-		json res_json = json::parse(res->body);
-		price = std::stod(res_json["candles"][0]["mid"]["c"].get<std::string>());
-		return true;
-	}
-	return false;
 }
 
 bool set_leverage(int multiplier)

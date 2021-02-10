@@ -2,11 +2,10 @@
 
 namespace daytrender
 {
-	AssetInfo::AssetInfo(double fee, double price, double shares, double minimum)
-	{
-		_fee = fee;
-		_price = price;
-		_shares = shares;
-		_minimum = minimum;
-	}
+	AssetInfo::AssetInfo(double amt_invested, double fee, double minimum, double price, double shares) :
+		_amt_invested(amt_invested),
+		_fee(fee),
+		_minimum(minimum),
+		_price(price),
+		_shares(shares) {}
 }

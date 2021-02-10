@@ -27,6 +27,8 @@ namespace daytrender
 		}
 		_candle_count += _algo->data_length();
 
+		
+
 		_live = true;
 	}
 	
@@ -75,11 +77,10 @@ namespace daytrender
 		{
 		case ENTER_LONG:
 			res = _client->enter_long(_ticker, _risk);
-			successf("%s: Entered long position", _ticker);
 			break;
 
 		case EXIT_LONG:
-			res = _client->exit_long(_ticker, _risk);
+			res = _client->exit_long(_ticker);
 			successf("%s: Exited long position", _ticker);
 			break;
 
@@ -89,7 +90,7 @@ namespace daytrender
 			break;
 
 		case EXIT_SHORT:
-			res = _client->exit_short(_ticker, _risk);
+			res = _client->exit_short(_ticker);
 			successf("%s: Exited short position", _ticker);
 			break;
 

@@ -62,6 +62,8 @@ namespace daytrender
 		void flag_error() const;
 		bool func_ok(const char* label, void(*func)()) const;
 
+		bool enter_position(const std::string& ticker, double pct, bool short_shares);
+		bool exit_position(const std::string& ticker, bool short_shares);
 	public:
 		Client(const std::string& label, const std::string& filepath,
 			const std::vector<std::string>& credentials, bool shorting_enabled, double risk,
@@ -70,10 +72,24 @@ namespace daytrender
 
 		void update();
 
-		bool enter_long(const std::string ticker, double pct);
-		bool exit_long(const std::string ticker, double pct);
-		bool enter_short(const std::string ticker, double pct);
-		bool exit_short(const std::string ticker, double pct);
+		inline bool enter_long(const std::string ticker, double pct)
+		{
+			return enter_position(ticker, pct, false);
+		}
+
+		inline bool enter_short(const std::string ticker, double pct)
+		{
+			return enter_position(ticker, pct, true);
+		}
+
+		inline bool exit_long(const std::string ticker)
+		{
+			return exit_position(ticker, false);
+		}
+		inline bool exit_short(const std::string ticker)
+		{
+			return exit_position(ticker, true);
+		}
 
 		// api functions
 

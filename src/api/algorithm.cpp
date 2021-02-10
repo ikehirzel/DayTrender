@@ -4,7 +4,7 @@
 #include <hirzel/strutil.h>
 
 #define API_VERSION_CHECK
-#include "../data/algodefs.h"
+#include "algodefs.h"
 
 namespace daytrender
 {

@@ -19,6 +19,7 @@ namespace daytrender
 		inline double balance() const { return _balance; }
 		inline double buying_power() const { return _buying_power; }
 		inline double margin_used() const { return _margin_used; }
+
 		inline double equity() const { return _equity; }
 		inline int leverage() const { return _leverage; }
 		inline bool shorting_enabled() const { return _shorting_enabled; }
