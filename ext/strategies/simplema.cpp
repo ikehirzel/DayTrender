@@ -2,7 +2,7 @@
 #define DATA_LENGTH 5
 
 #include <candle.h>
-#include <algodefs.h>
+#include <strategydefs.h>
 #include <iostream>
 
 void EMA(Indicator& data, const CandleSet& candles, int range)
@@ -23,9 +23,9 @@ void EMA(Indicator& data, const CandleSet& candles, int range)
 }
 
 
-void algorithm (AlgorithmData& out)
+void strategy(StrategyData& out)
 {
-	init_algorithm(out, "Simple MA");
+	init_strategy(out, "Simple MA");
 	const Indicator& longma = add_indicator(out, EMA, "long");
 	const Indicator& shortma = add_indicator(out, EMA, "short");
 

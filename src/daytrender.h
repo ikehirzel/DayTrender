@@ -9,13 +9,12 @@
 #include <string>
 #include <vector>
 
-
 #include "api/asset.h"
 #include "api/client.h"
 #include "api/paperaccount.h"
 
-#define ALGORITHM_DIR	"/algorithms/"
-#define CLIENTS_DIR		"/clients/"
+#define STRATEGY_DIR	"/strategies/"
+#define CLIENT_DIR		"/clients/"
 
 namespace daytrender
 {
@@ -28,10 +27,10 @@ namespace daytrender
 	bool is_running();
 
 	std::vector<std::string> client_names();
-	std::vector<std::string> algorithm_names();
+	std::vector<std::string> strategy_names();
 	std::vector<std::pair<std::string, int>> asset_names();
 
 	const Asset* get_asset(int index);
-	Client* get_client(int type);
-	const Algorithm* get_algorithm(int index);
+	const Client* get_client(int type);
+	const Strategy* get_strategy(int index);
 }

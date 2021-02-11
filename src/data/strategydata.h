@@ -7,7 +7,7 @@
 
 namespace daytrender
 {
-	class AlgorithmData
+	class StrategyData
 	{
 	private:
 		Indicator* _dataset = nullptr;
@@ -26,13 +26,13 @@ namespace daytrender
 		inline void enter_short() { _action = Action::ENTER_SHORT; }
 		inline void exit_short() { _action = Action::EXIT_SHORT; }
 
-		AlgorithmData() = default;
-		AlgorithmData(const std::vector<int>& ranges, const CandleSet& candles);
-		AlgorithmData(const AlgorithmData& other);
-		AlgorithmData(AlgorithmData&& other);
-		~AlgorithmData();
+		StrategyData() = default;
+		StrategyData(const std::vector<int>& ranges, const CandleSet& candles);
+		StrategyData(const StrategyData& other);
+		StrategyData(StrategyData&& other);
+		~StrategyData();
 
-		AlgorithmData& operator=(const AlgorithmData& other);
+		StrategyData& operator=(const StrategyData& other);
 		inline Indicator& operator[](unsigned index) { return _dataset[index]; }
 		inline const Indicator& operator[](unsigned index) const { return _dataset[index]; }
 

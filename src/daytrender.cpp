@@ -23,7 +23,7 @@ namespace daytrender
 
 	// data containers
 	std::vector<Asset*> assets;
-	std::vector<Algorithm*> algorithms;
+	std::vector<Strategy*> strategies;
 	std::vector<Client*> clients;
 
 	std::mutex mtx;
@@ -77,7 +77,7 @@ namespace daytrender
 
 		infof("Initialized clients:       %d", clients.size());
 		infof("Initialized assets:        %d", assets.size());
-		infof("Initialized algorithms:    %d", algorithms.size());
+		infof("Initialized strategies:    %d", strategies.size());
 
 		json server_json = json::parse(server_str);
 
@@ -197,7 +197,7 @@ namespace daytrender
 			"closeout_buffer"
 		})) return false;
 
-		Client* cli = new Client(config, dtdir + CLIENTS_DIR);
+		Client* cli = new Client(config, dtdir + CLIENT_DIR);
 
 		if (!cli->bound())
 		{
@@ -221,29 +221,46 @@ namespace daytrender
 
 	bool init_asset(const json& config, int type, int index)
 	{
-
+		// making sure the necessary variables are defined in the json file
 		if (!check_is_defined("clients.json[" + std::to_string(type) +"][" + std::to_string(index) + "]", config, {
 			"ticker",
-			"algorithm",
+			"strategy",
 			"interval",
 			"ranges"
 		})) return false;
 
+
+		// getting interval from json
 		int interval = config["interval"].get<int>();
+		// verifying that the given interval is one supported by the client
 		if (clients[type]->to_interval(interval) == "")
 		{
 			errorf("clients.json[%d][%d]: 'interval' was improperly defined", type, index);
 			return false;
 		}
 
-		int strat_index = init_strategy(config["algorithm"].get<std::string>());
+		// getting the index of the strategy
+		int strat_index = init_strategy(config["strategy"].get<std::string>());
+		// verifying if the strategy initialized
 		if (strat_index < 0)
 		{
 			errorf("clients.json[%d][%d]: Asset cannot be initialized without strategy", type, index);
 			return false;
 		}
 
+		// getting ranges from json
 		std::vector<int> ranges(config["ranges"].begin(), config["ranges"].end());
+
+		// verifying that the correct amount of ranges were given
+		if (ranges.size() != strategies[strat_index]->indicator_count())
+		{
+			errorf("clients.json[%d][%d]: Expected %d ranges but %d were supplied.", type, index,
+				strategies[strat_index]->indicator_count(), ranges.size());
+
+			return false;
+		}
+
+		// verifying that every range given is a positive number
 		for (int r : ranges)
 		{
 			if (r <= 0)
@@ -253,54 +270,55 @@ namespace daytrender
 			}
 		}
 
-		if (ranges.size() != algorithms[strat_index]->indicator_count())
-		{
-			errorf("clients.json[%d][%d]: Expected %d ranges but %d were supplied.", type, index,
-				algorithms[strat_index]->indicator_count(), ranges.size());
-				
-			return false;
-		}
-
+		// getting ticker from json
 		std::string ticker = config["ticker"].get<std::string>();
+		// verifying ticker was non empty
 		if (ticker.empty())
 		{
 			errorf("clients.json[%d][%d]: 'ticker' definition was empty.", type, index, ticker);
 			return false;
 		}
 
-		assets.push_back(new Asset(clients[type], algorithms[strat_index], ticker, type, interval, ranges));	
+		assets.push_back(new Asset(clients[type], strategies[strat_index], ticker, type, interval, ranges));	
 		successf("Successfully initialized asset: '%s'", ticker);
 		return true;
 	}
-
+	
+	/**
+	 * Returns the index of the strategy with the filename given or -1 if it failed to initialize
+	 * @param	filename	filename of the strategy to use including extension
+	 * @return				index of the strategy in daytrender::strategies
+	 */
 	int init_strategy(const std::string& filename)
 	{
-		for (int i = 0; i < algorithms.size(); i++)
+		for (int i = 0; i < strategies.size(); i++)
 		{
-			if (algorithms[i]->filename() == filename)
+			if (strategies[i]->filename() == filename)
 			{
 				return i;
 			}
 		}
 
-		Algorithm* algo = new Algorithm(dtdir + ALGORITHM_DIR + filename);
+		Strategy* strat = new Strategy(dtdir + STRATEGY_DIR + filename);
 
-		if (algo->is_bound())
+		if (strat->is_bound())
 		{
-			algorithms.push_back(algo);
+			strategies.push_back(strat);
 			successf("Successfully initialized strategy: '%s'", filename);
-			return algorithms.size() - 1;
+			return strategies.size() - 1;
 		}
 		else
 		{
-			errorf("Algorithm '%s' did not bind correctly", filename);
-			delete algo;
+			errorf("Strategy '%s' did not bind correctly", filename);
+			delete strat;
 			return -1;
 		}
 	}
 
-
-	// destroys clients and assets
+	/**
+	 * Frees all of the dynamically allocated memory used by daytrender.
+	 * When deleting clients it closes all positions.
+	 */
 	void free()
 	{
 		mtx.lock();
@@ -332,16 +350,16 @@ namespace daytrender
 			}
 		}
 
-		if (algorithms.empty())
+		if (strategies.empty())
 		{
-			warningf("No algorithms were initialized");
+			warningf("No strategies were initialized");
 		}
 		else
 		{
-			infof("Destructing algorithms...");
-			for (int i = 0; i < algorithms.size(); i++)
+			infof("Destructing strategies...");
+			for (int i = 0; i < strategies.size(); i++)
 			{
-				delete algorithms[i];
+				delete strategies[i];
 			}
 		}
 		mtx.unlock();
@@ -426,13 +444,13 @@ namespace daytrender
 		return out;
 	}
 
-	std::vector<std::string> algorithm_names()
+	std::vector<std::string> strategy_names()
 	{
-		std::vector<std::string> out(algorithms.size());
+		std::vector<std::string> out(strategies.size());
 
-		for (int i = 0; i < algorithms.size(); i++)
+		for (int i = 0; i < strategies.size(); i++)
 		{
-			out[i] = algorithms[i]->filename(); 
+			out[i] = strategies[i]->filename(); 
 		}
 
 		return out;
@@ -451,8 +469,8 @@ namespace daytrender
 	}
 
 	const Asset* get_asset(int index) { return assets[index]; }
-	const Algorithm* get_algorithm(int index) { return algorithms[index]; }
-	Client* get_client(int type) { return clients[type]; }
+	const Strategy* get_strategy(int index) { return strategies[index]; }
+	const Client* get_client(int type) { return clients[type]; }
 }
 
 int main(int argc, char *argv[])

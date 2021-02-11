@@ -8,10 +8,10 @@
 
 namespace daytrender
 {
-	Asset::Asset(Client* client, const Algorithm* algo, const std::string& ticker, int type,
+	Asset::Asset(Client* client, const Strategy* strategy, const std::string& ticker, int type,
 		int interval, const std::vector<int>& ranges) :
 	_client(client),
-	_algo(algo),
+	_strategy(strategy),
 	_type(type),
 	_interval(interval),
 	_ticker(ticker),
@@ -22,7 +22,7 @@ namespace daytrender
 		{
 			if (_ranges[i] > _candle_count) _candle_count = _ranges[i];
 		}
-		_candle_count += _algo->data_length();
+		_candle_count += _strategy->data_length();
 
 		_client->increment_assets();
 	}
@@ -50,7 +50,7 @@ namespace daytrender
 		}
 
 		// processing the candlestick data gotten from client
-		_data = _algo->process(candles, _ranges);
+		_data = _strategy->execute(candles, _ranges);
 
 		// error handling
 		if (_data.error())

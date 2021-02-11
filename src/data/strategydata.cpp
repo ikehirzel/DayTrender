@@ -1,8 +1,8 @@
-#include "algorithmdata.h"
+#include "strategydata.h"
 
 namespace daytrender
 {
-	AlgorithmData::AlgorithmData(const std::vector<int>& ranges, const CandleSet& candles)
+	StrategyData::StrategyData(const std::vector<int>& ranges, const CandleSet& candles)
 	{
 		_ranges = ranges;
 
@@ -16,12 +16,12 @@ namespace daytrender
 		}
 	}
 
-	AlgorithmData::AlgorithmData(const AlgorithmData& other)
+	StrategyData::StrategyData(const StrategyData& other)
 	{
 		*this = other;
 	}
 
-	AlgorithmData::AlgorithmData(AlgorithmData&& other)
+	StrategyData::StrategyData(StrategyData&& other)
 	{
 		_dataset = other._dataset;
 		_capacity = other._capacity;
@@ -35,12 +35,12 @@ namespace daytrender
 		other._dataset = nullptr;
 	}
 
-	AlgorithmData::~AlgorithmData()
+	StrategyData::~StrategyData()
 	{
 		delete[] _dataset;
 	}
 
-	AlgorithmData& AlgorithmData::operator=(const AlgorithmData& other)
+	StrategyData& StrategyData::operator=(const StrategyData& other)
 	{
 		_ranges = other.ranges();
 		_candles = other.candles();

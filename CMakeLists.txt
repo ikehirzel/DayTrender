@@ -7,14 +7,14 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 # globbing sources for daytrender
 
 file(GLOB DAYTRENDER_SRCS src/*.cpp src/api/*.cpp src/data/*.cpp src/interface/*.cpp)
-file(GLOB ALGORITHM_TYPES_SRCS src/data/algorithmdata.cpp src/data/indicator.cpp src/data/candle.cpp)
+file(GLOB STRATEGY_TYPES_SRCS src/data/strategydata.cpp src/data/indicator.cpp src/data/candle.cpp)
 file(GLOB CLIENT_TYPES_SRCS src/data/assetinfo.cpp src/data/accountinfo.cpp src/data/candle.cpp)
 
 # creating symlinks so files can be shared between build folder and project folder
 
 file(CREATE_LINK ../clients.json clients.json SYMBOLIC)
 file(CREATE_LINK ../server.json server.json SYMBOLIC)
-file(CREATE_LINK ../algorithms algorithms SYMBOLIC)
+file(CREATE_LINK ../strategies strategies SYMBOLIC)
 file(CREATE_LINK ../clients clients SYMBOLIC)
 file(CREATE_LINK ../src/interface/webinterface.html webinterface.html SYMBOLIC)
 
@@ -24,16 +24,16 @@ add_executable(daytrender ${DAYTRENDER_SRCS})
 # stops cmake from prepending lib before plugin names
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
-# compiling each algorithm plugin
-file(GLOB ALGO_SRCS "ext/algorithms/*.cpp")
+# compiling each strategies plugin
+file(GLOB STRAT_SRCS "ext/strategies/*.cpp")
 
-foreach(ALGO ${ALGO_SRCS})
+foreach(STRAT ${STRAT_SRCS})
 	# get filename without folder or extension
-	get_filename_component(FILENAME ${ALGO} NAME_WE)
+	get_filename_component(FILENAME ${STRAT} NAME_WE)
 	# create shared object for it
-	add_library(${FILENAME} SHARED ${ALGO} ${ALGORITHM_TYPES_SRCS})
-	# tell it to go to algorithms folder
-	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/algorithms)
+	add_library(${FILENAME} SHARED ${STRAT} ${STRATEGY_TYPES_SRCS})
+	# tell it to go to strategies folder
+	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/strategies)
 	target_include_directories(${FILENAME} PRIVATE src/data src/api)
 endforeach()
 
@@ -45,7 +45,7 @@ foreach(CLIENT ${CLIENT_SRCS})
 	get_filename_component(FILENAME ${CLIENT} NAME_WE)
 	# create shared object for it
 	add_library(${FILENAME} SHARED ${CLIENT} ${CLIENT_TYPES_SRCS})
-	# tell it to go to algorithms folder
+	# tell it to go to strategies folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
 	target_include_directories(${FILENAME} PRIVATE src/data src/api lib/cpp-httplib/include lib/)
 	target_link_libraries(${FILENAME} PRIVATE nlohmann_json OpenSSL::SSL OpenSSL::Crypto)

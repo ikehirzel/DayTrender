@@ -1,11 +1,11 @@
 
 #pragma once
 
-#define ALGORITHM_API_VERSION 1
+#define STRATEGY_API_VERSION 1
 
 #ifndef API_VERSION_CHECK
 
-#include "algorithmdata.h"
+#include "strategydata.h"
 
 #ifndef INDICATORS
 #error INDICATORS must be defined
@@ -21,12 +21,12 @@ extern "C"
 {
 	int indicator_count() { return INDICATORS; }
 	int data_length() { return DATA_LENGTH; }
-	int api_version() { return ALGORITHM_API_VERSION; }
-	void algorithm (AlgorithmData& out);
+	int api_version() { return STRATEGY_API_VERSION; }
+	void strategy(StrategyData& out);
 }
 typedef void(*IndiFunc)(Indicator&, const CandleSet&, int);
 
-const Indicator& _add_indicator(AlgorithmData& out, IndiFunc indi, const char* type, const char* label)
+const Indicator& _add_indicator(StrategyData& out, IndiFunc indi, const char* type, const char* label)
 {
 	if (out.size() >= out.capacity())
 	{
@@ -41,26 +41,26 @@ const Indicator& _add_indicator(AlgorithmData& out, IndiFunc indi, const char* t
 	return out[i];
 }
 
-void _init_algorithm(AlgorithmData& out, const char* label)
+void _init_strategy(StrategyData& out, const char* label)
 {
 	out.set_label(label);
 	const CandleSet& candles = out.candles();
 	const std::vector<int>& ranges = out.ranges();
 	if (candles.empty())
 	{
-		out.flag_error("no candles were passed to algorithm!");
+		out.flag_error("no candles were passed to strategy!");
 	}
 	else if (!ranges.size())
 	{
-		out.flag_error("algorithm data has not been initialized");
+		out.flag_error("strategy data has not been initialized");
 	}
 	else if (ranges.size() != indicator_count())
 	{
-		out.flag_error("algorithm dataset size did not match expected size");
+		out.flag_error("strategy dataset size did not match expected size");
 	}
 }
 
 #define add_indicator(out, func, label) _add_indicator(out, func, #func, label); if (out.error()) return
-#define init_algorithm(out, label) _init_algorithm(out, label); if(out.error()) return
+#define init_strategy(out, label) _init_strategy(out, label); if(out.error()) return
 
 #endif

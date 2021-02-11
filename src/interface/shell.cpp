@@ -44,24 +44,24 @@ namespace daytrender
 		{
 			if (tokens.size() == 3)
 			{
-				int algo_index = -1;
+				int strat_index = -1;
 				int asset_index = -1;
 
-				// tokens[1] should be algo name and 2 should be ticker
-				auto algo_filenames = algorithm_names();
+				// tokens[1] should be strat name and 2 should be ticker
+				auto strat_filenames = strategy_names();
 
-				for (int i = 0; i < algo_filenames.size(); i++)
+				for (int i = 0; i < strat_filenames.size(); i++)
 				{
-					if (tokens[1] == algo_filenames[i])
+					if (tokens[1] == strat_filenames[i])
 					{
-						algo_index = i;
+						strat_index = i;
 						break;
 					}
 				}
 
-				if (algo_index < 0)
+				if (strat_index < 0)
 				{
-					errorf("backtest: invalid algorithm name given!");
+					errorf("backtest: invalid strat name given!");
 					return;
 				}
 
@@ -82,7 +82,7 @@ namespace daytrender
 					return;
 				}
 
-				auto result = interface::backtest(algo_index, asset_index, 500.0, false, 5, 155, 10, {});
+				auto result = interface::backtest(strat_index, asset_index, 500.0, false, 5, 155, 10, {});
 
 				for (const PaperAccount& p : result)
 				{
@@ -92,7 +92,7 @@ namespace daytrender
 			}
 			else
 			{
-				errorf("backtest: incorrect usage of command! correct usage is backtest <algorithm> <asset-type> <ticker>");
+				errorf("backtest: incorrect usage of command! correct usage is backtest <strategy> <asset-type> <ticker>");
 			}
 		}
 

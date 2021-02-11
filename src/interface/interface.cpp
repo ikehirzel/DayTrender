@@ -18,7 +18,7 @@ namespace daytrender
 	{
 		//bool backtest_permutation(
 
-		bool backtest_interval(PaperAccount* best, const Asset* asset, const Algorithm* algo,
+		bool backtest_interval(PaperAccount* best, const Asset* asset, const Strategy* strat,
 			int interval, long long permutations, double principal, double minimum, double fee, bool shorting_enabled,
 			int leverage, int min_range, int max_range, int granularity, const std::vector<int>& start_ranges)
 		{
@@ -46,7 +46,7 @@ namespace daytrender
 
 				for (long j = 0; j < candles.size() - candle_count; j++)
 				{
-					CandleSet slice = candles.slice(j, candle_count, algo->data_length());
+					CandleSet slice = candles.slice(j, candle_count, strat->data_length());
 
 					if (slice.error())
 					{
@@ -55,11 +55,11 @@ namespace daytrender
 					}
 					
 					acc.update_price(slice.back().close());
-					AlgorithmData data = algo->process(slice, curr_ranges);
+					StrategyData data = strat->execute(slice, curr_ranges);
 
 					if (data.error())
 					{
-						errorf("Backtest: Algorithm: %s", data.error());
+						errorf("Backtest: Strategy: %s", data.error());
 						return false;
 					}
 
@@ -95,19 +95,19 @@ namespace daytrender
 			return true;
 		}
 
-		std::vector<PaperAccount> backtest(int algo_index, int asset_index, double principal,
+		std::vector<PaperAccount> backtest(int strat_index, int asset_index, double principal,
 			bool shorting_enabled, int min_range, int max_range, int granularity,
 			const std::vector<int>& test_ranges)
 		{
 			auto t0 = std::chrono::system_clock::now();
 			const Asset* asset = get_asset(asset_index);
 			const Client* client = asset->client();
-			const Algorithm* algo = get_algorithm(algo_index);
+			const Strategy* strat = get_strategy(strat_index);
 
 			// storing important info
 			std::vector<int> intervals = client->backtest_intervals();
 
-			infof("Backtesting %s asset '%s' with algorithm '%s'...", client->label(), asset->ticker(), algo->filename());
+			infof("Backtesting %s asset '%s' with strategy '%s'...", client->label(), asset->ticker(), strat->filename());
 
 			// calculating lops
 			std::vector<int> start_ranges;
@@ -118,10 +118,10 @@ namespace daytrender
 			if (test_ranges.empty())
 			{
 				// setting default ranges
-				start_ranges.resize(algo->indicator_count(), min_range);
+				start_ranges.resize(strat->indicator_count(), min_range);
 
 				// calculate the amount of permutations of ranges
-				for (int i = 0; i < algo->indicator_count(); i++) permutations *= possible_vals;
+				for (int i = 0; i < strat->indicator_count(); i++) permutations *= possible_vals;
 			}
 			else
 			{
@@ -129,14 +129,14 @@ namespace daytrender
 				start_ranges = test_ranges;
 
 				// verify ranges size
-				if (start_ranges.size() >  algo->indicator_count())
+				if (start_ranges.size() >  strat->indicator_count())
 				{
-					errorf("Backtest: Passed in %d ranges but %d were expected! Resizing ranges...", start_ranges.size(), algo->indicator_count());
-					start_ranges.resize(algo->indicator_count());
+					errorf("Backtest: Passed in %d ranges but %d were expected! Resizing ranges...", start_ranges.size(), strat->indicator_count());
+					start_ranges.resize(strat->indicator_count());
 				}
-				else if (start_ranges.size() < algo->indicator_count())
+				else if (start_ranges.size() < strat->indicator_count())
 				{
-					errorf("Backtest: Passed in %d ranges but %d were expected! Execution cannot continue.", start_ranges.size(), algo->indicator_count());
+					errorf("Backtest: Passed in %d ranges but %d were expected! Execution cannot continue.", start_ranges.size(), strat->indicator_count());
 					return {};
 				}
 
@@ -164,7 +164,7 @@ namespace daytrender
 			for (int i = 0; i < intervals.size(); i++)
 			{
 				threads[i] = std::async(std::launch::async, backtest_interval, &out[i], asset,
-				algo, intervals[i], permutations, principal, info.minimum(), info.fee(), shorting_enabled, acct.leverage(),
+				strat, intervals[i], permutations, principal, info.minimum(), info.fee(), shorting_enabled, acct.leverage(),
 				min_range, max_range, granularity, start_ranges);
 				
 			}

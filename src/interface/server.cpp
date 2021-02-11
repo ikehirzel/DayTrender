@@ -117,17 +117,17 @@ namespace daytrender
 
 			json response;
 
-			// gathering algorithm names
-			auto algo_info = algorithm_names();
-			if(algo_info.empty())
+			// gathering strategy names
+			auto strat_info = strategy_names();
+			if(strat_info.empty())
 			{
-				warningf("No algorithm names were received");
+				warningf("No strategy names were received");
 			}
 			else
 			{
-				for (int i = 0; i < algo_info.size(); i++)
+				for (int i = 0; i < strat_info.size(); i++)
 				{
-					response["algorithms"][i] = algo_info[i];
+					response["strategy"][i] = strat_info[i];
 				}
 			}
 			// gathering asset types and tickers
@@ -165,7 +165,7 @@ namespace daytrender
 
 			asset_type = std::stoi(req.get_param_value("asset_type"));
 
-			Client* client = get_client(asset_type);
+			const Client* client = get_client(asset_type);
 			accinfo = client->get_account_info();
 			response["balance"] = accinfo.balance();
 			response["buying_power"] = accinfo.buying_power();
@@ -180,7 +180,7 @@ namespace daytrender
 
 			int index = std::stoi(req.get_param_value("index"));
 			const Asset* asset = get_asset(index);
-			const AlgorithmData& data = asset->data();
+			const StrategyData& data = asset->data();
 			const Client* client = asset->client();
 			AssetInfo info = client->get_asset_info(asset->ticker());
 
@@ -233,16 +233,16 @@ namespace daytrender
 		{
 			debugf("Server GET @ %s", req.path);
 			
-			int asset_index, algo_index;
+			int asset_index, strat_index;
 			json response;
-			algo_index = std::stoi(req.get_param_value("algorithm"));
+			strat_index = std::stoi(req.get_param_value("strategy"));
 			asset_index = std::stoi(req.get_param_value("asset"));
 			std::string sranges = req.get_param_value("ranges");
 			std::vector<PaperAccount> results;
 			
 			if (sranges.empty())
 			{
-				results = interface::backtest(algo_index, asset_index, 500.0, false, 5, 155, 10, {});
+				results = interface::backtest(strat_index, asset_index, 500.0, false, 5, 155, 10, {});
 			}
 			else
 			{	
@@ -270,7 +270,7 @@ namespace daytrender
 				}
 
 				std::cout << "Ranges: " << ranges.size() << std::endl;
-				results = interface::backtest(algo_index, asset_index, 500, false, 5, 155, 10, ranges);
+				results = interface::backtest(strat_index, asset_index, 500, false, 5, 155, 10, ranges);
 			}
 			std::cout << "Got result!\n";
 

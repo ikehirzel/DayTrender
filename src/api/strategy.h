@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "../data/algorithmdata.h"
+#include "../data/strategydata.h"
 
 namespace hirzel
 {
@@ -12,23 +12,23 @@ namespace hirzel
 
 namespace daytrender
 {
-	class Algorithm
+	class Strategy
 	{
 	private:
 		hirzel::Plugin* _plugin = nullptr;
 		int _indicator_count = 0;
 		int _data_length = 0;
-		void(*_algorithm_ptr)(AlgorithmData&) = nullptr;
+		void(*_execute)(StrategyData&) = nullptr;
 		std::string _filename;
 
 	public:
-		Algorithm(const std::string& _filepath);
-		~Algorithm();
+		Strategy(const std::string& _filepath);
+		~Strategy();
 
-		AlgorithmData process(const CandleSet& candles, const std::vector<int>& ranges) const;
+		StrategyData execute(const CandleSet& candles, const std::vector<int>& ranges) const;
 		inline const std::string& filename() const { return _filename; };
 		inline int indicator_count() const { return _indicator_count; }
-		inline bool is_bound() const { return _algorithm_ptr != nullptr; }
+		inline bool is_bound() const { return _execute != nullptr; }
 		inline int data_length() const { return _data_length; }
 	};
 }
