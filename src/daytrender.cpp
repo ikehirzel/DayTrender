@@ -28,8 +28,8 @@ namespace daytrender
 
 	std::mutex mtx;
 
-	bool init_client(const json& config);
-	bool init_asset(const json& config, int type);
+	bool init_client(const json& config, int index);
+	bool init_asset(const json& config, int type, int index);
 	int init_strategy(const std::string& filename);
 
 	void init(const std::string& execpath)
@@ -71,7 +71,8 @@ namespace daytrender
 
 		for (int i = 0; i < clients_json.size(); i++)
 		{
-			init_client(clients_json[i]);
+			// initialize client. if it fails, stop daytrender from running
+			if (!init_client(clients_json[i], i)) shouldrun = false;
 		}
 
 		infof("Initialized clients:       %d", clients.size());
@@ -168,11 +169,10 @@ namespace daytrender
 		return true;
 	}
 
-	bool init_client(const json& config)
+	bool init_client(const json& config, int index)
 	{
-		std::string filename = config["filename"].get<std::string>();
 		// checking if vars are defined
-		if (!check_is_defined(filename, config, {
+		if (!check_is_defined("clients.json", config, {
 			"label",
 			"filename",
 			"shorting_enabled",
@@ -185,73 +185,41 @@ namespace daytrender
 		})) return false;
 
 		// checking if vars are between 0 and 1
-		if (!check_is_in_range(filename, config, 0, 1.0, {
+		if (!check_is_in_range("clients.json", config, 0, 1.0, {
 			"max_loss",
 			"risk",
 		})) return false;
 
 		// checking if vars are at least 0
-		if (!check_is_in_range(filename, config, 0, 0, {
+		if (!check_is_in_range("clients.json", config, 0, 0, {
 			"history_length",
 			"leverage",
 			"closeout_buffer"
 		})) return false;
 
-		const json& credentials = config["keys"];
-		std::string label = config["label"].get<std::string>();
-		double history_length = config["history_length"].get<double>();
-		double max_loss = config["max_loss"].get<double>();
-		int leverage = config["leverage"].get<int>();
-		bool shorting_enabled = config["shorting_enabled"].get<bool>();
-		double risk = config["risk"].get<double>();
-		int closeout_buffer = config["closeout_buffer"].get<int>();
-		std::vector<std::string> args(credentials.begin(), credentials.end());
-
-		/*
-			TODO:
-			Add an "expected credential count" to clients so that this can be upgraded to an error
-		*/
-
-
-
-		Client* cli = new Client(label, dtdir + CLIENTS_DIR + filename, args, shorting_enabled,
-			risk, max_loss, leverage, history_length, closeout_buffer);
-	
-		if (credentials.size() != cli->key_count())
-		{
-			errorf("%s: Expected %d keys but %s were supplied", filename, cli->key_count(), credentials.size());
-			delete cli;
-			return false;
-		}
+		Client* cli = new Client(config, dtdir + CLIENTS_DIR);
 
 		if (!cli->bound())
 		{
-			errorf("%s: Client failed to bind", filename);
-			delete cli;
-			return false;
-		}
-
-		if (!cli->is_live())
-		{
-			errorf("%s: Client could not go live", label);
+			errorf("%s: Client failed to bind. Assets will not be loaded.", cli->filename());
 			delete cli;
 			return false;
 		}
 
 		clients.push_back(cli);
 
-		infof("%s: Initializing %s assets...", filename, label);
+		infof("%s: Initializing %s assets...", cli->filename(), cli->label());
 		// allocating all the assets for the client;
 		const json& assets_json = config["assets"];
 		for (int i = 0; i < assets_json.size(); i++)
 		{
-			init_asset(assets_json[i], clients.size() - 1);
+			if (!init_asset(assets_json[i], index, i)) return false;
 		}
-		successf("Successfully initialized %s client: '%s'", label, filename);
+		successf("Successfully initialized %s client: '%s'", cli->label(), cli->filename());
 		return true;
 	}
 
-	bool init_asset(const json& config, int type)
+	bool init_asset(const json& config, int type, int index)
 	{
 		std::string ticker = config["ticker"].get<std::string>();
 
@@ -264,7 +232,8 @@ namespace daytrender
 
 		std::string algorithm_filename = config["algorithm"];
 		int interval = config["interval"].get<int>();
-		std::vector<int> ranges(config["ranges"].begin(), config["ranges"].end());
+		const json& ranges_json = config["ranges"];
+		std::vector<int> ranges(ranges_json.begin(), ranges_json.end());
 
 		if (clients[type]->to_interval(interval) == "")
 		{
@@ -330,9 +299,8 @@ namespace daytrender
 			infof("Destructing clients...");
 			for (int i = 0; i < clients.size(); i++)
 			{
-				warningf("Not actually closing positions");
-				//infof("Closing all %s positions for %s", clients[i]->label(), clients[i]->filename());
-				//clients[i]->close_all_positions();
+				infof("Closing all %s positions for %s", clients[i]->label(), clients[i]->filename());
+				clients[i]->close_all_positions();
 				delete clients[i];
 			}
 		}

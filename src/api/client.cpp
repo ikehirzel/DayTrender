@@ -12,116 +12,112 @@
 
 namespace daytrender
 {
-	Client::Client(const std::string& label, const std::string& filepath,
-		const std::vector<std::string>& credentials, bool shorting_enabled, double risk,
-		double max_loss, int leverage, double history_length, int closeout_buffer)
-	{
-		_label = label;
-		_shorting_enabled = shorting_enabled;
-		_risk = risk;
-		_filename = hirzel::str::get_filename(filepath);
-		_max_loss = max_loss;
-		_history_length = history_length;
-		_closeout_buffer = closeout_buffer * 60;
-		_handle = new hirzel::Plugin(filepath);
+	#define FUNC_PAIR(x) { (void(**)())&_##x, #x }
 
-		if (!_handle->is_lib_bound())
+	Client::Client(const json& config, const std::string& directory):
+	_closeout_buffer(config["closeout_buffer"].get<int>() * 60),
+	_filename(config["filename"].get<std::string>()),
+	_history_length(config["history_length"].get<double>()),
+	_label(config["label"].get<std::string>()),
+	_max_loss(config["max_loss"].get<double>()),
+	_risk(config["risk"].get<double>()),
+	_shorting_enabled(config["shorting_enabled"].get<bool>())
+	{
+		int leverage = config["leverage"].get<int>();
+		const json& credentials = config["keys"];
+		std::vector<std::string> keys(credentials.begin(), credentials.end());
+
+		_plugin = new hirzel::Plugin(directory + _filename);
+
+		// checking if the plugin failed to bind
+		if (!_plugin->is_lib_bound())
 		{
-			errorf("%s failed to bind: %s", _filename, _handle->get_error());
+			errorf("%s: bind failure: %s", _filename, _plugin->get_error());
 			return;
 		}
 
-		int api_version = ((int(*)())_handle->bind_function("api_version"))();
+		// preparing vector so functions can be iterated over
+		std::vector<std::pair<void(**)(), const char*>> funcs =
+		{
+			FUNC_PAIR(init),
+			FUNC_PAIR(api_version),
+			FUNC_PAIR(get_candles),
+			FUNC_PAIR(get_account_info),
+			FUNC_PAIR(get_asset_info),
+			FUNC_PAIR(market_order),
+			FUNC_PAIR(close_all_positions),
+			FUNC_PAIR(secs_till_market_close),
+			FUNC_PAIR(set_leverage),
+			FUNC_PAIR(to_interval),
+			FUNC_PAIR(key_count),
+			FUNC_PAIR(max_candles),
+			FUNC_PAIR(backtest_intervals),
+			FUNC_PAIR(get_error)
+		};
+
+		// checking if every function bound correctly
+		for (const std::pair<void(**)(), const char*>& f: funcs)
+		{
+			*f.first = _plugin->bind_function(f.second);
+
+			// if it didn't, create an error
+			if (!*f.first)
+			{
+				flag_error();
+				return;
+			}
+		}
+
+		// verifying api version of client matches current one
+		int api_version = _api_version();
 		if (api_version != CLIENT_API_VERSION)
 		{
 			errorf("%s: api version for (%d) did not match current api version: %d)", api_version, CLIENT_API_VERSION);
-			errorf("Failed to initialize client: '%s'", _filename);
 			return;
 		}
 
-		_init = (bool(*)(const std::vector<std::string>&))_handle->bind_function("init");
-		if (!_init) flag_error();
-
-		_get_candles = (bool(*)(CandleSet&, const std::string&))_handle->bind_function("get_candles");
-		if (!_get_candles) flag_error();
-
-		_get_account_info = (bool(*)(AccountInfo&))_handle->bind_function("get_account_info");
-		if (!_get_account_info) flag_error();
-
-		_get_asset_info = (bool(*)(AssetInfo&, const std::string&))_handle->bind_function("get_asset_info");
-		if (!_get_asset_info) flag_error();
-
-		_market_order = (bool(*)(const std::string&, double))_handle->bind_function("market_order");
-		if (!_market_order) flag_error();
-
-		_close_all_positions = (bool(*)())_handle->bind_function("close_all_positions");
-		if (!_close_all_positions) flag_error();
-
-		_secs_till_market_close = (bool(*)(int&))_handle->bind_function("secs_till_market_close");
-		if (!_secs_till_market_close) flag_error();
-
-		_set_leverage = (bool(*)(int))_handle->bind_function("set_leverage");
-		if (!_set_leverage) flag_error();
-
-		// getters
-
-		_to_interval = (const char*(*)(int))_handle->bind_function("to_interval");
-		if (!_to_interval) flag_error();
-
-		// all of these are guaranteed as a result of compilation and don't need to be checked
-		_key_count = (int(*)())_handle->bind_function("key_count");
-		_max_candles = (int(*)())_handle->bind_function("max_candles");
-		_backtest_intervals = (void(*)(std::vector<int>&))_handle->bind_function("backtest_intervals");
-		_get_error = (void(*)(std::string&))_handle->bind_function("get_error");
-
-		_bound = _handle->all_bound();
-
-		if (_bound)
+		// verifying that the correct amount of credentials passed
+		int key_count = _key_count();
+		if (key_count != keys.size())
 		{
-
-			if (!_init(credentials))
-			{
-				flag_error();
-			}
-			else
-			{
-				_live = true;
-			}
-			
-			if (!set_leverage(leverage))
-			{
-				_live = false;
-			}
+			errorf("%s: expected %d keys but %d were supplied.", _filename, key_count, keys.size());
+			return;
 		}
-		else
+		
+		// initializing the client
+		if (!_init(credentials))
 		{
-			errorf("Failed to bind to all functions of: '%s': %s", _filename, _handle->get_error());
+			flag_error();
+			return;
 		}
+
+		// setting client leverage
+		if (!_set_leverage(leverage))
+		{
+			flag_error();
+			return;
+		}
+
+		_bound = true;
+		_live = true;
 	}
 
 	Client::~Client()
 	{
-		delete _handle;
+		delete _plugin;
 	}
 
-	bool Client::func_ok(const char* label, void(*func)()) const
+	bool Client::client_ok() const
 	{
 		if (!_live)
 		{
-			errorf("Client '%s': client is not live.", _filename);
+			errorf("%s: Client is not live. Function cannot be called.", _filename);
 			return false;
 		}
 
 		if (!_bound)
 		{
-			errorf("Client '%s': client is not bound.", _filename);
-
-			return false;
-		}
-
-		if (func == nullptr)
-		{
-			errorf("Client '%s': function is not bound and cannot be executed!", _filename);
+			errorf("%s: Client is not bound. Function cannot be called.", _filename);
 			return false;
 		}
 
@@ -131,7 +127,7 @@ namespace daytrender
 	void Client::flag_error() const
 	{
 		errorf("%s: %s", _filename, get_error());
-		_live = false;
+		_bound = false;
 	}
 
 	void Client::update()
@@ -245,7 +241,7 @@ namespace daytrender
 
 	CandleSet Client::get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const
 	{
-		if (!func_ok("get_candles", (void(*)())_get_candles)) return CandleSet();
+		if (!client_ok()) return CandleSet();
 
 		if (max == 0)
 		{
@@ -275,7 +271,7 @@ namespace daytrender
 
 	AccountInfo Client::get_account_info() const
 	{
-		if (!func_ok("get_account_info", (void(*)())_get_account_info)) return AccountInfo();
+		if (!client_ok()) return AccountInfo();
 
 		AccountInfo info;
 		bool res = _get_account_info(info);
@@ -296,7 +292,7 @@ namespace daytrender
 	 */
 	bool Client::market_order(const std::string& ticker, double amount)
 	{
-		if (!func_ok("market_order", (void(*)())_market_order)) return false;
+		if (!client_ok()) return false;
 		if (amount == 0.0) return true;
 		bool res = _market_order(ticker, amount);
 		if (!res) flag_error();
@@ -305,7 +301,7 @@ namespace daytrender
 
 	AssetInfo Client::get_asset_info(const std::string& ticker) const
 	{
-		if (!func_ok("get_asset_info", (void(*)())_get_asset_info)) return {};
+		if (!client_ok()) return {};
 		AssetInfo info;
 		bool res = _get_asset_info(info, ticker);
 		if (!res) flag_error();
@@ -316,12 +312,6 @@ namespace daytrender
 	{
 		// this function can happen when not live
 
-		if (!_close_all_positions)
-		{
-			errorf("%s: close_all_positions is not bound and cannot be executed!", _filename);
-			return false;
-		}
-
 		bool res = _close_all_positions();
 		if (!res) flag_error();
 
@@ -330,7 +320,7 @@ namespace daytrender
 
 	int Client::secs_till_market_close() const
 	{
-		if (!func_ok("secs_till_market_close", (void(*)())_secs_till_market_close)) return false;
+		if (!client_ok()) return false;
 
 		int seconds;
 		bool res = _secs_till_market_close(seconds);
@@ -339,19 +329,9 @@ namespace daytrender
 		return seconds;
 	}
 
-	bool Client::set_leverage(int multiplier)
-	{
-		if (!func_ok("set_leverage", (void(*)())_set_leverage)) return false;
-
-		bool res = _set_leverage(multiplier);
-		if (!res) flag_error();
-
-		return res;
-	}
-
 	std::string Client::to_interval(int interval) const
 	{
-		if (!func_ok("to_interval", (void(*)())_to_interval)) return "";
+		if (!client_ok()) return "";
 		
 		const char* interval_str = _to_interval(interval);
 		if (!interval_str)

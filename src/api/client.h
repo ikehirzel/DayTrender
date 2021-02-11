@@ -6,19 +6,22 @@
 
 #include <string>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 namespace hirzel
 {
 	class Plugin;
 }
 
+using nlohmann::json;
+
 namespace daytrender
 {
 	class Client
 	{
 	private:
-		bool _bound = false;
-		mutable bool _live = false;
+		bool _live = false;
+		mutable bool _bound = false;
 		bool _shorting_enabled = false;
 		int _asset_count = 0;
 		double _pl = 0.0;
@@ -31,7 +34,7 @@ namespace daytrender
 		std::string _filename;
 		std::string _label;
 
-		hirzel::Plugin* _handle = nullptr;
+		hirzel::Plugin* _plugin = nullptr;
 		
 		// init func
 
@@ -60,33 +63,32 @@ namespace daytrender
 		int (*_api_version)() = nullptr;
 
 		void flag_error() const;
-		bool func_ok(const char* label, void(*func)()) const;
+		bool client_ok() const;
 
 		bool enter_position(const std::string& ticker, double pct, bool short_shares);
 		bool exit_position(const std::string& ticker, bool short_shares);
+
 	public:
-		Client(const std::string& label, const std::string& filepath,
-			const std::vector<std::string>& credentials, bool shorting_enabled, double risk,
-			double max_loss, int leverage, double history_length, int closeout_buffer);
+		Client(const json& config, const std::string& directory);
 		~Client();
 
 		void update();
 
-		inline bool enter_long(const std::string ticker, double pct)
+		inline bool enter_long(const std::string& ticker, double pct)
 		{
 			return enter_position(ticker, pct, false);
 		}
 
-		inline bool enter_short(const std::string ticker, double pct)
+		inline bool enter_short(const std::string& ticker, double pct)
 		{
 			return enter_position(ticker, pct, true);
 		}
 
-		inline bool exit_long(const std::string ticker)
+		inline bool exit_long(const std::string& ticker)
 		{
 			return exit_position(ticker, false);
 		}
-		inline bool exit_short(const std::string ticker)
+		inline bool exit_short(const std::string& ticker)
 		{
 			return exit_position(ticker, true);
 		}
@@ -96,7 +98,6 @@ namespace daytrender
 		// non returning
 		bool market_order(const std::string& ticker, double amount);
 		bool close_all_positions();
-		bool set_leverage(int multiplier);
 
 		// returning
 		AccountInfo get_account_info() const;
@@ -131,7 +132,6 @@ namespace daytrender
 		inline bool shorting_enabled() const { return _shorting_enabled; }
 		inline const std::string& label() const { return _label; }
 		inline const std::string& filename() const { return _filename; }
-		inline hirzel::Plugin* handle() const { return _handle; }
 		inline double risk() const { return _risk; }
 		inline double pl() const { return _pl; }
 		inline int asset_count() const { return _asset_count; }

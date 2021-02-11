@@ -8,6 +8,11 @@
 
 namespace daytrender
 {
+	Asset::Asset(Client* client, const json& config) : _client(client)
+	{
+		
+	}
+
 	Asset::Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
 		int interval, const std::vector<int>& ranges)
 	{
@@ -25,9 +30,7 @@ namespace daytrender
 		{
 			if (ranges[i] > _candle_count) _candle_count = ranges[i];
 		}
-		_candle_count += _algo->data_length();
-
-		
+		_candle_count += _algo->data_length();		
 
 		_live = true;
 	}

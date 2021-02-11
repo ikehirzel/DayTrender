@@ -13,8 +13,8 @@ namespace daytrender
 	{
 	private:
 		mutable bool _live = false;
-		int _interval = 0;
 		int _candle_count = 0;
+		int _interval = 0;
 		int _type = 0;
 		long long _last_update = 0;
 		double _risk = 0.0;
@@ -35,6 +35,7 @@ namespace daytrender
 		}
 
 	public:
+		Asset(Client* client, const json& config);
 		Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
 			int interval, const std::vector<int>& ranges);
 
