@@ -253,9 +253,7 @@ namespace daytrender
 
 	double PaperAccount::kelly_criterion() const
 	{
-		double rate = win_rate() - loss_rate() / ((_long_profits + _short_profits) / (_long_losses + _short_losses));
-		//if (rate < 0.0) rate = 0.0;
-		return rate;
+		return win_rate() - loss_rate() / ((_long_profits + _short_profits) / (_long_losses + _short_losses));
 	}
 
 	std::string PaperAccount::to_string() const
@@ -263,10 +261,6 @@ namespace daytrender
 		std::string out;
 
 		out = "PaperAccount:\n{";
-		out += "\n    L Entrances :    " + std::to_string(_long_entrances);
-		out += "\n    L Exits     :    " + std::to_string(_long_exits);
-		out += "\n    S Entrances :    " + std::to_string(_short_entrances);
-		out += "\n    S Exits     :    " + std::to_string(_short_exits);
 		out += "\n    Interval    :    " + std::to_string(_interval);
 		out += "\n    Ranges      :    ";
 		for (int i = 0; i < _ranges.size(); i++)
@@ -275,23 +269,27 @@ namespace daytrender
 			out += std::to_string(_ranges[i]);
 		}
 		out += "\n    Elapsed Hrs :    " + std::to_string(elapsed_hours()) + " (" + std::to_string(elapsed_hours() / 24.0) + " days)";
-		out += "\n";
 		out += "\n    Principal   :  $ " + std::to_string(_principal);
-		out += "\n    Shares      :    " + std::to_string(_shares);
-		out += "\n    Balance     :  $ " + std::to_string(_balance);
-		out += "\n    Equity      :  $ " + std::to_string(equity());
-		out += "\n    Buy Power   :  $ " + std::to_string(buying_power());
 		out += "\n    Leverage    :  x " + std::to_string(leverage());
 		out += "\n    Fee         :  % " + std::to_string(_fee);
 		out += "\n    Order Min   :    " + std::to_string(_order_minimum);
 		out += "\n";
+		out += "\n    Shares      :    " + std::to_string(_shares);
+		out += "\n    Balance     :  $ " + std::to_string(_balance);
+		out += "\n    Equity      :  $ " + std::to_string(equity());
+		out += "\n    Buy Power   :  $ " + std::to_string(buying_power());
+		out += "\n";
+		out += "\n    L Entrances :    " + std::to_string(_long_entrances);
+		out += "\n    L Exits     :    " + std::to_string(_long_exits);
 		out += "\n    L Profits   :  $ " + std::to_string(_long_profits);
 		out += "\n    L Losses    :  $ " + std::to_string(_long_losses);
+		out += "\n    S Entrances :    " + std::to_string(_short_entrances);
+		out += "\n    S Exits     :    " + std::to_string(_short_exits);
 		out += "\n    S Profits   :  $ " + std::to_string(_short_profits);
 		out += "\n    S Losses    :  $ " + std::to_string(_short_losses);
+		out += "\n";
 		out += "\n    Net Return  :  $ " + std::to_string(net_return());
 		out += "\n    Pct Return  :  % " + std::to_string(pct_return() * 100.0);
-		out += "\n";
 		out += "\n    Net / Year  :  $ " + std::to_string(net_per_year());
 		out += "\n    Pct / Year  :  % " + std::to_string(pct_per_year() * 100.0);
 		out += "\n";

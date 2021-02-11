@@ -35,7 +35,7 @@ namespace daytrender
 		}
 
 	public:
-		Asset(Client* client, const Strategy* algo, const std::string& ticker, int type,
+		Asset(Client* client, const Strategy* strat, const std::string& ticker, int type,
 			int interval, const std::vector<int>& ranges);
 
 		void update();
@@ -45,6 +45,7 @@ namespace daytrender
 		inline const Strategy* strategy() const { return _strategy; }
 		inline const Client* client() const { return _client; }
 		inline const std::string& ticker() const { return _ticker; }
+		inline const std::vector<int>& ranges() const { return _ranges; }
 		inline int interval() const { return _interval; }
 		inline int type() const { return _type; }
 		inline bool is_live() const { return _live && _client->is_live(); }

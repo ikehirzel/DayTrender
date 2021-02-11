@@ -75,9 +75,9 @@ namespace daytrender
 			if (!init_client(clients_json[i], i)) shouldrun = false;
 		}
 
-		infof("Initialized clients:       %d", clients.size());
-		infof("Initialized assets:        %d", assets.size());
-		infof("Initialized strategies:    %d", strategies.size());
+		infof("Initialized clients:     %d", clients.size());
+		infof("Initialized assets:      %d", assets.size());
+		infof("Initialized strategies:  %d", strategies.size());
 
 		json server_json = json::parse(server_str);
 
@@ -91,6 +91,7 @@ namespace daytrender
 		shouldrun = false;
 		
 		///////////////////////////////////////////////
+
 		// std::cout << "Getting account\n";
 		// auto acct = clients[0]->get_account_info();
 		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
@@ -280,7 +281,7 @@ namespace daytrender
 		}
 
 		assets.push_back(new Asset(clients[type], strategies[strat_index], ticker, type, interval, ranges));	
-		successf("Successfully initialized asset: '%s'", ticker);
+		successf("%s: Successfully initialized with risk: %f", ticker, assets.back()->risk());
 		return true;
 	}
 	

@@ -16,7 +16,54 @@ namespace daytrender
 {
 	namespace interface
 	{
-		//bool backtest_permutation(
+		bool backtest_permutation(PaperAccount& acc, CandleSet& candles, const Strategy* strat,
+			const std::vector<int>& ranges)
+		{
+			// calculating size of candles
+			int candle_count = 0;
+			if (ranges.size() > 1)
+			{
+				for (int j = 1; j < ranges.size(); j++)
+				{
+					if (ranges[j] > candle_count) candle_count = ranges[j];
+				}
+			}
+			candle_count += ranges[0];
+
+			for (long i = 0; i < candles.size() - candle_count; i++)
+			{
+				CandleSet slice = candles.slice(i, candle_count, strat->data_length());
+
+				if (slice.error())
+				{
+					errorf("Backtest: CandleSet: %s", slice.error());
+					return false;
+				}
+				
+				acc.update_price(slice.back().close());
+				StrategyData data = strat->execute(slice, ranges);
+
+				if (data.error())
+				{
+					errorf("Backtest: Strategy: %s", data.error());
+					return false;
+				}
+
+				if (!acc.handle_action(data.action()))
+				{
+					errorf("Backtest: Account: %s", acc.error());
+					return false;
+				}
+			}
+			
+			if (!acc.close_position())
+			{
+				errorf("Backtest: Account: %s", acc.error());
+				return false;
+			}
+
+			return true;
+		}
 
 		bool backtest_interval(PaperAccount* best, const Asset* asset, const Strategy* strat,
 			int interval, long long permutations, double principal, double minimum, double fee, bool shorting_enabled,
@@ -26,57 +73,18 @@ namespace daytrender
 			const Client* client = asset->client();
 			CandleSet candles = client->get_candles(asset->ticker(), interval, 0, 0);
 			
+			*best = PaperAccount(principal, leverage, fee, minimum, candles.front().open(),
+				shorting_enabled, interval, curr_ranges);
+
 			for (int i = 0; i < permutations; i++)
 			{
 				// storing activity and performance data
 				PaperAccount acc(principal, leverage, fee, minimum, candles.front().open(),
 					shorting_enabled, interval, curr_ranges);
-				
-				// calculating size of candles
-				int candle_count = 0;
-				if (curr_ranges.size() > 1)
-				{
-					for (int j = 1; j < curr_ranges.size(); j++)
-					{
-						if (curr_ranges[j] > candle_count) candle_count = curr_ranges[j];
-					}
-				}
-				candle_count += curr_ranges[0];
 
+				backtest_permutation(acc, candles, strat, curr_ranges);
 
-				for (long j = 0; j < candles.size() - candle_count; j++)
-				{
-					CandleSet slice = candles.slice(j, candle_count, strat->data_length());
-
-					if (slice.error())
-					{
-						errorf("Backtest: CandleSet: %s", slice.error());
-						return false;
-					}
-					
-					acc.update_price(slice.back().close());
-					StrategyData data = strat->execute(slice, curr_ranges);
-
-					if (data.error())
-					{
-						errorf("Backtest: Strategy: %s", data.error());
-						return false;
-					}
-
-					if (!acc.handle_action(data.action()))
-					{
-						errorf("Backtest: Account: %s", acc.error());
-						return false;
-					}
-				}
-
-				if (!acc.close_position())
-				{
-					errorf("Backtest: Account: %s", acc.error());
-					return false;
-				}
-
-				if (acc.equity() > best->equity() || i == 0)
+				if (acc.equity() > best->equity())
 				{
 					*best = acc;
 				}
@@ -93,6 +101,31 @@ namespace daytrender
 				}
 			}
 			return true;
+		}
+
+		PaperAccount backtest(const Asset* asset)
+		{
+			const Client* client = asset->client();
+			const Strategy* strategy = asset->strategy();
+
+			AccountInfo account_info = asset->client()->get_account_info();
+			AssetInfo asset_info = asset->client()->get_asset_info(asset->ticker());
+			CandleSet candles = client->get_candles(asset->ticker(), asset->interval(), 0, 0);
+			PaperAccount account
+			{
+				account_info.balance(),
+				account_info.leverage(),
+				asset_info.fee(),
+				asset_info.minimum(),
+				candles.front().open(),
+				account_info.shorting_enabled(),
+				asset->interval(),
+				asset->ranges()
+			};
+			
+			backtest_permutation(account, candles, strategy, asset->ranges());
+
+			return account;
 		}
 
 		std::vector<PaperAccount> backtest(int strat_index, int asset_index, double principal,
@@ -189,5 +222,22 @@ namespace daytrender
 
 			return out;
 		}
+
+		std::vector<PaperAccount> backtest(Client* client, const Strategy* strat, const std::vector<int>& ranges)
+		{
+			CandleSet candles = client->get_candles("EUR_USD", 300, 0, 0);
+			PaperAccount acc0(500, 1, 0.0001, 1.0, candles.front().open(), false, 300, ranges);
+			PaperAccount acc1(500, 10, 0.0001, 1.0, candles.front().open(), false, 300, ranges);
+
+			backtest_permutation(acc0, candles, strat, ranges);
+			backtest_permutation(acc1, candles, strat, ranges);
+
+			return { acc0, acc1 };
+		}
+
+		/*
+		PaperAccount& acc, CandleSet& candles, const Strategy* strat,
+			const std::vector<int>& ranges
+		*/
 	}
 }

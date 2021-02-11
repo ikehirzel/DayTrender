@@ -1,10 +1,11 @@
 #include "asset.h"
 
+#include "paperaccount.h"
 #include "../data/mathutil.h"
+#include "../interface/interface.h"
 
 #include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
-#include <cmath>
 
 namespace daytrender
 {
@@ -25,12 +26,16 @@ namespace daytrender
 		_candle_count += _strategy->data_length();
 
 		_client->increment_assets();
+
+		PaperAccount acc = interface::backtest(this);
+		double kelly = acc.kelly_criterion();
+		_risk = (kelly >= 0.0 ? kelly : 0.0);
 	}
 	
 	void Asset::update()
 	{
-		// if the client is currently not live, do not update
-		if (!_client->is_live()) return;
+		// if the client or asset is currently not live, do not update
+		if (!_client->is_live() || !_live) return;
 
 		// if the proper amount of time has not passed, do not update
 		if ((hirzel::sys::get_seconds() - _last_update) < _interval) return;
@@ -65,8 +70,6 @@ namespace daytrender
 			return;
 		}
 		
-		return;
-
 		bool res = false;
 		switch (_data.action())
 		{
@@ -89,15 +92,21 @@ namespace daytrender
 			successf("%s: Exited short position", _ticker);
 			break;
 
-		default:
+		case NOTHING:
 			res = true;
-			successf("%s: No action taken");
+			successf("%s: No action taken", _ticker);
+			break;
+
+		default:
+			errorf("%s: Invalid action received from strategy: %d", _ticker, _data.action());
+			_live = false;
 			break;
 		}
 
 		if (!res)
 		{
-			errorf("%s: Failed to handle action", _ticker);
+			_live = false;
+			errorf("%s: Failed to handle action. Asset is no longer live.", _ticker);
 		}
 	}
 }
