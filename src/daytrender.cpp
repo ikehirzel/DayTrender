@@ -172,7 +172,7 @@ namespace daytrender
 	bool init_client(const json& config, int index)
 	{
 		// checking if vars are defined
-		if (!check_is_defined("clients.json", config, {
+		if (!check_is_defined("clients.json[" + std::to_string(index) + "]", config, {
 			"label",
 			"filename",
 			"shorting_enabled",
@@ -221,40 +221,54 @@ namespace daytrender
 
 	bool init_asset(const json& config, int type, int index)
 	{
-		std::string ticker = config["ticker"].get<std::string>();
 
-		if (!check_is_defined(ticker, config, {
+		if (!check_is_defined("clients.json[" + std::to_string(type) +"][" + std::to_string(index) + "]", config, {
 			"ticker",
 			"algorithm",
 			"interval",
 			"ranges"
 		})) return false;
 
-		std::string algorithm_filename = config["algorithm"];
 		int interval = config["interval"].get<int>();
-		const json& ranges_json = config["ranges"];
-		std::vector<int> ranges(ranges_json.begin(), ranges_json.end());
-
 		if (clients[type]->to_interval(interval) == "")
 		{
-			errorf("%s: Interval was improperly defined", ticker);
+			errorf("clients.json[%d][%d]: 'interval' was improperly defined", type, index);
 			return false;
 		}
 
-		int strat_index = init_strategy(algorithm_filename);
+		int strat_index = init_strategy(config["algorithm"].get<std::string>());
 		if (strat_index < 0)
 		{
-			errorf("%s: Asset cannot be initialized without strategy", ticker);
+			errorf("clients.json[%d][%d]: Asset cannot be initialized without strategy", type, index);
 			return false;
+		}
+
+		std::vector<int> ranges(config["ranges"].begin(), config["ranges"].end());
+		for (int r : ranges)
+		{
+			if (r <= 0)
+			{
+				errorf("clients.json[%d][%d]: 'ranges' were improperly defined. Values must be a positive number.", type, index);
+				return false;
+			}
 		}
 
 		if (ranges.size() != algorithms[strat_index]->indicator_count())
 		{
-			errorf("%s: Expected %d ranges but %d were supplied", ticker, algorithms[strat_index]->indicator_count(), ranges.size());
+			errorf("clients.json[%d][%d]: Expected %d ranges but %d were supplied.", type, index,
+				algorithms[strat_index]->indicator_count(), ranges.size());
+				
 			return false;
 		}
 
-		assets.push_back(new Asset(type, clients[type], ticker, algorithms[strat_index], interval, ranges));	
+		std::string ticker = config["ticker"].get<std::string>();
+		if (ticker.empty())
+		{
+			errorf("clients.json[%d][%d]: 'ticker' definition was empty.", type, index, ticker);
+			return false;
+		}
+
+		assets.push_back(new Asset(clients[type], algorithms[strat_index], ticker, type, interval, ranges));	
 		successf("Successfully initialized asset: '%s'", ticker);
 		return true;
 	}

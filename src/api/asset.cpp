@@ -8,31 +8,23 @@
 
 namespace daytrender
 {
-	Asset::Asset(Client* client, const json& config) : _client(client)
+	Asset::Asset(Client* client, const Algorithm* algo, const std::string& ticker, int type,
+		int interval, const std::vector<int>& ranges) :
+	_client(client),
+	_algo(algo),
+	_type(type),
+	_interval(interval),
+	_ticker(ticker),
+	_ranges(ranges),
+	_live(true)
 	{
-		
-	}
-
-	Asset::Asset(int type, Client* client, const std::string &ticker, const Algorithm* algo,
-		int interval, const std::vector<int>& ranges)
-	{
-		// assigning variables
-		_client = client;
-		_client->increment_assets();
-		_algo = algo;
-		_ticker = ticker;
-		_interval = interval;
-		_type = type;
-		_ranges = ranges;
-
-		// calculating candle_count
-		for (int i = 0; i < ranges.size(); i++)
+		for (int i = 0; i < _ranges.size(); i++)
 		{
-			if (ranges[i] > _candle_count) _candle_count = ranges[i];
+			if (_ranges[i] > _candle_count) _candle_count = _ranges[i];
 		}
-		_candle_count += _algo->data_length();		
+		_candle_count += _algo->data_length();
 
-		_live = true;
+		_client->increment_assets();
 	}
 	
 	void Asset::update()
