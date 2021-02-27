@@ -1,7 +1,1 @@
-#vscode files and such
 .vscode/
-
-resources/bin/
-
-clients.json
-server.json

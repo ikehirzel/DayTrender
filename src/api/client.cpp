@@ -30,9 +30,9 @@ namespace daytrender
 		_plugin = new hirzel::Plugin(directory + _filename);
 
 		// checking if the plugin failed to bind
-		if (!_plugin->is_lib_bound())
+		if (_plugin->error())
 		{
-			errorf("%s: bind failure: %s", _filename, _plugin->get_error());
+			ERROR("%s: error: %s", _filename, _plugin->error());
 			return;
 		}
 
@@ -72,7 +72,7 @@ namespace daytrender
 		int api_version = _api_version();
 		if (api_version != CLIENT_API_VERSION)
 		{
-			errorf("%s: api version for (%d) did not match current api version: %d)", api_version, CLIENT_API_VERSION);
+			ERROR("%s: api version for (%d) did not match current api version: %d)", api_version, CLIENT_API_VERSION);
 			return;
 		}
 
@@ -80,7 +80,7 @@ namespace daytrender
 		int key_count = _key_count();
 		if (key_count != keys.size())
 		{
-			errorf("%s: expected %d keys but %d were supplied.", _filename, key_count, keys.size());
+			ERROR("%s: expected %d keys but %d were supplied.", _filename, key_count, keys.size());
 			return;
 		}
 		
@@ -111,13 +111,13 @@ namespace daytrender
 	{
 		if (!_live)
 		{
-			errorf("%s: Client is not live. Function cannot be called.", _filename);
+			ERROR("%s: Client is not live. Function cannot be called.", _filename);
 			return false;
 		}
 
 		if (!_bound)
 		{
-			errorf("%s: Client is not bound. Function cannot be called.", _filename);
+			ERROR("%s: Client is not bound. Function cannot be called.", _filename);
 			return false;
 		}
 
@@ -126,7 +126,7 @@ namespace daytrender
 
 	void Client::flag_error() const
 	{
-		errorf("%s: %s", _filename, get_error());
+		ERROR("%s: %s", _filename, get_error());
 		_bound = false;
 	}
 
@@ -154,10 +154,10 @@ namespace daytrender
 			// account has lost too much in last interval
 			if (_pl <= prev_equity * -_max_loss)
 			{
-				errorf("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, _pl, _history_length);
+				ERROR("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, _pl, _history_length);
 				close_all_positions();
 				_bound = false;
-				errorf("%s client '%s' has gone offline!", _label, _filename);
+				ERROR("%s client '%s' has gone offline!", _label, _filename);
 				return;
 			}
 
@@ -165,11 +165,11 @@ namespace daytrender
 			
 			if (till_close <= _closeout_buffer)
 			{
-				infof("Client '%s': Market will close in %d minutes. Closing all positions...", _filename, _closeout_buffer / 60);
+				INFO("Client '%s': Market will close in %d minutes. Closing all positions...", _filename, _closeout_buffer / 60);
 				_live = false;
 				if (!close_all_positions())
 				{
-					errorf("Client '%s': Failed to close positions!", _filename);
+					ERROR("Client '%s': Failed to close positions!", _filename);
 				}
 			}
 		}
@@ -183,17 +183,20 @@ namespace daytrender
 	}
 
 	/**
-	 * Calculates the amount of shares orderable with current capital and risk allowance.
-	 * Returns the api success of the order
+	 * @brief	Orders max amount of shares orderable
 	 * 
 	 * @param	ticker			the symbol that will be evalutated
 	 * @param	pct				the percentage of available buying power to use
 	 * @param	short_shares	true if going short shares, false if going long on shares
-	 * @return					the amount of shares to order
+	 * 
+	 * @return	the amount of shares to order
 	 */
 
-	bool Client::enter_position(const std::string& ticker, double pct, bool short_shares)
+	bool Client::enter_position(const std::string& ticker, double asset_risk, bool short_shares)
 	{
+		// if not buying anything, exit
+		if (asset_risk == 0.0) return true;
+
 		// will be -1.0 if short_shares is true or 1.0 if it's false
 		double multiplier = (double)short_shares * -2.0 + 1.0;
 
@@ -203,7 +206,8 @@ namespace daytrender
 		AssetInfo asset = get_asset_info(ticker);
 
 		// base buying power
-		double buying_power = (account.buying_power() + account.margin_used()) * _risk / (double)_asset_count;
+		double buying_power = (account.buying_power() + account.margin_used()) * _risk
+			* (asset_risk / _risk_sum);
 
 		// if we are already in a position of the same type as requested
 		if (asset.shares() * multiplier > 0.0)
@@ -218,13 +222,8 @@ namespace daytrender
 			buying_power += asset.shares() * asset.price() * (1.0 - multiplier * asset.fee());
 		}
 
-		// limits buying power to a ratio of itself.
-		// this is applied afterwards as it logarithmically limits the amount of money to spend
-		// when multiple entrances occur before an exit
-		buying_power *= pct;
-
 		double shares = multiplier * std::floor(((buying_power / (1.0 + asset.fee())) / asset.price()) / asset.minimum()) * asset.minimum();
-		infof("Placing order for %f shares!!!", shares);
+		INFO("Placing order for %f shares!!!", shares);
 		return market_order(ticker, shares);
 	}
 
@@ -233,7 +232,7 @@ namespace daytrender
 		double multiplier = (double)short_shares * -2.0 + 1.0;
 		AssetInfo info = get_asset_info(ticker);
 		// if we are in a short position or have no shares, do nothing
-		infof("%s: Exiting position of %f shares", ticker, info.shares());
+		INFO("%s: Exiting position of %f shares", ticker, info.shares());
 		if (info.shares() * multiplier <= 0.0) return true;
 		// exit position
 		return market_order(ticker, -info.shares());
@@ -249,7 +248,7 @@ namespace daytrender
 		}
 		else if (max > max_candles())
 		{
-			errorf("Client '%s': requested more candles than maximum!", _filename);
+			ERROR("Client '%s': requested more candles than maximum!", _filename);
 			return {};
 		}
 
@@ -259,7 +258,7 @@ namespace daytrender
 		}
 		else if (end > max)
 		{
-			errorf("Client '%s': attempted to set candleset end as greater than max", _filename);
+			ERROR("Client '%s': attempted to set candleset end as greater than max", _filename);
 			return {};
 		}
 

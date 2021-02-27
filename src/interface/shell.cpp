@@ -32,7 +32,7 @@ namespace daytrender
 		{
 			if (tokens.size() > 1)
 			{
-				errorf("exit: invalid use of command. exit does not take arguments");
+				ERROR("exit: invalid use of command. exit does not take arguments");
 			}
 			else
 			{
@@ -48,37 +48,37 @@ namespace daytrender
 				int asset_index = -1;
 
 				// tokens[1] should be strat name and 2 should be ticker
-				auto strat_filenames = strategy_names();
+				// auto strat_filenames = strategy_names();
 
-				for (int i = 0; i < strat_filenames.size(); i++)
-				{
-					if (tokens[1] == strat_filenames[i])
-					{
-						strat_index = i;
-						break;
-					}
-				}
+				// for (int i = 0; i < strat_filenames.size(); i++)
+				// {
+				// 	if (tokens[1] == strat_filenames[i])
+				// 	{
+				// 		strat_index = i;
+				// 		break;
+				// 	}
+				// }
 
 				if (strat_index < 0)
 				{
-					errorf("backtest: invalid strat name given!");
+					ERROR("backtest: invalid strat name given!");
 					return;
 				}
 
-				auto asset_info = asset_names();
+				// auto asset_info = asset_names();
 
-				for (int i = 0; i < asset_info.size(); i++)
-				{
-					if (tokens[2] == asset_info[i].first)
-					{
-						asset_index = i;
-						break;
-					}
-				}
+				// for (int i = 0; i < asset_info.size(); i++)
+				// {
+				// 	if (tokens[2] == asset_info[i].first)
+				// 	{
+				// 		asset_index = i;
+				// 		break;
+				// 	}
+				// }
 
 				if (asset_index < 0)
 				{
-					errorf("backtest: invalid ticker given!");
+					ERROR("backtest: invalid ticker given!");
 					return;
 				}
 
@@ -92,7 +92,7 @@ namespace daytrender
 			}
 			else
 			{
-				errorf("backtest: incorrect usage of command! correct usage is backtest <strategy> <asset-type> <ticker>");
+				ERROR("backtest: incorrect usage of command! correct usage is backtest <strategy> <asset-type> <ticker>");
 			}
 		}
 
@@ -103,7 +103,7 @@ namespace daytrender
 			while (daytrender::is_running())
 			{
 				std::getline(std::cin, input);
-				infof("$ %s", input);
+				INFO("$ %s", input);
 
 				if(input.empty())
 				{
@@ -117,7 +117,7 @@ namespace daytrender
 
 				if (!func)
 				{
-					errorf("shell: invalid command!");
+					ERROR("shell: invalid command!");
 				}
 				else
 				{

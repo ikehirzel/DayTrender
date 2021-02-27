@@ -5,6 +5,7 @@
 #include <ctime>
 #include <fstream>
 #include <cstdint>
+#include <iostream>
 #include <mutex>
 #if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
@@ -48,10 +49,11 @@
 #define FOUNTAIN_INT		'd'
 #define FOUNTAIN_UINT		'u'
 #define FOUNTAIN_OCTAL		'o'
+#define FOUNTAIN_BINARY		'b'
 #define FOUNTAIN_HEXUPPER	'X'
 #define FOUNTAIN_HEXLOWER	'x'
 #define FOUNTAIN_FLOAT 		'f'
-#define FOUNTAIN_BOOL		'b'
+#define FOUNTAIN_BOOL		't'
 #define FOUNTAIN_STRING		's'
 #define FOUNTAIN_CHAR		'c'
 #define FOUNTAIN_PERCENT	'%'
@@ -64,19 +66,16 @@ namespace hirzel
 	{
 		namespace details
 		{
-			// minimum of base-2
-			std::string itos(uintmax_t num, unsigned base, bool upper = true)
+			std::string utos(uintmax_t num, unsigned base, bool upper)
 			{
-				if (base > 16 || base < 2)
-				{
-					return "";
-				}
-				std::string rev, out;
-				unsigned size, index;
-				size = sizeof(uintmax_t) * 8;
-				index = 0;
-				rev.resize(size);
+				if (num == 0) return "0";
+
+				char tmp[sizeof(uintmax_t)*8 + 1];
+				char out[sizeof(uintmax_t)*8 + 1];
+				char* tmpp = tmp;
+				char* outp = out;
 				const char* charset;
+
 				if(upper)
 				{
 					charset = "0123456789ABCDEF";
@@ -88,21 +87,20 @@ namespace hirzel
 
 				while (num > 0)
 				{
-					
-					rev[index] = charset[num % base];
+					*tmpp++ = charset[num % base];
 					num /= base;
-					index++;
 				}
-				out.resize(index);
-				unsigned revi = 0;
+			
+				tmpp--;
 
-				for (int i = index - 1; i >= 0; i--)
+				while (tmpp > tmp - 1)
 				{
-					out[i] = rev[revi];
-					revi++;
+					*outp++ = *tmpp--;
 				}
 
-				return out;
+				*outp = 0;
+
+				return std::string(out);
 			}
 		}
 
@@ -117,119 +115,112 @@ namespace hirzel
 		const char *_colors[] = FOUNTAIN_COLORS;
 		const char *_levels[] = FOUNTAIN_LEVELS;
 
-		std::string format_str(const std::string &str, const std::vector<var> &vars)
+		std::string format(const std::string &str, const std::vector<var> &vars)
 		{
-			std::string out;
+			char out[512];
+			char* outp = out;
 			std::string tmp;
 
-			size_t oi = 0, li = 0;
-			out.resize(str.size(), 0);
-
+			unsigned var_index = 0;
 			for (size_t i = 0; i < str.size(); i++)
 			{
-				while (str[i] != '%' && i < str.size())
+				if (str[i] != '%')
 				{
-					out[oi] = str[i];
-					oi++;
-					i++;
+					// adding char to output
+					*outp++ = str[i];
+					continue;
 				}
 
+				// incrementing to symbol associated with %
 				i++;
-				if (i > str.size())
+				
+				// no symbol was given
+				if (i >= str.size())
 				{
-					break;
+					throw std::invalid_argument("fountain::format(): No var type was supplied for '%'");
+					*outp = 0;
+					return out;
+				}
+				
+				if (str[i] == '%')
+				{
+					*outp++ = '%';
+					continue;
 				}
 
-				tmp.clear();
-				if (li > vars.size() - 1)
+				// there are no more vars in queue for this
+				if (var_index >= vars.size())
 				{
-					throw std::out_of_range("Not enough vars supplied to fulfill format!");
+					throw std::invalid_argument("fountain::format(): Not enough vars supplied!");
+					*outp = 0;
 					return out;
 				}
 
-				/*
-					NOTE:
-
-					the reason why the the std::to_string() conversion of the explicit type
-					as opposed to the var::as_string() is so that it can throw an exception
-					if the incorrect type is used and allows the user to do something like
-					interpret an integer as bool. Alternatively, %s could be used and 
-					var::as_string will be called anyway if the user would prefer a less
-					explicit way of handling the conversion
-
-				*/
-
-				
 				switch (str[i])
 				{
 				case FOUNTAIN_INT:
-					tmp = std::to_string(vars[li].as_int());
+					tmp = std::to_string(vars[var_index].as_int());
 					break;
 
 				case FOUNTAIN_UINT:
-					tmp = std::to_string(vars[li].as_uint());
+					tmp = details::utos(vars[var_index].as_uint(), 10, true);
 					break;
 
 				case FOUNTAIN_OCTAL:
-					tmp = details::itos(vars[li].as_uint(), 8);
+					tmp = "0o" + details::utos(vars[var_index].as_uint(), 8, true);
+					break;
+
+				case FOUNTAIN_BINARY:
+					tmp = "Ob" + details::utos(vars[var_index].as_uint(), 2, true);
 					break;
 
 				case FOUNTAIN_HEXUPPER:
-					tmp = "0x" + details::itos(vars[li].as_uint(), 16);
+					tmp = "0x" + details::utos(vars[var_index].as_uint(), 16, true);
 					break;
 
 				case FOUNTAIN_HEXLOWER:
-					tmp = "0x" + details::itos(vars[li].as_uint(), 16, false);
-					break;
-				
-				case FOUNTAIN_PTRUPPER:
-					tmp = "0x" + details::itos((uintmax_t)vars[li].as_bytes(), 16);
+					tmp = "0x" + details::utos(vars[var_index].as_uint(), 16, false);
 					break;
 
 				case FOUNTAIN_FLOAT:
-					tmp = std::to_string(vars[li].as_double());
+					tmp = std::to_string(vars[var_index].as_double());
 					break;
 
 				case FOUNTAIN_BOOL:
-					tmp = vars[li].as_bool() ? "true" : "false";
+					tmp = vars[var_index].as_bool() ? "true" : "false";
 					break;
 
 				case FOUNTAIN_STRING:
-					tmp = vars[li].as_string();
+					tmp = vars[var_index].as_string();
 					break;
 
 				case FOUNTAIN_CHAR:
-					out[oi] = vars[li].as_char();
-					oi++;
-					li++;
+					// incrementing var_index here because this skips where it would naturally be done
+					*outp++ = vars[var_index++].as_char();
 					continue;
 
-				case FOUNTAIN_PERCENT:
-					out[oi] = '%';
-					oi++;
-					continue;
+				default:
+					throw std::invalid_argument("fountain::format(): invalid arguemnt type given");
+					*outp = 0;
+					return out;
 				}
-
-				//resizing to avoid out of bounds
-				out.resize(out.size() + tmp.size());
 
 				// contents of tmp will be copied into out
-				for (size_t j = 0; j < tmp.size(); j++)
+				for (unsigned j = 0; j < tmp.size(); j++)
 				{
-					out[oi] = tmp[j];
-					oi++;
+					*outp++ = tmp[j];
 				}
 
-				li++;
+				var_index++;
 			}
 
-			out.shrink_to_fit();
-			return out;
+			*outp = 0;
+			return std::string(out);
 		}
 
-		void print_fmt(const std::string &str, const std::vector<var> &vars)
+		void print(const std::string &str, const std::vector<var> &vars)
 		{
-			std::string out = format_str(str, vars);
+			std::string out = format(str, vars);
 			for (size_t i = 0; i < out.size(); i++)
 			{
 				putchar(out[i]);
@@ -291,8 +282,8 @@ namespace hirzel
 				}
 			}
 			
-			msg = format_str(str, list);
-			log = format_str("%s| %s | [%s] %s : %s" FOUNTAIN_RESET "\n", { _colors[level], name_buf, std::string(timebuf), _levels[level], msg });
+			msg = format(str, list);
+			log = format("%s| %s | [%s] %s : %s" FOUNTAIN_RESET "\n", { _colors[level], name_buf, std::string(timebuf), _levels[level], msg });
 
 			if (_push_logs)
 			{

@@ -5,9 +5,11 @@
 #include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
 
+#include "api/portfolio.h"
 #include "interface/interface.h"
 #include "interface/shell.h"
 #include "interface/server.h"
+#include "util/jsonutil.h"
 
 #include <filesystem>
 #include <thread>
@@ -22,15 +24,15 @@ namespace daytrender
 	std::string dtdir;
 
 	// data containers
-	std::vector<Asset*> assets;
+	std::vector<Portfolio> portfolios;
 	std::vector<Strategy*> strategies;
-	std::vector<Client*> clients;
 
 	std::mutex mtx;
 
-	bool init_client(const json& config, int index);
-	bool init_asset(const json& config, int type, int index);
-	int init_strategy(const std::string& filename);
+	Portfolio init_portfolio(const json& config, int index);
+	Client init_client(const json& config, int index);
+	Asset init_asset(const json& config, int type, int index);
+	Strategy* init_strategy(const std::string& filename);
 
 	void init(const std::string& execpath)
 	{
@@ -42,48 +44,51 @@ namespace daytrender
 
 		if (clients_str.empty())
 		{
-			fatalf("Failed to load clients.json! Aborting...");
+			FATAL("Failed to load clients.json! Aborting...");
 			shouldrun = false;
 			mtx.unlock();
 			return;
 		}
 		else
 		{
-			successf("Successfully loaded clients.json");
+			SUCCESS("SUCCESSully loaded clients.json");
 		}
 
 		std::string server_str = file::read_file_as_string(dtdir + "/server.json");
 
 		if (server_str.empty())
 		{
-			fatalf("Failed to load server.json! Aborting...");
+			FATAL("Failed to load server.json! Aborting...");
 			shouldrun = false;
 			mtx.unlock();
 			return;
 		}
 		else
 		{
-			successf("Successfully loaded server.json");
+			SUCCESS("SUCCESSully loaded server.json");
 		}
 
-		infof("Initializing clients...");
+		INFO("Initializing clients...");
 		json clients_json = json::parse(clients_str);
 
 		for (int i = 0; i < clients_json.size(); i++)
 		{
-			// initialize client. if it fails, stop daytrender from running
-			if (!init_client(clients_json[i], i)) shouldrun = false;
+			Client cli = init_client(clients_json[i], i);
+			if (!cli.is_live())
+			{
+				shouldrun = false;
+				return;
+			}
 		}
 
-		infof("Initialized clients:     %d", clients.size());
-		infof("Initialized assets:      %d", assets.size());
-		infof("Initialized strategies:  %d", strategies.size());
+		INFO("Initialized portfolios:	%d", portfolios.size());
+		INFO("Initialized strategies:  %d", strategies.size());
 
 		json server_json = json::parse(server_str);
 
 		if(!server::init(server_json, dtdir))
 		{
-			errorf("Failed to initialize server! aborting...");
+			ERROR("Failed to initialize server! aborting...");
 			shouldrun = false;
 		}
 
@@ -137,43 +142,22 @@ namespace daytrender
 		// std::cout << "\n\n";
 	}
 
-	bool check_is_defined(const std::string& name, const json& config, const std::vector<std::string>& var_names)
+	Portfolio init_portfolio(const json& config, int index)
 	{
-		for (int i = 0; i < var_names.size(); i++)
-		{
-			if (config.find(var_names[i]) == config.end())
-			{
-				errorf("%s: '%s' was not defined", name, var_names[i]);
-				return false;
-			}
-		}
-		return true;
+		// INFO("%s: Initializing %s assets...", cli->filename(), cli->label());
+		// // allocating all the assets for the client;
+		// const json& assets_json = config["assets"];
+		// for (int i = 0; i < assets_json.size(); i++)
+		// {
+		// 	if (!init_asset(assets_json[i], index, i)) return false;
+		// }
+		return {};
 	}
 
-	bool check_is_in_range(const std::string& name, const json& config, double min, double max, const std::vector<std::string>& var_names)
-	{
-		for (int i = 0; i < var_names.size(); i++)
-		{
-			double val = config[var_names[i]].get<double>();
-			// if max is set to min, it'll just check for min
-			if (val > max && min < max)
-			{
-				errorf("%s: '%s' was above maximum: %f", name, var_names[i], max);
-				return false;
-			}
-			else if (val < min)
-			{
-				errorf("%s: '%s' was below minimum: %f", name, var_names[i], min);
-				return false;
-			}
-		}
-		return true;
-	}
-
-	bool init_client(const json& config, int index)
+	Client init_client(const json& config, int index)
 	{
 		// checking if vars are defined
-		if (!check_is_defined("clients.json[" + std::to_string(index) + "]", config, {
+		if (!json_vars_are_defined(config, {
 			"label",
 			"filename",
 			"shorting_enabled",
@@ -183,82 +167,66 @@ namespace daytrender
 			"leverage",
 			"closeout_buffer",
 			"assets"
-		})) return false;
+		})) return {};
 
 		// checking if vars are between 0 and 1
-		if (!check_is_in_range("clients.json", config, 0, 1.0, {
+		if (!json_vars_are_ratios(config, {
 			"max_loss",
 			"risk",
-		})) return false;
+		})) return {};
 
 		// checking if vars are at least 0
-		if (!check_is_in_range("clients.json", config, 0, 0, {
+		if (!json_vars_are_positive(config, {
 			"history_length",
 			"leverage",
 			"closeout_buffer"
-		})) return false;
+		})) return {};
 
-		Client* cli = new Client(config, dtdir + CLIENT_DIR);
+		Client cli(config, dtdir + CLIENT_DIR);
 
-		if (!cli->bound())
+		if (!cli.bound())
 		{
-			errorf("%s: Client failed to bind. Assets will not be loaded.", cli->filename());
-			delete cli;
-			return false;
+			ERROR("%s: Client failed to bind. Assets will not be loaded.", cli.filename());
+			return {};
 		}
 
-		clients.push_back(cli);
-
-		infof("%s: Initializing %s assets...", cli->filename(), cli->label());
-		// allocating all the assets for the client;
-		const json& assets_json = config["assets"];
-		for (int i = 0; i < assets_json.size(); i++)
-		{
-			if (!init_asset(assets_json[i], index, i)) return false;
-		}
-		successf("Successfully initialized %s client: '%s'", cli->label(), cli->filename());
-		return true;
+		SUCCESS("SUCCESSully initialized client: '%s'", cli.filename());
+		return cli;
 	}
 
-	bool init_asset(const json& config, int type, int index)
+	Asset init_asset(const json& config, int index)
 	{
 		// making sure the necessary variables are defined in the json file
-		if (!check_is_defined("clients.json[" + std::to_string(type) +"][" + std::to_string(index) + "]", config, {
+		if (!json_vars_are_defined(config, {
 			"ticker",
 			"strategy",
 			"interval",
 			"ranges"
-		})) return false;
+		})) return {};
 
 
 		// getting interval from json
 		int interval = config["interval"].get<int>();
-		// verifying that the given interval is one supported by the client
-		if (clients[type]->to_interval(interval) == "")
-		{
-			errorf("clients.json[%d][%d]: 'interval' was improperly defined", type, index);
-			return false;
-		}
 
 		// getting the index of the strategy
-		int strat_index = init_strategy(config["strategy"].get<std::string>());
+		Strategy* strat = init_strategy(config["strategy"].get<std::string>());
 		// verifying if the strategy initialized
-		if (strat_index < 0)
+		if (strat == nullptr)
 		{
-			errorf("clients.json[%d][%d]: Asset cannot be initialized without strategy", type, index);
-			return false;
+			ERROR("clients.json[%d]: Asset cannot be initialized without strategy", index);
+			return {};
 		}
 
 		// getting ranges from json
 		std::vector<int> ranges(config["ranges"].begin(), config["ranges"].end());
 
 		// verifying that the correct amount of ranges were given
-		if (ranges.size() != strategies[strat_index]->indicator_count())
+		if (ranges.size() != strat->indicator_count())
 		{
-			errorf("clients.json[%d][%d]: Expected %d ranges but %d were supplied.", type, index,
-				strategies[strat_index]->indicator_count(), ranges.size());
+			ERROR("clients.json[%d]: Expected %d ranges but %d were supplied.", index,
+				strat->indicator_count(), ranges.size());
 
-			return false;
+			return {};
 		}
 
 		// verifying that every range given is a positive number
@@ -266,8 +234,8 @@ namespace daytrender
 		{
 			if (r <= 0)
 			{
-				errorf("clients.json[%d][%d]: 'ranges' were improperly defined. Values must be a positive number.", type, index);
-				return false;
+				ERROR("asset[%d]: 'ranges' were improperly defined. Values must be a positive number.", index);
+				return {};
 			}
 		}
 
@@ -276,27 +244,26 @@ namespace daytrender
 		// verifying ticker was non empty
 		if (ticker.empty())
 		{
-			errorf("clients.json[%d][%d]: 'ticker' definition was empty.", type, index, ticker);
-			return false;
+			ERROR("clients.json[%d][%d]: 'ticker' definition was empty.", index, ticker);
+			return {};
 		}
 
-		assets.push_back(new Asset(clients[type], strategies[strat_index], ticker, type, interval, ranges));	
-		successf("%s: Successfully initialized with risk: %f", ticker, assets.back()->risk());
-		return true;
+		Asset asset(strat, ticker, interval, ranges);
+		SUCCESS("%s: SUCCESSully initialized with risk: %f", ticker, asset.risk());
+		return asset;
 	}
 	
 	/**
-	 * Returns the index of the strategy with the filename given or -1 if it failed to initialize
 	 * @param	filename	filename of the strategy to use including extension
-	 * @return				index of the strategy in daytrender::strategies
+	 * @return				pointer to the strategy corresponding to filename
 	 */
-	int init_strategy(const std::string& filename)
+	Strategy* init_strategy(const std::string& filename)
 	{
 		for (int i = 0; i < strategies.size(); i++)
 		{
 			if (strategies[i]->filename() == filename)
 			{
-				return i;
+				return strategies[i];
 			}
 		}
 
@@ -305,14 +272,14 @@ namespace daytrender
 		if (strat->is_bound())
 		{
 			strategies.push_back(strat);
-			successf("Successfully initialized strategy: '%s'", filename);
-			return strategies.size() - 1;
+			SUCCESS("SUCCESSully initialized strategy: '%s'", filename);
+			return strat;
 		}
 		else
 		{
-			errorf("Strategy '%s' did not bind correctly", filename);
+			ERROR("Strategy '%s' did not bind correctly", filename);
 			delete strat;
-			return -1;
+			return nullptr;
 		}
 	}
 
@@ -323,63 +290,40 @@ namespace daytrender
 	void free()
 	{
 		mtx.lock();
-		if (clients.empty())
-		{
-			warningf("No clients were initialized");
-		}
-		else
-		{
-			infof("Destructing clients...");
-			for (int i = 0; i < clients.size(); i++)
-			{
-				infof("Closing all %s positions for %s", clients[i]->label(), clients[i]->filename());
-				clients[i]->close_all_positions();
-				delete clients[i];
-			}
-		}
-
-		if (assets.empty())
-		{
-			warningf("No assets were initialized");
-		}
-		else
-		{
-			infof("Destructing assets...");
-			for (int i = 0; i < assets.size(); i++)
-			{
-				delete assets[i];	
-			}
-		}
 
 		if (strategies.empty())
 		{
-			warningf("No strategies were initialized");
+			WARNING("No strategies were initialized");
 		}
 		else
 		{
-			infof("Destructing strategies...");
+			INFO("Destructing strategies...");
 			for (int i = 0; i < strategies.size(); i++)
 			{
 				delete strategies[i];
 			}
 		}
+
 		mtx.unlock();
 	}
 
+	/**
+	 * Initializes server and shell and begins updating assets
+	 */
 	void start()
 	{
 		mtx.lock();
 
 		if (running)
 		{
-			warningf("DayTrender has already started!");
+			WARNING("DayTrender has already started!");
 			mtx.unlock();
 			return;
 		}
 
 		if (!shouldrun)
 		{
-			fatalf("Execution of DayTrender cannot continue!");
+			FATAL("Execution of DayTrender cannot continue!");
 			mtx.unlock();
 			return;
 		}
@@ -390,88 +334,63 @@ namespace daytrender
 		std::thread shell_thread(shell::get_input);
 		std::thread server_thread(server::start);
 		shell_thread.detach();
-		infof("Starting DayTrender");
+		INFO("Starting DayTrender");
 
 		while (running)
 		{
-			// check if every asset needs to update every 500ms, update each asset as needed 
-			for (Asset* asset : assets)
+			for (Portfolio& portfolio : portfolios)
 			{
-				if (asset->is_live())
-				{
-					asset->update();
-				}
+				portfolio.update();
 			}
-
-			for (Client* client : clients)
-			{
-				client->update();
-			}
-			sys::thread_sleep(500);
+			
+			sys::thread_sleep(1000);
 		}
 
 		server::stop();
 		server_thread.join();
 	}
 
+	/**
+	 * Changes running to false. This will interrupt the program loop.
+	 */
 	void stop()
 	{
 		mtx.lock();
 		if (!running)
 		{
-			warningf("DayTrender has already stopped");
+			WARNING("DayTrender has already stopped");
 			return;
 		}
 
 		running = false;
-		infof("Shutting down DayTrender...");
+		INFO("Shutting down DayTrender...");
 		mtx.unlock();
 	}
 
+	/**
+	 * @return	bool representing running state of daytrender
+	 */
 	bool is_running()
 	{
 		return running;
 	}
 
-	std::vector<std::string> client_names()
+	/**
+	 * @return list of names corresponding to loaded clients
+	 */
+	std::vector<std::string> portfolio_names()
 	{
-		std::vector<std::string> out(clients.size());
+		std::vector<std::string> out(portfolios.size());
 
-		for (int i = 0; i < clients.size(); i++)
+		for (int i = 0; i < portfolios.size(); i++)
 		{
-			out[i] = clients[i]->label();
+			out[i] = portfolios[i].label();
 		}
 
 		return out;
 	}
 
-	std::vector<std::string> strategy_names()
-	{
-		std::vector<std::string> out(strategies.size());
-
-		for (int i = 0; i < strategies.size(); i++)
-		{
-			out[i] = strategies[i]->filename(); 
-		}
-
-		return out;
-	}
-
-	std::vector<std::pair<std::string, int>> asset_names()
-	{
-		std::vector<std::pair<std::string, int>> out(assets.size());
-
-		for (int i = 0; i < assets.size(); i++)
-		{
-			out[i] = { assets[i]->ticker(), assets[i]->type() };
-		}
-
-		return out;
-	}
-
-	const Asset* get_asset(int index) { return assets[index]; }
-	const Strategy* get_strategy(int index) { return strategies[index]; }
-	const Client* get_client(int type) { return clients[type]; }
+	const Portfolio& get_portfolio(int index) { return portfolios[index]; }
 }
 
 int main(int argc, char *argv[])
@@ -480,6 +399,6 @@ int main(int argc, char *argv[])
 	daytrender::init(hirzel::str::get_folder(argv[0]));
 	daytrender::start();
 	daytrender::free();
-	successf("DayTrender has stopped");
+	SUCCESS("DayTrender has stopped");
 	return 0;
 }

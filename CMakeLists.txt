@@ -1,12 +1,13 @@
 cmake_minimum_required(VERSION 3.14)
 project("DayTrender")
 
+# making sure it searches for dynamic libraries in same folder as executalble
 set(CMAKE_INSTALL_RPATH "\$ORIGIN")
 set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 
 # globbing sources for daytrender
 
-file(GLOB DAYTRENDER_SRCS src/*.cpp src/api/*.cpp src/data/*.cpp src/interface/*.cpp)
+file(GLOB DAYTRENDER_SRCS src/*.cpp src/api/*.cpp src/data/*.cpp src/interface/*.cpp src/util/*.cpp)
 file(GLOB STRATEGY_TYPES_SRCS src/data/strategydata.cpp src/data/indicator.cpp src/data/candle.cpp)
 file(GLOB CLIENT_TYPES_SRCS src/data/assetinfo.cpp src/data/accountinfo.cpp src/data/candle.cpp)
 
@@ -58,31 +59,31 @@ file(WRITE src/interface/webinterface.inc "R\"=====(${WEBINTERFACE_HTML})=====\"
 # setting properties
 set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)
 
-if(UNIX)
-	target_link_libraries(daytrender PRIVATE pthread dl)
-endif()
-
-# setting up nlohmann json
+# finding required packages
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(Threads REQUIRED)
 
 # setting up fountain
 add_library(fountain SHARED IMPORTED)
-set_target_properties(fountain PROPERTIES IMPORTED_LOCATION ../lib/fountain/build/libfountain.so)
-file(COPY lib/fountain/build/libfountain.so DESTINATION .)
-target_include_directories(daytrender PRIVATE lib/fountain/build/include)
+set_target_properties(fountain PROPERTIES IMPORTED_LOCATION "../lib/fountain/build/libfountain.so")
+file(COPY "lib/fountain/build/libfountain.so" DESTINATION ".")
+target_include_directories(daytrender PRIVATE "lib/fountain/build/include")
 
 # setting up hxutils
 add_library(hxutils SHARED IMPORTED)
-set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION ../lib/hxutils/build/libhxutils.so)
-file(COPY lib/hxutils/build/libhxutils.so DESTINATION .)
-target_include_directories(daytrender PRIVATE lib/hxutils/build/include)
+set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION "../lib/hxutils/build/libhxutils.so")
+file(COPY "lib/hxutils/build/libhxutils.so" DESTINATION ".")
+target_include_directories(daytrender PRIVATE "lib/hxutils/build/include")
 
 # setting up cpphttplib
-target_include_directories(daytrender PRIVATE lib/cpp-httplib/include)
+target_include_directories(daytrender PRIVATE "lib/cpp-httplib/include")
 
 # setting up pluginlib
-target_include_directories(daytrender PRIVATE lib/pluginlib/build/include)
+add_library(pluginlib SHARED IMPORTED)
+set_target_properties(pluginlib PROPERTIES IMPORTED_LOCATION "../lib/pluginlib/build/libplugin.so")
+file(COPY "lib/pluginlib/build/libplugin.so" DESTINATION ".")
+target_include_directories(daytrender PRIVATE "lib/pluginlib/build/include")
 
 # linking daytrender libraries
-target_link_libraries(daytrender PRIVATE fountain hxutils nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} fountain hxutils pluginlib nlohmann_json OpenSSL::SSL OpenSSL::Crypto)

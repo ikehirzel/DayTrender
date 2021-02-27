@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-
+#include <unordered_map>
 #include "../data/strategydata.h"
 
 namespace hirzel
@@ -15,15 +15,19 @@ namespace daytrender
 	class Strategy
 	{
 	private:
+		static std::unordered_map<std::string, hirzel::Plugin*> plugins;
 		hirzel::Plugin* _plugin = nullptr;
+		
 		int _indicator_count = 0;
 		int _data_length = 0;
 		void(*_execute)(StrategyData&) = nullptr;
 		std::string _filename;
 
 	public:
+		Strategy() = default;
 		Strategy(const std::string& _filepath);
-		~Strategy();
+
+		static void free_plugins();
 
 		StrategyData execute(const CandleSet& candles, const std::vector<int>& ranges) const;
 		inline const std::string& filename() const { return _filename; };

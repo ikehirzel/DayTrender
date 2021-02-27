@@ -36,7 +36,7 @@ namespace daytrender
 
 				if (slice.error())
 				{
-					errorf("Backtest: CandleSet: %s", slice.error());
+					ERROR("Backtest: CandleSet: %s", slice.error());
 					return false;
 				}
 				
@@ -45,20 +45,20 @@ namespace daytrender
 
 				if (data.error())
 				{
-					errorf("Backtest: Strategy: %s", data.error());
+					ERROR("Backtest: Strategy: %s", data.error());
 					return false;
 				}
 
 				if (!acc.handle_action(data.action()))
 				{
-					errorf("Backtest: Account: %s", acc.error());
+					ERROR("Backtest: Account: %s", acc.error());
 					return false;
 				}
 			}
 			
 			if (!acc.close_position())
 			{
-				errorf("Backtest: Account: %s", acc.error());
+				ERROR("Backtest: Account: %s", acc.error());
 				return false;
 			}
 
@@ -70,7 +70,7 @@ namespace daytrender
 			int leverage, int min_range, int max_range, int granularity, const std::vector<int>& start_ranges)
 		{
 			std::vector<int> curr_ranges = start_ranges;
-			const Client* client = asset->client();
+			const Client* client;// = asset->client();
 			CandleSet candles = client->get_candles(asset->ticker(), interval, 0, 0);
 			
 			*best = PaperAccount(principal, leverage, fee, minimum, candles.front().open(),
@@ -105,11 +105,11 @@ namespace daytrender
 
 		PaperAccount backtest(const Asset* asset)
 		{
-			const Client* client = asset->client();
+			const Client* client;// = asset->client();
 			const Strategy* strategy = asset->strategy();
 
-			AccountInfo account_info = asset->client()->get_account_info();
-			AssetInfo asset_info = asset->client()->get_asset_info(asset->ticker());
+			AccountInfo account_info;// = asset->client()->get_account_info();
+			AssetInfo asset_info;// = asset->client()->get_asset_info(asset->ticker());
 			CandleSet candles = client->get_candles(asset->ticker(), asset->interval(), 0, 0);
 			PaperAccount account
 			{
@@ -133,14 +133,14 @@ namespace daytrender
 			const std::vector<int>& test_ranges)
 		{
 			auto t0 = std::chrono::system_clock::now();
-			const Asset* asset = get_asset(asset_index);
-			const Client* client = asset->client();
-			const Strategy* strat = get_strategy(strat_index);
+			const Asset* asset;// = get_asset(asset_index);
+			const Client* client;// = asset->client();
+			const Strategy* strat;// = get_strategy(strat_index);
 
 			// storing important info
 			std::vector<int> intervals = client->backtest_intervals();
 
-			infof("Backtesting %s asset '%s' with strategy '%s'...", client->label(), asset->ticker(), strat->filename());
+			INFO("Backtesting %s asset '%s' with strategy '%s'...", client->label(), asset->ticker(), strat->filename());
 
 			// calculating lops
 			std::vector<int> start_ranges;
@@ -164,12 +164,12 @@ namespace daytrender
 				// verify ranges size
 				if (start_ranges.size() >  strat->indicator_count())
 				{
-					errorf("Backtest: Passed in %d ranges but %d were expected! Resizing ranges...", start_ranges.size(), strat->indicator_count());
+					ERROR("Backtest: Passed in %d ranges but %d were expected! Resizing ranges...", start_ranges.size(), strat->indicator_count());
 					start_ranges.resize(strat->indicator_count());
 				}
 				else if (start_ranges.size() < strat->indicator_count())
 				{
-					errorf("Backtest: Passed in %d ranges but %d were expected! Execution cannot continue.", start_ranges.size(), strat->indicator_count());
+					ERROR("Backtest: Passed in %d ranges but %d were expected! Execution cannot continue.", start_ranges.size(), strat->indicator_count());
 					return {};
 				}
 
@@ -179,12 +179,12 @@ namespace daytrender
 					if (start_ranges[i] < min_range)
 					{
 						start_ranges[i] = min_range;
-						warningf("test_ranges[%d] was less than the minimum (%d). Readjusting...", start_ranges[i], min_range);
+						WARNING("test_ranges[%d] was less than the minimum (%d). Readjusting...", start_ranges[i], min_range);
 					}
 					else if (start_ranges[i] > max_range)
 					{
 						start_ranges[i] = max_range;
-						warningf("test_ranges[%d] was greater than the maximum (%d). Readjusting...", start_ranges[i], max_range);
+						WARNING("test_ranges[%d] was greater than the maximum (%d). Readjusting...", start_ranges[i], max_range);
 					}
 				}
 			}
@@ -206,11 +206,11 @@ namespace daytrender
 			{
 				if (threads[i].get())
 				{
-					successf("Backtest %d succeeded", i + 1);
+					SUCCESS("Backtest %d succeeded", i + 1);
 				}
 				else
 				{
-					errorf("Backtest %d failed", i + 1);
+					ERROR("Backtest %d failed", i + 1);
 				}
 				
 			}
@@ -218,7 +218,7 @@ namespace daytrender
 			auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t - t0);
 			double secs = ms.count() / 1000.0;
 
-			successf("Backtesting of %s has completed in %fs", asset->ticker(), secs);
+			SUCCESS("Backtesting of %s has completed in %fs", asset->ticker(), secs);
 
 			return out;
 		}

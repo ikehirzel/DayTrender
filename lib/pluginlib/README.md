@@ -4,7 +4,8 @@ A C++11 single-header cross-platform plugin handling library
 
 It has no external depencies and therefore will simply work by just including **plugin.h**.
 
-NOTE: Care must be taken when executing functions. They are stored as (void (*)()) function pointers but when executed they are casted to the type specified by the templates. This can cause segmentation faults if the wrong type is used for a stored function
+NOTE: Care must be taken when executing functions. Types of functions are not stored and 
+are up to the user to handle
 
 Examples
 ========
@@ -32,27 +33,25 @@ Examples
 	// contents of main.cpp
 	#include <iostream>
 	#include <string>
-	#include "plugin.h"
-
-	using namespace std;
+	#include <hirzel/plugin.h>
 
 	int main()
 	{
 		hirzel::Plugin p;
 
-		p.loadLibrary("./exampleplugin.dll");
-		p.loadFunction("double_value");
-		p.loadFunction("hello");
+		p.bind_library("./exampleplugin.dll");
+		p.bind_function("double_value");
+		p.bind_function("hello");
 
 		// loadLibrary and loadFunction can be handled in the constructor well:
-		// tinyplug::Plugin p("exampleplugin.dll", { "double_value", "hello" });
+		// hirzel::Plugin p("./exampleplugin.dll", { "double_value", "hello" });
 
 		int dub = p.execute<int, int>("double_value", 5);
 		string text = p.execute<string, string>("hello", "Ike");
 
 
-		cout << dub << endl; // outputs 10
-		cout << text << endl; // output 'Hello, Ike!'
+		std::cout << dub << std::endl; // outputs 10
+		std::cout << text << std::endl; // output 'Hello, Ike!'
 
 		return 0;
 	}

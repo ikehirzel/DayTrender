@@ -68,23 +68,23 @@ namespace daytrender
 			mtx.lock();
 			if (running)
 			{
-				warningf("Server is already running");
+				WARNING("Server is already running");
 				mtx.unlock();
 				return;
 			}
 
 			if(ip.empty())
 			{
-				errorf("Server has not been initialized properly! Halting execution of server...");
+				ERROR("Server has not been initialized properly! Halting execution of server...");
 				mtx.unlock();
 				return;
 			}
 			running = true;
-			infof("Starting server @ %s:%d", ip, port);
+			INFO("Starting server @ %s:%d", ip, port);
 			mtx.unlock();
 
 			server.listen(ip.c_str(), port);
-			successf("Server has stopped.");
+			SUCCESS("Server has stopped.");
 		}
 
 		void stop()
@@ -92,7 +92,7 @@ namespace daytrender
 			mtx.lock();
 			if(!running)
 			{
-				warningf("The server has already been stopped");
+				WARNING("The server has already been stopped");
 				mtx.unlock();
 				return;
 			}
@@ -104,7 +104,7 @@ namespace daytrender
 
 		void get_root(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("Server GET @ %s", req.path);
+			DEBUG("Server GET @ %s", req.path);
 			#ifdef READ_INTERFACE_ON_STARTUP
 			html = hirzel::file::read_file_as_string("./webinterface.html");
 			#endif
@@ -113,43 +113,43 @@ namespace daytrender
 
 		void get_data(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("Server GET @ %s", req.path);
+			DEBUG("Server GET @ %s", req.path);
 
 			json response;
 
 			// gathering strategy names
-			auto strat_info = strategy_names();
-			if(strat_info.empty())
-			{
-				warningf("No strategy names were received");
-			}
-			else
-			{
-				for (int i = 0; i < strat_info.size(); i++)
-				{
-					response["strategy"][i] = strat_info[i];
-				}
-			}
+			// auto strat_info = strategy_names();
+			// if(strat_info.empty())
+			// {
+			// 	WARNING("No strategy names were received");
+			// }
+			// else
+			// {
+			// 	for (int i = 0; i < strat_info.size(); i++)
+			// 	{
+			// 		response["strategy"][i] = strat_info[i];
+			// 	}
+			// }
 			// gathering asset types and tickers
-			auto asset_data = asset_names();
-			if (asset_data.empty())
-			{
-				warningf("No asset data was received");
-			}
-			else
-			{
-				for (int i = 0; i < asset_data.size(); i++)
-				{
-					response["assets"][i]["ticker"] = asset_data[i].first;
-					response["assets"][i]["type"] = asset_data[i].second;
-				}
-			}
+			// auto asset_data = asset_names();
+			// if (asset_data.empty())
+			// {
+			// 	WARNING("No asset data was received");
+			// }
+			// else
+			// {
+			// 	for (int i = 0; i < asset_data.size(); i++)
+			// 	{
+			// 		response["assets"][i]["ticker"] = asset_data[i].first;
+			// 		response["assets"][i]["type"] = asset_data[i].second;
+			// 	}
+			// }
 
-			auto client_data = client_names();
-			for (int i = 0; i < client_data.size(); i++)
-			{
-				response["types"][i] = client_data[i];
-			}
+			// auto client_data = client_names();
+			// for (int i = 0; i < client_data.size(); i++)
+			// {
+			// 	response["types"][i] = client_data[i];
+			// }
 
 			// sending json object to client
 			res.set_content(response.dump(), JSON_FORMAT);
@@ -157,7 +157,7 @@ namespace daytrender
 
 		void get_accinfo(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("Server: GET @ %s", req.path);
+			DEBUG("Server: GET @ %s", req.path);
 
 			int asset_type;
 			AccountInfo accinfo;
@@ -165,7 +165,7 @@ namespace daytrender
 
 			asset_type = std::stoi(req.get_param_value("asset_type"));
 
-			const Client* client = get_client(asset_type);
+			const Client* client;// = get_client(asset_type);
 			accinfo = client->get_account_info();
 			response["balance"] = accinfo.balance();
 			response["buying_power"] = accinfo.buying_power();
@@ -176,12 +176,12 @@ namespace daytrender
 
 		void get_watch(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("Server: GET @ %s", req.path);
+			DEBUG("Server: GET @ %s", req.path);
 
 			int index = std::stoi(req.get_param_value("index"));
-			const Asset* asset = get_asset(index);
+			const Asset* asset;// = get_asset(index);
 			const StrategyData& data = asset->data();
-			const Client* client = asset->client();
+			const Client* client;// = asset->client();
 			AssetInfo info = client->get_asset_info(asset->ticker());
 
 			json response;
@@ -231,7 +231,7 @@ namespace daytrender
 
 		void get_backtest(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("Server GET @ %s", req.path);
+			DEBUG("Server GET @ %s", req.path);
 			
 			int asset_index, strat_index;
 			json response;
@@ -312,7 +312,7 @@ namespace daytrender
 
 		void get_shutdown(const httplib::Request& req,  httplib::Response& res)
 		{
-			debugf("Server GET @ %s", req.path);
+			DEBUG("Server GET @ %s", req.path);
 			res.set_content("Shutting down...", TEXT_FORMAT);
 			daytrender::stop();
 		}

@@ -24,6 +24,7 @@ namespace daytrender
 		mutable bool _bound = false;
 		bool _shorting_enabled = false;
 		int _asset_count = 0;
+		double _risk_sum = 0.0;
 		double _pl = 0.0;
 		double _risk = 0.0;
 		double _max_loss = 0.05;
@@ -69,6 +70,7 @@ namespace daytrender
 		bool exit_position(const std::string& ticker, bool short_shares);
 
 	public:
+		Client() = default;
 		Client(const json& config, const std::string& directory);
 		~Client();
 
@@ -136,5 +138,6 @@ namespace daytrender
 		inline double pl() const { return _pl; }
 		inline int asset_count() const { return _asset_count; }
 		inline void increment_assets() { _asset_count++; }
+		inline void add_risk(double amt) { _risk_sum += amt; }
 	};
 }

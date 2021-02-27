@@ -9,11 +9,9 @@
 
 namespace daytrender
 {
-	Asset::Asset(Client* client, const Strategy* strategy, const std::string& ticker, int type,
-		int interval, const std::vector<int>& ranges) :
-	_client(client),
+	Asset::Asset(const Strategy* strategy, const std::string& ticker, int interval,
+		const std::vector<int>& ranges) :
 	_strategy(strategy),
-	_type(type),
 	_interval(interval),
 	_ticker(ticker),
 	_ranges(ranges),
@@ -25,17 +23,15 @@ namespace daytrender
 		}
 		_candle_count += _strategy->data_length();
 
-		_client->increment_assets();
-
 		PaperAccount acc = interface::backtest(this);
 		double kelly = acc.kelly_criterion();
 		_risk = (kelly >= 0.0 ? kelly : 0.0);
 	}
 	
-	void Asset::update()
+	void Asset::update(Client& client)
 	{
 		// if the client or asset is currently not live, do not update
-		if (!_client->is_live() || !_live) return;
+		if (!client.is_live() || !_live) return;
 
 		// if the proper amount of time has not passed, do not update
 		if ((hirzel::sys::get_seconds() - _last_update) < _interval) return;
@@ -43,14 +39,14 @@ namespace daytrender
 		long long curr_time = hirzel::sys::get_seconds();
 		_last_update = curr_time - (curr_time % _interval);
 
-		infof("Updating %s...", _ticker);
+		INFO("Updating %s...", _ticker);
 
 		// getting candlestick data from client
-		CandleSet candles = get_candles();
+		CandleSet candles = get_candles(client);
 		// 
 		if (candles.error())
 		{
-			errorf("%s: CandleSet error: %s", _ticker, candles.error());
+			ERROR("%s: CandleSet error: %s", _ticker, candles.error());
 			return;
 		}
 
@@ -60,13 +56,13 @@ namespace daytrender
 		// error handling
 		if (_data.error())
 		{
-			errorf("%s: Algorithm: %s", _ticker, _data.error());
+			ERROR("%s: Algorithm: %s", _ticker, _data.error());
 			return;
 		}
 
 		if (_data.candles().error())
 		{
-			errorf("%s: Algorithm candles: %s", _ticker, _data.candles().error());
+			ERROR("%s: Algorithm candles: %s", _ticker, _data.candles().error());
 			return;
 		}
 		
@@ -74,31 +70,31 @@ namespace daytrender
 		switch (_data.action())
 		{
 		case ENTER_LONG:
-			res = _client->enter_long(_ticker, _risk);
+			res = client.enter_long(_ticker, _risk);
 			break;
 
 		case EXIT_LONG:
-			res = _client->exit_long(_ticker);
-			successf("%s: Exited long position", _ticker);
+			res = client.exit_long(_ticker);
+			SUCCESS("%s: Exited long position", _ticker);
 			break;
 
 		case ENTER_SHORT:
-			res = _client->enter_short(_ticker, _risk);
-			successf("%s: Entered short position", _ticker);
+			res = client.enter_short(_ticker, _risk);
+			SUCCESS("%s: Entered short position", _ticker);
 			break;
 
 		case EXIT_SHORT:
-			res = _client->exit_short(_ticker);
-			successf("%s: Exited short position", _ticker);
+			res = client.exit_short(_ticker);
+			SUCCESS("%s: Exited short position", _ticker);
 			break;
 
 		case NOTHING:
 			res = true;
-			successf("%s: No action taken", _ticker);
+			SUCCESS("%s: No action taken", _ticker);
 			break;
 
 		default:
-			errorf("%s: Invalid action received from strategy: %d", _ticker, _data.action());
+			ERROR("%s: Invalid action received from strategy: %d", _ticker, _data.action());
 			_live = false;
 			break;
 		}
@@ -106,7 +102,7 @@ namespace daytrender
 		if (!res)
 		{
 			_live = false;
-			errorf("%s: Failed to handle action. Asset is no longer live.", _ticker);
+			ERROR("%s: Failed to handle action. Asset is no longer live.", _ticker);
 		}
 	}
 }
