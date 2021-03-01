@@ -20,36 +20,33 @@ using namespace hirzel;
 namespace daytrender
 {
 	bool running = false;
-	bool shouldrun = false;
-	std::string dtdir;
 	std::vector<Portfolio> portfolios;
 	std::mutex mtx;
 
-	void init(const std::string& execpath)
+	bool init(const std::string& execpath)
 	{
-		shouldrun = false;
-		return;
+		return false;
 
-		dtdir = std::filesystem::current_path().string() + "/" + execpath;
+		std::string dir = std::filesystem::current_path().string() + "/" + execpath;
 
-		std::string clients_str = file::read_file_as_string(dtdir + "/clients.json");
+		std::string clients_str = file::read_file_as_string(dir + "/clients.json");
 
 		if (clients_str.empty())
 		{
 			FATAL("Failed to load clients.json! Aborting...");
-			return;
+			return false;
 		}
 		else
 		{
 			SUCCESS("SUCCESSully loaded clients.json");
 		}
 
-		std::string server_str = file::read_file_as_string(dtdir + "/server.json");
+		std::string server_str = file::read_file_as_string(dir + "/server.json");
 
 		if (server_str.empty())
 		{
 			FATAL("Failed to load server.json! Aborting...");
-			return;
+			return false;
 		}
 		else
 		{
@@ -62,17 +59,17 @@ namespace daytrender
 		if (!err.empty())
 		{
 			ERROR("Portfolio config: %s", err);
-			return;
+			return false;
 		}
 
-		if(!server::init(json_val.get<JsonObject>(), dtdir))
+		if(!server::init(json_val.get<JsonObject>(), dir))
 		{
 			ERROR("Failed to initialize server! aborting...");
 			mtx.unlock();
-			return;
+			return false;
 		}
 
-		shouldrun = true;
+		return true;
 		
 		///////////////////////////////////////////////
 
@@ -121,93 +118,15 @@ namespace daytrender
 		// std::cout << "\n\n";
 	}
 
-	// Asset init_asset(const json& config, int index)
-	// {
-	// 	// making sure the necessary variables are defined in the json file
-	// 	if (!json_vars_are_defined(config, {
-	// 		"ticker",
-	// 		"strategy",
-	// 		"interval",
-	// 		"ranges"
-	// 	})) return {};
-
-
-	// 	// getting interval from json
-	// 	int interval = config["interval"].get<int>();
-
-	// 	// getting the index of the strategy
-	// 	Strategy* strat = init_strategy(config["strategy"].get<std::string>());
-	// 	// verifying if the strategy initialized
-	// 	if (strat == nullptr)
-	// 	{
-	// 		ERROR("clients.json[%d]: Asset cannot be initialized without strategy", index);
-	// 		return {};
-	// 	}
-
-	// 	// getting ranges from json
-	// 	std::vector<int> ranges(config["ranges"].begin(), config["ranges"].end());
-
-	// 	// verifying that the correct amount of ranges were given
-	// 	if (ranges.size() != strat->indicator_count())
-	// 	{
-	// 		ERROR("clients.json[%d]: Expected %d ranges but %d were supplied.", index,
-	// 			strat->indicator_count(), ranges.size());
-
-	// 		return {};
-	// 	}
-
-	// 	// verifying that every range given is a positive number
-	// 	for (int r : ranges)
-	// 	{
-	// 		if (r <= 0)
-	// 		{
-	// 			ERROR("asset[%d]: 'ranges' were improperly defined. Values must be a positive number.", index);
-	// 			return {};
-	// 		}
-	// 	}
-
-	// 	// getting ticker from json
-	// 	std::string ticker = config["ticker"].get<std::string>();
-	// 	// verifying ticker was non empty
-	// 	if (ticker.empty())
-	// 	{
-	// 		ERROR("clients.json[%d][%d]: 'ticker' definition was empty.", index, ticker);
-	// 		return {};
-	// 	}
-
-	// 	Asset asset(strat, ticker, interval, ranges);
-	// 	SUCCESS("%s: SUCCESSully initialized with risk: %f", ticker, asset.risk());
-	// 	return asset;
-	// }
-
-	/**
-	 * Initializes server and shell and begins updating assets
-	 */
 	void start()
 	{
-		mtx.lock();
-
-		if (running)
-		{
-			WARNING("DayTrender has already started!");
-			mtx.unlock();
-			return;
-		}
-
-		if (!shouldrun)
-		{
-			FATAL("Execution of DayTrender cannot continue!");
-			mtx.unlock();
-			return;
-		}
-
 		running = true;
-		mtx.unlock();
+		INFO("Starting DayTrender");
 
 		std::thread shell_thread(shell::get_input);
-		std::thread server_thread(server::start);
 		shell_thread.detach();
-		INFO("Starting DayTrender");
+
+		std::thread server_thread(server::start);
 
 		while (running)
 		{
@@ -223,9 +142,6 @@ namespace daytrender
 		server_thread.join();
 	}
 
-	/**
-	 * Changes running to false. This will interrupt the program loop.
-	 */
 	void stop()
 	{
 		mtx.lock();
@@ -240,38 +156,25 @@ namespace daytrender
 		mtx.unlock();
 	}
 
-	/**
-	 * @return list of names corresponding to loaded clients
-	 */
-	std::vector<std::string> portfolio_names()
+	const std::vector<Portfolio>& get_portfolios()
 	{
-		std::vector<std::string> out(portfolios.size());
-
-		for (int i = 0; i < portfolios.size(); i++)
-		{
-			out[i] = portfolios[i].label();
-		}
-
-		return out;
-	}
-
-
-	/**
-	 * @param	index	index of the portfolio
-	 * @return	reference to portfolio at \c index
-	 */
-	const Portfolio& get_portfolio(int index)
-	{
-		return portfolios[index];
+		return portfolios; 
 	}
 }
 
 int main(int argc, char *argv[])
 {
 	hirzel::fountain::init("./report.log", true, true, false, 1);
-	daytrender::init(hirzel::str::get_folder(argv[0]));
+
+	if (!daytrender::init(hirzel::str::get_folder(argv[0])))
+	{
+		ERROR("Execution cannot continue");
+		return 0;
+	}
+
 	daytrender::start();
 	daytrender::Strategy::free_plugins();
+
 	SUCCESS("DayTrender has stopped");
 	return 0;
 }

@@ -13,14 +13,16 @@
 #include "api/portfolio.h"
 
 namespace daytrender
-{	
-	void init(const std::string& execpath);
-	void start();
+{
+	/**
+	 * Changes running to false. This will interrupt the program loop.
+	 */
 	void stop();
 
-	const Portfolio& get_portfolio(int index);
-	std::vector<std::string> portfolio_names();
-
+	/**
+	 * @return	list of portfolios
+	 */
+	const std::vector<Portfolio>& get_portfolios();
 }
 
 #endif // DAYTRENDER_H
