@@ -26,11 +26,14 @@
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
-#include <nlohmann/json.hpp>
+#include <picojson.h>
 
 using namespace daytrender;
 using namespace httplib;
-using nlohmann::json;
+
+using JsonValue = picojson::value;
+using JsonObject = picojson::object;
+using JsonArray = picojson::array;
 
 #define JSON_FORMAT "application/json"
 
