@@ -100,7 +100,7 @@ namespace daytrender
 		{
 			std::string input;
 
-			while (daytrender::is_running())
+			while (true)
 			{
 				std::getline(std::cin, input);
 				INFO("$ %s", input);

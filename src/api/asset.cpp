@@ -7,25 +7,36 @@
 #include <hirzel/sysutil.h>
 #include <hirzel/fountain.h>
 
+#include "../util/jsonutil.h"
+
 namespace daytrender
 {
-	Asset::Asset(const Strategy* strategy, const std::string& ticker, int interval,
-		const std::vector<int>& ranges) :
-	_strategy(strategy),
-	_interval(interval),
-	_ticker(ticker),
-	_ranges(ranges),
-	_live(true)
+	Asset::Asset(const JsonObject& config, const std::string& dir)
 	{
+		if (!json_vars_are_strings(config, { "ticker", "strategy" })) return;
+		if (!json_vars_are_positive(config, { "interval" })) return;
+		//if (!json_var_is_num_array(config, "ranges", 2)) return;
+
+		_ticker = config.at("ticker").get<std::string>();
+		_interval = (int)config.at("interval").get<double>();
+		const JsonArray& ranges_json = config.at("ranges").get<JsonArray>();
+
+		_ranges.resize(ranges_json.size());
+
 		for (int i = 0; i < _ranges.size(); i++)
 		{
+			_ranges[i] = (int)ranges_json[i].get<double>();
 			if (_ranges[i] > _candle_count) _candle_count = _ranges[i];
 		}
-		_candle_count += _strategy->data_length();
-
+		_candle_count += _strategy.data_length();
+		/*
 		PaperAccount acc = interface::backtest(this);
 		double kelly = acc.kelly_criterion();
 		_risk = (kelly >= 0.0 ? kelly : 0.0);
+		*/
+
+		_bound = true;
+		_live = true;
 	}
 	
 	void Asset::update(Client& client)
@@ -51,7 +62,7 @@ namespace daytrender
 		}
 
 		// processing the candlestick data gotten from client
-		_data = _strategy->execute(candles, _ranges);
+		_data = _strategy.execute(candles, _ranges);
 
 		// error handling
 		if (_data.error())

@@ -13,8 +13,7 @@ file(GLOB CLIENT_TYPES_SRCS src/data/assetinfo.cpp src/data/accountinfo.cpp src/
 
 # creating symlinks so files can be shared between build folder and project folder
 
-file(CREATE_LINK ../clients.json clients.json SYMBOLIC)
-file(CREATE_LINK ../server.json server.json SYMBOLIC)
+file(CREATE_LINK ../config config SYMBOLIC)
 file(CREATE_LINK ../strategies strategies SYMBOLIC)
 file(CREATE_LINK ../clients clients SYMBOLIC)
 file(CREATE_LINK ../src/interface/webinterface.html webinterface.html SYMBOLIC)
@@ -48,8 +47,8 @@ foreach(CLIENT ${CLIENT_SRCS})
 	add_library(${FILENAME} SHARED ${CLIENT} ${CLIENT_TYPES_SRCS})
 	# tell it to go to strategies folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
-	target_include_directories(${FILENAME} PRIVATE src/data src/api lib/cpp-httplib/include lib/)
-	target_link_libraries(${FILENAME} PRIVATE nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
+	target_include_directories(${FILENAME} PRIVATE src/data src/api lib/cpp-httplib/include lib/picojson/include)
+	target_link_libraries(${FILENAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 endforeach()
 
 # copying over the website source
@@ -60,30 +59,34 @@ file(WRITE src/interface/webinterface.inc "R\"=====(${WEBINTERFACE_HTML})=====\"
 set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)
 
 # finding required packages
-find_package(nlohmann_json CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
-# setting up fountain
+# adding imported library files
 add_library(fountain SHARED IMPORTED)
-set_target_properties(fountain PROPERTIES IMPORTED_LOCATION "../lib/fountain/build/libfountain.so")
-file(COPY "lib/fountain/build/libfountain.so" DESTINATION ".")
-target_include_directories(daytrender PRIVATE "lib/fountain/build/include")
-
-# setting up hxutils
 add_library(hxutils SHARED IMPORTED)
-set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION "../lib/hxutils/build/libhxutils.so")
-file(COPY "lib/hxutils/build/libhxutils.so" DESTINATION ".")
-target_include_directories(daytrender PRIVATE "lib/hxutils/build/include")
-
-# setting up cpphttplib
-target_include_directories(daytrender PRIVATE "lib/cpp-httplib/include")
-
-# setting up pluginlib
 add_library(pluginlib SHARED IMPORTED)
+
+# getting location of shared objects
+set_target_properties(fountain PROPERTIES IMPORTED_LOCATION "../lib/fountain/build/libfountain.so")
+set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION "../lib/hxutils/build/libhxutils.so")
 set_target_properties(pluginlib PROPERTIES IMPORTED_LOCATION "../lib/pluginlib/build/libplugin.so")
-file(COPY "lib/pluginlib/build/libplugin.so" DESTINATION ".")
-target_include_directories(daytrender PRIVATE "lib/pluginlib/build/include")
+
+# copying library files to build dir
+file(COPY
+"lib/fountain/build/libfountain.so"
+"lib/hxutils/build/libhxutils.so"
+"lib/pluginlib/build/libplugin.so"
+DESTINATION ".")
 
 # linking daytrender libraries
-target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} fountain hxutils pluginlib nlohmann_json OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} fountain hxutils pluginlib OpenSSL::SSL OpenSSL::Crypto)
+
+# setting include dirs
+target_include_directories(daytrender PRIVATE
+	"lib/fountain/build/include"
+	"lib/hxutils/build/include"
+	"lib/cpp-httplib/include"
+	"lib/picojson/include"
+	"lib/pluginlib/build/include"
+)

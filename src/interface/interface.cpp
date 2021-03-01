@@ -106,7 +106,7 @@ namespace daytrender
 		PaperAccount backtest(const Asset* asset)
 		{
 			const Client* client;// = asset->client();
-			const Strategy* strategy = asset->strategy();
+			const Strategy& strategy = asset->strategy();
 
 			AccountInfo account_info;// = asset->client()->get_account_info();
 			AssetInfo asset_info;// = asset->client()->get_asset_info(asset->ticker());
@@ -123,7 +123,7 @@ namespace daytrender
 				asset->ranges()
 			};
 			
-			backtest_permutation(account, candles, strategy, asset->ranges());
+			//backtest_permutation(account, candles, strategy, asset->ranges());
 
 			return account;
 		}
@@ -140,7 +140,7 @@ namespace daytrender
 			// storing important info
 			std::vector<int> intervals = client->backtest_intervals();
 
-			INFO("Backtesting %s asset '%s' with strategy '%s'...", client->label(), asset->ticker(), strat->filename());
+			INFO("Backtesting '%s' with strategy '%s'...", asset->ticker(), strat->filename());
 
 			// calculating lops
 			std::vector<int> start_ranges;

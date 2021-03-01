@@ -9,25 +9,43 @@
 
 #define API_VERSION_CHECK
 #include "clientdefs.h"
+#include "../util/jsonutil.h"
 
 namespace daytrender
 {
 	#define FUNC_PAIR(x) { (void(**)())&_##x, #x }
 
-	Client::Client(const json& config, const std::string& directory):
-	_closeout_buffer(config["closeout_buffer"].get<int>() * 60),
-	_filename(config["filename"].get<std::string>()),
-	_history_length(config["history_length"].get<double>()),
-	_label(config["label"].get<std::string>()),
-	_max_loss(config["max_loss"].get<double>()),
-	_risk(config["risk"].get<double>()),
-	_shorting_enabled(config["shorting_enabled"].get<bool>())
+	Client::Client(const JsonObject& config, const std::string& dir)
 	{
-		int leverage = config["leverage"].get<int>();
-		const json& credentials = config["keys"];
-		std::vector<std::string> keys(credentials.begin(), credentials.end());
+		if (!json_vars_are_strings(config, { "filename" })) return;
 
-		_plugin = new hirzel::Plugin(directory + _filename);
+		if (!json_vars_are_ratios(config, {
+			"max_loss",
+			"risk",
+		})) return;
+
+		if (!json_vars_are_positive(config, {
+			"history_length",
+			"leverage",
+			"closeout_buffer"
+		})) return;
+
+		_closeout_buffer = (int)config.at("closeout_buffer").get<double>() * 60;
+		_filename = config.at("filename").get<std::string>();
+		_history_length = config.at("history_length").get<double>();
+		_max_loss = config.at("max_loss").get<double>();
+		_risk = config.at("risk").get<double>();
+		_shorting_enabled = config.at("shorting_enabled").get<bool>();
+
+		int leverage = (int)config.at("leverage").get<double>();
+		const JsonArray& credentials = config.at("keys").get<JsonArray>();
+		std::vector<std::string> keys(credentials.size());
+		for (int i = 0; i < credentials.size(); i++)
+		{
+			keys[i] = credentials[i].get<std::string>();
+		}
+
+		_plugin = new hirzel::Plugin(dir + _filename);
 
 		// checking if the plugin failed to bind
 		if (_plugin->error())
@@ -85,7 +103,7 @@ namespace daytrender
 		}
 		
 		// initializing the client
-		if (!_init(credentials))
+		if (!_init(keys))
 		{
 			flag_error();
 			return;
@@ -154,10 +172,10 @@ namespace daytrender
 			// account has lost too much in last interval
 			if (_pl <= prev_equity * -_max_loss)
 			{
-				ERROR("%s client '%s' has undergone %f loss in the last %f hours! Closing all position...", _label, _filename, _pl, _history_length);
+				ERROR("client '%s' has undergone %f loss in the last %f hours! Closing all position...", _filename, _pl, _history_length);
 				close_all_positions();
 				_bound = false;
-				ERROR("%s client '%s' has gone offline!", _label, _filename);
+				ERROR("client '%s' has gone offline!", _filename);
 				return;
 			}
 

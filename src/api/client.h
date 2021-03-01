@@ -4,16 +4,11 @@
 #include "../data/accountinfo.h"
 #include "../data/assetinfo.h"
 
+#include <hirzel/plugin.h>
+#include <picojson.h>
+
 #include <string>
 #include <vector>
-#include <nlohmann/json.hpp>
-
-namespace hirzel
-{
-	class Plugin;
-}
-
-using nlohmann::json;
 
 namespace daytrender
 {
@@ -33,7 +28,6 @@ namespace daytrender
 
 		std::vector<std::pair<long long, double>> _equity_history;
 		std::string _filename;
-		std::string _label;
 
 		hirzel::Plugin* _plugin = nullptr;
 		
@@ -71,7 +65,7 @@ namespace daytrender
 
 	public:
 		Client() = default;
-		Client(const json& config, const std::string& directory);
+		Client(const picojson::object& config, const std::string& directory);
 		~Client();
 
 		void update();
@@ -132,7 +126,6 @@ namespace daytrender
 		inline bool bound() const { return _bound; }
 		inline bool is_live() const { return _live; }
 		inline bool shorting_enabled() const { return _shorting_enabled; }
-		inline const std::string& label() const { return _label; }
 		inline const std::string& filename() const { return _filename; }
 		inline double risk() const { return _risk; }
 		inline double pl() const { return _pl; }

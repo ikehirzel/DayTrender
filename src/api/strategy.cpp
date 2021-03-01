@@ -53,11 +53,6 @@ namespace daytrender
 		_execute = (void(*)(StrategyData&))_plugin->get_func("strategy");
 	}
 
-	Strategy::~Strategy()
-	{
-		delete _plugin;
-	}
-	
 	StrategyData Strategy::execute(const CandleSet& candles, const std::vector<int>& ranges) const
 	{
 

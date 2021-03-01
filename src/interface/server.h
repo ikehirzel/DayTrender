@@ -1,15 +1,13 @@
 #pragma once
 
 #include <string>
-#include <nlohmann/json.hpp>
-
-using nlohmann::json;
+#include <picojson.h>
 
 namespace daytrender
 {
 	namespace server
 	{
-		bool init(const json& config, const std::string& dir);
+		bool init(const picojson::object& config, const std::string& dir);
 		void start();
 		void stop();
 	}

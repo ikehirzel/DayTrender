@@ -7,11 +7,14 @@
 #include "strategy.h"
 #include "client.h"
 
+#include <picojson.h>
+
 namespace daytrender
 {
 	class Asset
 	{
 	private:
+		bool _bound = false;
 		mutable bool _live = false;
 		int _candle_count = 0;
 		int _interval = 0;
@@ -22,7 +25,7 @@ namespace daytrender
 		StrategyData _data;
 		std::vector<int> _ranges;
 
-		const Strategy* _strategy;
+		Strategy _strategy;
 		
 		typedef bool (Asset::*AssetAction)();
 		AssetAction _actions[Action::COUNT];
@@ -30,24 +33,23 @@ namespace daytrender
 		// client wrappers
 		inline CandleSet get_candles(const Client& client) const
 		{
-			return client.get_candles(_ticker, _interval, _candle_count, _strategy->data_length());
+			return client.get_candles(_ticker, _interval, _candle_count, _strategy.data_length());
 		}
 
 	public:
+		Asset(const picojson::object& config, const std::string& dir);
 		Asset() = default;
-		Asset(const Strategy* strat, const std::string& ticker, int interval,
-			const std::vector<int>& ranges);
 
 		void update(Client& client);
 
 		// inline getter functions
 		inline const StrategyData& data() const { return _data; }
-		inline const Strategy* strategy() const { return _strategy; }
+		inline const Strategy& strategy() const { return _strategy; }
 		inline const std::string& ticker() const { return _ticker; }
 		inline const std::vector<int>& ranges() const { return _ranges; }
 		inline int interval() const { return _interval; }
 		inline bool is_live() const { return _live; }
 		inline double risk() const { return _risk; }
-		inline int data_length() const { return _strategy->data_length(); }
+		inline int data_length() const { return _strategy.data_length(); }
 	};
 }
