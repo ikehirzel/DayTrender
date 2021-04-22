@@ -2,56 +2,47 @@
 
 #include "../data/mathutil.h"
 
-#include <hirzel/strutil.h>
-#include <hirzel/sysutil.h>
+#include <hirzel/util/str.h>
+#include <hirzel/util/sys.h>
 #include <hirzel/plugin.h>
-#include <hirzel/fountain.h>
+#include <hirzel/logger.h>
 
 #define API_VERSION_CHECK
 #include "clientdefs.h"
-#include "../util/jsonutil.h"
+
+using namespace hirzel;
 
 namespace daytrender
 {
+	std::unordered_map<std::string, hirzel::Plugin*> Client::_plugins;
+
+	void Client::free_plugins()
+	{
+		for (auto p : _plugins)
+		{
+			delete p.second;
+		}
+	}
+
 	#define FUNC_PAIR(x) { (void(**)())&_##x, #x }
 
-	Client::Client(const JsonObject& config, const std::string& dir)
+	Client::Client(const std::string& filepath) :
+	_filename(str::get_filename(filepath))
 	{
-		if (!json_vars_are_strings(config, { "filename" })) return;
-
-		if (!json_vars_are_ratios(config, {
-			"max_loss",
-			"risk",
-		})) return;
-
-		if (!json_vars_are_positive(config, {
-			"history_length",
-			"leverage",
-			"closeout_buffer"
-		})) return;
-
-		_closeout_buffer = (int)config.at("closeout_buffer").get<double>() * 60;
-		_filename = config.at("filename").get<std::string>();
-		_history_length = config.at("history_length").get<double>();
-		_max_loss = config.at("max_loss").get<double>();
-		_risk = config.at("risk").get<double>();
-		_shorting_enabled = config.at("shorting_enabled").get<bool>();
-
-		int leverage = (int)config.at("leverage").get<double>();
-		const JsonArray& credentials = config.at("keys").get<JsonArray>();
-		std::vector<std::string> keys(credentials.size());
-		for (int i = 0; i < credentials.size(); i++)
+		_plugin = _plugins[filepath];
+		// if the plugin is not already cached, attempt to cache it
+		if (!_plugin)
 		{
-			keys[i] = credentials[i].get<std::string>();
-		}
-
-		_plugin = new hirzel::Plugin(dir + _filename);
-
-		// checking if the plugin failed to bind
-		if (_plugin->error())
-		{
-			ERROR("%s: error: %s", _filename, _plugin->error());
-			return;
+			_plugin = new hirzel::Plugin(filepath);
+			// if plugin has errors, log, delete and exit
+			if (_plugin->error())
+			{
+				ERROR("%s: error: %s", _filename, _plugin->error());
+				delete _plugin;
+				return;
+			}
+			// cache plugin
+			_plugins[filepath] = _plugin;
 		}
 
 		// preparing vector so functions can be iterated over
@@ -116,13 +107,7 @@ namespace daytrender
 			return;
 		}
 
-		_bound = true;
-		_live = true;
-	}
-
-	Client::~Client()
-	{
-		delete _plugin;
+		_bound = _plugin->bound();
 	}
 
 	bool Client::client_ok() const
@@ -158,7 +143,7 @@ namespace daytrender
 		{
 			// updating pl of client
 			AccountInfo info = get_account_info();
-			long long curr_time = hirzel::sys::get_seconds();
+			long long curr_time = sys::epoch_seconds();
 			_equity_history.push_back({ curr_time, info.equity() });
 
 			while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))

@@ -53,8 +53,8 @@ namespace daytrender
 			SUCCESS("SUCCESSully loaded server.json");
 		}
 
-		JsonValue json_val;
-		std::string err = picojson::parse(json_val, server_str);
+		Json json;
+		std::string err = picojson::parse(json, server_str);
 
 		if (!err.empty())
 		{
@@ -62,7 +62,7 @@ namespace daytrender
 			return false;
 		}
 
-		if(!server::init(json_val.get<JsonObject>(), dir))
+		if(!server::init(json, dir))
 		{
 			ERROR("Failed to initialize server! aborting...");
 			mtx.unlock();

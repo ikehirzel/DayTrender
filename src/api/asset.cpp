@@ -4,28 +4,28 @@
 #include "../data/mathutil.h"
 #include "../interface/interface.h"
 
-#include <hirzel/sysutil.h>
-#include <hirzel/fountain.h>
+#include <hirzel/util/sys.h>
+#include <hirzel/logger.h>
+#include <hirzel/data.h>
 
-#include "../util/jsonutil.h"
+using namespace hirzel;
 
 namespace daytrender
 {
-	Asset::Asset(const JsonObject& config, const std::string& dir)
+	Asset::Asset(const Data& config, const std::string& dir)
 	{
-		if (!json_vars_are_strings(config, { "ticker", "strategy" })) return;
-		if (!json_vars_are_positive(config, { "interval" })) return;
-		//if (!json_var_is_num_array(config, "ranges", 2)) return;
+		if (!config["ticker"].is_string() || !config["strategy"].is_string()) return;
+		if (!(config["interval"].to_double() > 0.0)) return;
 
-		_ticker = config.at("ticker").get<std::string>();
-		_interval = (int)config.at("interval").get<double>();
-		const JsonArray& ranges_json = config.at("ranges").get<JsonArray>();
+		_ticker = config["ticker"].to_string();
+		_interval = config["interval"].to_int();
+		const Data& ranges_json = config["ranges"];
 
 		_ranges.resize(ranges_json.size());
 
 		for (int i = 0; i < _ranges.size(); i++)
 		{
-			_ranges[i] = (int)ranges_json[i].get<double>();
+			_ranges[i] = ranges_json[i].to_int();
 			if (_ranges[i] > _candle_count) _candle_count = _ranges[i];
 		}
 		_candle_count += _strategy.data_length();
@@ -45,9 +45,9 @@ namespace daytrender
 		if (!client.is_live() || !_live) return;
 
 		// if the proper amount of time has not passed, do not update
-		if ((hirzel::sys::get_seconds() - _last_update) < _interval) return;
+		if ((hirzel::sys::epoch_seconds() - _last_update) < _interval) return;
 		// updating previously updated time
-		long long curr_time = hirzel::sys::get_seconds();
+		long long curr_time = hirzel::sys::epoch_seconds();
 		_last_update = curr_time - (curr_time % _interval);
 
 		INFO("Updating %s...", _ticker);

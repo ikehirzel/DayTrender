@@ -15,13 +15,16 @@ namespace daytrender
 	class Strategy
 	{
 	private:
-		static std::unordered_map<std::string, hirzel::Plugin*> plugins;
-		hirzel::Plugin* _plugin = nullptr;
-		
+		static std::unordered_map<std::string, hirzel::Plugin*> _plugins;
+
+		// plugin info
+		bool _bound = false;
+		std::string _filename;
+		Plugin* _plugin = nullptr;
+		//
 		int _indicator_count = 0;
 		int _data_length = 0;
 		void(*_execute)(StrategyData&) = nullptr;
-		std::string _filename;
 
 	public:
 		Strategy() = default;

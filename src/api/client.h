@@ -5,31 +5,22 @@
 #include "../data/assetinfo.h"
 
 #include <hirzel/plugin.h>
-#include <picojson.h>
+#include <hirzel/data.h>
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace daytrender
 {
 	class Client
 	{
 	private:
-		bool _live = false;
+		static std::unordered_map<std::string, hirzel::Plugin*> _plugins;
+
 		mutable bool _bound = false;
-		bool _shorting_enabled = false;
-		int _asset_count = 0;
-		double _risk_sum = 0.0;
-		double _pl = 0.0;
-		double _risk = 0.0;
-		double _max_loss = 0.05;
-		double _history_length = 24.0;
-		int _closeout_buffer = 15 * 60;
-
-		std::vector<std::pair<long long, double>> _equity_history;
-		std::string _filename;
-
 		hirzel::Plugin* _plugin = nullptr;
+		std::string _filename;
 		
 		// init func
 
@@ -65,8 +56,9 @@ namespace daytrender
 
 	public:
 		Client() = default;
-		Client(const picojson::object& config, const std::string& directory);
-		~Client();
+		Client(const std::string& filepath);
+
+		static void free_plugins();
 
 		void update();
 
@@ -124,13 +116,6 @@ namespace daytrender
 		// inline getter functions
 
 		inline bool bound() const { return _bound; }
-		inline bool is_live() const { return _live; }
-		inline bool shorting_enabled() const { return _shorting_enabled; }
 		inline const std::string& filename() const { return _filename; }
-		inline double risk() const { return _risk; }
-		inline double pl() const { return _pl; }
-		inline int asset_count() const { return _asset_count; }
-		inline void increment_assets() { _asset_count++; }
-		inline void add_risk(double amt) { _risk_sum += amt; }
 	};
 }

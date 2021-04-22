@@ -1,7 +1,7 @@
 #include "strategy.h"
 #include <hirzel/plugin.h>
-#include <hirzel/fountain.h>
-#include <hirzel/strutil.h>
+#include <hirzel/logger.h>
+#include <hirzel/util/str.h>
 
 #include <unordered_map>
 
@@ -10,13 +10,13 @@
 
 namespace daytrender
 {
-	std::unordered_map<std::string, hirzel::Plugin*> Strategy::plugins;
+	std::unordered_map<std::string, hirzel::Plugin*> Strategy::_plugins;
 
 	void Strategy::free_plugins()
 	{
-		for (const std::pair<std::string, hirzel::Plugin*>& pair : plugins)
+		for (auto p : _plugins)
 		{
-			delete pair.second;
+			delete p.second;
 		}
 	}
 
@@ -25,15 +25,21 @@ namespace daytrender
 		_filename = hirzel::str::get_filename(filepath);
 
 		// fetching pointer corresponding to name
-		_plugin = plugins[filepath];
+		_plugin = _plugins[filepath];
 
 		// if no such pointer exists
 		if (!_plugin)
 		{
 			// initialize new plugin
 			_plugin = new hirzel::Plugin(filepath, { "indicator_count", "data_length", "strategy", "api_version" });
+			if (!_plugin->bound())
+			{
+				ERROR("plugin %s failed to bind", filepath);
+				delete _plugin;
+				return;
+			}
 			// store pointer in map
-			plugins[filepath] = _plugin;
+			_plugins[filepath] = _plugin;
 		}
 		
 		if (_plugin->error())
@@ -51,6 +57,8 @@ namespace daytrender
 		_indicator_count = _plugin->execute<int>("indicator_count");
 		_data_length = _plugin->execute<int>("data_length");
 		_execute = (void(*)(StrategyData&))_plugin->get_func("strategy");
+		if (!_plugin->bound()) return;
+		_bound = true;
 	}
 
 	StrategyData Strategy::execute(const CandleSet& candles, const std::vector<int>& ranges) const

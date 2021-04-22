@@ -34,7 +34,7 @@ foreach(STRAT ${STRAT_SRCS})
 	add_library(${FILENAME} SHARED ${STRAT} ${STRATEGY_TYPES_SRCS})
 	# tell it to go to strategies folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/strategies)
-	target_include_directories(${FILENAME} PRIVATE src/data src/api)
+	target_include_directories(${FILENAME} PRIVATE "src/data" "src/api")
 endforeach()
 
 # compiling each client plugin
@@ -47,7 +47,7 @@ foreach(CLIENT ${CLIENT_SRCS})
 	add_library(${FILENAME} SHARED ${CLIENT} ${CLIENT_TYPES_SRCS})
 	# tell it to go to strategies folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
-	target_include_directories(${FILENAME} PRIVATE src/data src/api lib/cpp-httplib/include lib/picojson/include)
+	target_include_directories(${FILENAME} PRIVATE "src/data" "src/api" "lib/cpp-httplib/include" "lib/cxx-logger/include")
 	target_link_libraries(${FILENAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 endforeach()
 
@@ -62,31 +62,13 @@ set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 
-# adding imported library files
-add_library(fountain SHARED IMPORTED)
-add_library(hxutils SHARED IMPORTED)
-add_library(pluginlib SHARED IMPORTED)
-
-# getting location of shared objects
-set_target_properties(fountain PROPERTIES IMPORTED_LOCATION "../lib/fountain/build/libfountain.so")
-set_target_properties(hxutils PROPERTIES IMPORTED_LOCATION "../lib/hxutils/build/libhxutils.so")
-set_target_properties(pluginlib PROPERTIES IMPORTED_LOCATION "../lib/pluginlib/build/libplugin.so")
-
-# copying library files to build dir
-file(COPY
-"lib/fountain/build/libfountain.so"
-"lib/hxutils/build/libhxutils.so"
-"lib/pluginlib/build/libplugin.so"
-DESTINATION ".")
-
 # linking daytrender libraries
-target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} fountain hxutils pluginlib OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} OpenSSL::SSL OpenSSL::Crypto)
 
 # setting include dirs
 target_include_directories(daytrender PRIVATE
-	"lib/fountain/build/include"
-	"lib/hxutils/build/include"
 	"lib/cpp-httplib/include"
-	"lib/picojson/include"
-	"lib/pluginlib/build/include"
+	"lib/cxx-logger/include"
+	"lib/cxx-utils/include"
+	"lib/cxx-plugin/include"
 )

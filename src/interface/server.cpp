@@ -19,9 +19,7 @@
 #include <hirzel/fileutil.h>
 #endif
 
-using JsonValue = picojson::value;
-using JsonObject = picojson::object;
-using JsonArray = picojson::array;
+using Json = picojson::value;
 
 namespace daytrender
 {
@@ -48,12 +46,12 @@ namespace daytrender
 		void get_backtest(const httplib::Request& req,  httplib::Response& res);
 		void get_accinfo(const httplib::Request& req,  httplib::Response& res);
 
-		bool init(const JsonObject& config, const std::string& dir)
+		bool init(const Json& config, const std::string& dir)
 		{
-			ip = config.at("ip").get<std::string>();
-			port = (unsigned short)config.at("port").get<double>();
-			username = config.at("username").get<std::string>();
-			password = config.at("password").get<std::string>();
+			ip = config.get("ip").get<std::string>();
+			port = (unsigned short)config.get("port").get<double>();
+			username = config.get("username").get<std::string>();
+			password = config.get("password").get<std::string>();
 
 			server.Get("/", get_root);
 			server.Get("/data", get_data);
@@ -116,7 +114,7 @@ namespace daytrender
 		{
 			DEBUG("Server GET @ %s", req.path);
 
-			JsonValue res_json;
+			Json json;
 
 			// gathering strategy names
 			// auto strat_info = strategy_names();
@@ -153,7 +151,7 @@ namespace daytrender
 			// }
 
 			// sending json object to client
-			res.set_content(res_json.serialize(), JSON_FORMAT);
+			res.set_content(json.serialize(), JSON_FORMAT);
 		}
 
 		void get_accinfo(const httplib::Request& req,  httplib::Response& res)

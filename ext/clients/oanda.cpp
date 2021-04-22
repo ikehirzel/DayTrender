@@ -40,16 +40,21 @@ bool get_candles(CandleSet& candles, const std::string& ticker)
 
 	if (res_ok(res))
 	{
-		JsonValue json_val;
-		JsonObject jres;
-		picojson::parse(json_val, res->body);
-		const JsonArray& candles_json = jres.at("candles").get<JsonArray>();
+		Data json = Data::parse_json(res->body);
+		if (json.is_error())
+		{
+			error = json.to_string();
+			return false;
+		}
 
-		if (candles_json.empty())
+		const Data& candles_json = json["candles"];
+
+		if (candles_json.empty() || !candles_json.is_array())
 		{
 			error = "no candles were received";
 			return false;
 		}
+
 		else if (candles_json.size() != candles.size())
 		{
 			error = "not all candles were received";
@@ -58,15 +63,17 @@ bool get_candles(CandleSet& candles, const std::string& ticker)
 
 		for (int i = 0; i < candles_json.size(); i++)
 		{
-			const JsonObject& candle_json = candles_json.at(i).get<JsonObject>();
-			const JsonObject& mid = candle_json.at("mid").get<JsonObject>();
+			const Data& candle = candles_json[i];
+			const Data& mid = candle["mid"];
 
-			double o = std::stod(mid.at("o").get<std::string>());
-			double h = std::stod(mid.at("h").get<std::string>());
-			double l = std::stod(mid.at("l").get<std::string>());
-			double c = std::stod(mid.at("c").get<std::string>());
-			double v = candle_json.at("volume").get<double>();
-			candles.set(i) = { o, h, l, c, v };
+			candles.set(i) =
+			{
+				candle["o"].to_double(),
+				candle["h"].to_double(),
+				candle["l"].to_double(),
+				candle["c"].to_double(),
+				candle["v"].to_double()
+			};
 		}
 
 		return true;
@@ -82,21 +89,18 @@ bool get_account_info(AccountInfo& info)
 
 	if (res_ok(res))
 	{
-		//std::cout << res->body << "\n\n";
-		JsonValue json_val;
-		std::string err = picojson::parse(json_val, res->body);
-		if (!err.empty())
+		Data json = Data::parse_json(res->body);
+		if (json.is_error())
 		{
-			std::cout << "Error: " << err << std::endl;
+			error = json.to_string();
 			return false;
 		}
-		const JsonObject& res_json = json_val.get<JsonObject>();
-		const JsonObject& acc = res_json.at("account").get<JsonObject>();
-		double balance = std::stod(acc.at("balance").get<std::string>());
-		double margin_rate = std::stod(acc.at("marginRate").get<std::string>());
-		double buying_power = std::stod(acc.at("marginAvailable").get<std::string>()) / margin_rate;
-		double margin_used = std::stod(acc.at("marginUsed").get<std::string>());
-		double equity = std::stod(acc.at("NAV").get<std::string>());
+		const Data& acc = json["account"];
+		double balance = acc["balance"].to_double();
+		double margin_rate = acc["marginRate"].to_double();
+		double buying_power = acc["marginAvailable"].to_double() / margin_rate;
+		double margin_used = acc["marginUsed"].to_double();
+		double equity = acc["NAV"].to_double();
 		int leverage = (int)(1.0 / margin_rate);
 		bool shorting_enabled = true;
 		info = { balance, buying_power, margin_used, equity, leverage, shorting_enabled };
@@ -110,116 +114,97 @@ bool market_order(const std::string& ticker, double amount)
 {
 	std::string url = "/v3/accounts/" + accountid + "/orders";
 
-	JsonValue req;
-	JsonObject& order = req.get<JsonObject>()["order"].get<JsonObject>();
-	
-	order["type"] = JsonValue("MARKET");
-	order["instrument"] = JsonValue(ticker);
-	order["units"] = JsonValue(std::to_string(amount));
+	Data req;
+	req["order"] = Data::Table({
+		{ "type", "MARKET" },
+		{ "instrument", ticker },
+		{ "units", std::to_string(amount) }
+	});
 
-	auto res = client.Post(url.c_str(), req.serialize(), JSON_FORMAT);
-	if (res_ok(res))
+	auto res = client.Post(url.c_str(), req.to_json(), JSON_FORMAT);
+	if (!res_ok(res)) return false;
+	Data json = Data::parse_json(res->body);
+
+	if (json.is_error())
 	{
-		JsonValue json;
-		std::string err = picojson::parse(json, res->body);
-		const JsonObject& res = json.get<JsonObject>();
-
-		if (!err.empty())
-		{
-			std::cout << "Oanda Client: " << err << std::endl;
-			return false;
-		}
-
-		if (res.at("orderCreateTransaction").is<picojson::null>())
-		{
-			error = "order was not created correctly";
-			return false;
-		}
-
-		if (!res.at("orderCancelTransaction").is<picojson::null>())
-		{
-			error = "order was canceled";
-			return false;
-		}
-
-		if (res.at("orderFillTransaction").is<picojson::null>())
-		{
-			error = "order was not fulfilled";
-			return false;
-		}
-
-		return true;
+		error = json.to_string();
+		return false;
 	}
-	return false;
+
+	if (json["orderCreateTransaction"].is_null())
+	{
+		error = "order was not created correctly";
+		return false;
+	}
+
+	if (json["orderCancelTransaction"].is_null())
+	{
+		error = "order was cancelled";
+		return false;
+	}
+
+	if (json["orderFillTransaction"].is_null())
+	{
+		error = "order was not fulfilled";
+		return false;
+	}
+
+	return true;
 }
 
 bool get_asset_info(AssetInfo& info, const std::string& ticker)
 {
 	// getting share count
 	std::string url = "/v3/accounts/" + accountid + "/positions/" + ticker;
-	auto response = client.Get(url.c_str());
-	if (!res_ok(response)) return false;
+	auto res = client.Get(url.c_str());
+	if (!res_ok(res)) return false;
 
-	JsonValue json;
-	std::string err = picojson::parse(json, response->body);
-	if (!err.empty())
+	Data json = Data::parse_json(res->body);
+	if (json.is_error())
 	{
-		std::cout << "Oanda Client: " << err << std::endl;
+		error = json.to_string();
 		return false;
 	}
-	const JsonObject& res = json.get<JsonObject>();
-	const JsonObject& long_json = res.at("position").get<JsonObject>().at("long").get<JsonObject>();
-	const JsonObject& short_json = res.at("position").get<JsonObject>().at("short").get<JsonObject>();
-	double longu = std::stod(long_json.at("units").get<std::string>());
-	double shortu = std::stod(short_json.at("units").get<std::string>());
-
-	if (longu > 0.0 && shortu < 0.0)
-	{
-		error = "shares were both negative and positive!";
-		return false;
-	}
+	const Data& long_json = json["position"]["long"];
+	const Data& short_json = json["position"]["short"];
 	
-	double shares = longu + shortu;	
+	double shares = short_json["units"].to_double() + long_json["units"].to_double();
 	double amt_invested = 0.0;
 
 	// long position
-	if (longu > 0.0)
+	if (shares > 0.0)
 	{
-		double avg_price = std::stod(long_json.at("averagePrice").get<std::string>());
-		amt_invested = longu * avg_price;
+		amt_invested = shares * long_json["averagePrice"].to_double();
 	}
 	// short position
-	else if (shortu < 0.0)
+	else if (shares < 0.0)
 	{
-		double avg_price = std::stod(short_json.at("averagePrice").get<std::string>());
-		amt_invested = -shortu * avg_price;
+		amt_invested = -shares * short_json["averagePrice"].to_double();
 	}
 
 	// getting fee and price
 	url = "/v3/instruments/" + ticker + "/candles?count=5000&granularity=S5&price=BAM";
-	response = client.Get(url.c_str());
-	if (!res_ok(response)) return false;
+	res = client.Get(url.c_str());
+	if (!res_ok(res)) return false;
 	
-	err = picojson::parse(json, response->body);
-	if (!err.empty())
+	json = Data::parse_json(res->body);
+	if (json.is_error())
 	{
-		std::cout << "Oanda Client: " << err << std::endl;
+		error = json.to_string();
 		return false;
 	}
-	const JsonArray& candles_json = res.at("candles").get<JsonArray>();
-	const JsonObject& last_json = candles_json.back().get<JsonObject>();
-	double price = std::stod(last_json.at("mid").get<JsonObject>().at("c").get<std::string>());
+
+	
+	auto candles = json["candles"].to_array();
+	double price = candles.back()["mid"]["c"].to_double();
 
 	// calculating half spread cost as a percentage
 	double fee = 0.0;
-	for (const JsonValue& candle : candles_json)
+	for (const Data& c : candles)
 	{
-
-		double ask = std::stod(candle.get<JsonObject>().at("ask").get<JsonObject>().at("c").get<std::string>());
-		double bid = std::stod(candle.get<JsonObject>().at("bid").get<JsonObject>().at("c").get<std::string>());
-		fee += ask - bid;
+		fee += (c["ask"]["c"].to_double() - c["bid"]["c"].to_double());
 	}
-	fee /= ((double)candles_json.size() * 2.0);
+	fee /= ((double)candles.size() * 2.0);
 	fee /= price;
 
 	// constructing info
@@ -242,9 +227,9 @@ bool set_leverage(int multiplier)
 		error = "multiplier (" + std::to_string(multiplier) + " was below minimum (1) and was capped .";
 		multiplier = 1;
 	}
-	JsonValue req;
-	req.get<JsonObject>()["marginRate"] = JsonValue(1.0 / (double)multiplier);
-	auto res = client.Patch(url.c_str(), req.serialize(), JSON_FORMAT);
+	Data req;
+	req["marginRate"] = std::to_string(1.0 / (double)multiplier);
+	auto res = client.Patch(url.c_str(), req.to_json(), JSON_FORMAT);
 	
 	return res_ok(res);
 }
@@ -252,33 +237,29 @@ bool set_leverage(int multiplier)
 bool close_all_positions()
 {
 	std::string url =  "/v3/accounts/" + accountid + "/positions";
-	auto response = client.Get(url.c_str());
+	auto res = client.Get(url.c_str());
 
-	if (res_ok(response))
+	if (res_ok(res))
 	{
 		std::string error_glob;
 		std::vector<std::string> failed_tickers;
-		JsonValue res;
-		std::string err = picojson::parse(res, response->body);
-		if (!err.empty())
+		Data json = Data::parse_json(res->body);
+		if (json.is_error())
 		{
-			std::cout << "Oanda Client: " << err << std::endl;
+			error = json.to_string();
+			return false;
 		}
-		const JsonArray& pos_json = res.get<JsonObject>().at("positions").get<JsonArray>();
-		for (int i = 0; i < pos_json.size(); i++)
+		auto positions = json["positions"].to_array();
+		for (const Data& p : positions)
 		{
-			const JsonObject& position = pos_json[i].get<JsonObject>();
-
 			// getting total units
-			double longu = std::stod(position.at("long").get<JsonObject>().at("units").get<std::string>());
-			double shortu = std::stod(position.at("short").get<JsonObject>().at("units").get<std::string>());
-			double shares = longu + shortu;
+			double shares = p["long"]["units"].to_double() + p["short"]["units"].to_double();
 
-			// if the position is still open
+			// if the position is still open, close it
 			if (shares != 0.0)
 			{
-				// get rid of the shares
-				std::string ticker = position.at("instrument").get<std::string>();
+				// get ticker
+				std::string ticker = p["instrument"].to_string();
 				// if failed, log the error 
 				if (!market_order(ticker, -shares))
 				{

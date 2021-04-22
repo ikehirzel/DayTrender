@@ -7,7 +7,7 @@
 #include "strategy.h"
 #include "client.h"
 
-#include <picojson.h>
+#include <hirzel/data.h>
 
 namespace daytrender
 {
@@ -37,7 +37,7 @@ namespace daytrender
 		}
 
 	public:
-		Asset(const picojson::object& config, const std::string& dir);
+		Asset(const hirzel::Data& config, const std::string& dir);
 		Asset() = default;
 
 		void update(Client& client);

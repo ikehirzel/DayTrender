@@ -7,7 +7,7 @@ namespace daytrender
 {
 	namespace server
 	{
-		bool init(const picojson::object& config, const std::string& dir);
+		bool init(const picojson::value& config, const std::string& dir);
 		void start();
 		void stop();
 	}
