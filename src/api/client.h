@@ -29,6 +29,7 @@ namespace daytrender
 		// api functions
 
 		// non returning
+		
 		bool (*_market_order)(const std::string&, double) = nullptr;
 		bool (*_close_all_positions)() = nullptr;
 		bool (*_set_leverage)(int) = nullptr;
@@ -114,7 +115,6 @@ namespace daytrender
 		}
 
 		// inline getter functions
-
 		inline bool bound() const { return _bound; }
 		inline const std::string& filename() const { return _filename; }
 	};

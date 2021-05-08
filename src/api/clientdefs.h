@@ -15,53 +15,85 @@
 #error KEY_COUNT must be defined!
 #endif
 
+// Daytrender files
 #include <interval.h>
 #include <accountinfo.h>
 #include <candle.h>
 #include <assetinfo.h>
 
+// for guaranteed sizes
 #include <cstdint>
 
+// external libraries
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
 #include <hirzel/data.h>
 
 using namespace daytrender;
-using namespace httplib;
 using namespace hirzel;
 
 #define JSON_FORMAT "application/json"
 
-const char* _error;
+const char *error;
 
-bool res_ok(const Result& res)
+namespace hirzel
+{
+	template <typename T>
+	class Result
+	{
+	private:
+		bool _ok = false;
+		T _value;
+		const char *_error = nullptr;
+
+	public:
+		inline Result(T value)
+		{
+			_ok = true;
+			_value = value;
+		}
+
+		inline Result(const char *error)
+		{
+			_ok = false;
+			_error = error;
+		}
+
+		inline T get()
+		{
+			if (_ok) return _value;
+			return {};
+		}
+
+		inline const char* err()
+		{
+			if (!_ok) return _error;
+			return nullptr;
+		}
+		inline bool ok() { return _ok; }
+	};
+}
+const char *res_err(const httplib::Result& res)
 {
 	if (!res)
 	{
-		error = "failed to get a response";
-		return false;
+		return "failed to get a response";
 	}
 	else if (res->status < 200 || res->status > 299)
 	{
-		error = "response status was not okay: " + std::to_string(res->status);
-		if (!res->body.empty())
-		{
-			error += ": " + res->body;
-		}
-		return false;
+		return "response status was not okay";
 	}
 	else if (res->body.empty())
 	{
-		error = "response body was empty";
-		return false;
+		return "response body was empty";
 	}
 
-	return true;
+	return nullptr;
 }
 
-Candle* get_candles(const char* ticker, uint32_t interval, uint32_t count);
-AccountInfo* get_account_info();
-AssetInfo* get_asset_info(const char* ticker);
+Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t count);
+Result<AccountInfo> get_account_info();
+Result<AssetInfo> get_asset_info(const char* ticker);
 
 extern "C"
 {
@@ -77,11 +109,19 @@ extern "C"
 	 *  Protocol:
 	 * 		
 	 */
-	const double* abi_get_candles(const char* ticker, uint32_t interval, uint32_t count)
+	double* abi_get_candles(const char* ticker, uint32_t interval, uint32_t count)
 	{
+		Result<Candle*> res = get_candles(ticker, interval, count);
+
+		if (!res.ok())
+		{
+			error = res.err();
+			return nullptr;
+		}
 
 		// call user defined function and return if failed
-		Candle* candles = get_candles(ticker, interval, count);
+		Candle* candles = res.get();
+
 		if (!candles) return nullptr;
 
 		double* data = new double[count];
@@ -95,51 +135,49 @@ extern "C"
 		}
 		// null byte at end so size does not need to be sent
 
-		return serial;
+		return data;
 	}
 
-	const char* abi_get_account_info()
+	char* abi_get_account_info()
 	{
 		// account info data
-		double balance = 0.0;
-		double buying_power = 0.0;
-		double margin_used = 0.0;
-		double equity = 0.0;
-		uint32_t leverage = 0;
 		bool shorting_enabled = false;
 
-		// confirming that the function runs correctly
-		if (!get_account_info(balance, buying_power, margin_used,
-			equity, leverage, shorting_enabled)) return nullptr;
+		Result<AccountInfo> res = get_account_info();
+
+		if (!res.ok())
+		{
+			error = res.err();
+			return nullptr;
+		}
+
+		AccountInfo info = res.get();
 
 		// creating memory buffer
-		size_t osize = 4 * sizeof(double) + sizeof(uint32_t) + sizeof(bool) + sizeof(char);
+		size_t osize = 4 * sizeof(double) + sizeof(uint32_t) + sizeof(bool);
 		char* serial = new char[osize];
-
+		
 		// moving doubles into buffer
 		double* dp = (double*)serial;
-		dp[0] = balance;
-		dp[1] = buying_power;
-		dp[2] = margin_used;
-		dp[3] = equity;
+		dp[0] = info.balance();
+		dp[1] = info.buying_power();
+		dp[2] = info.margin_used();
+		dp[3] = info.equity();
 
 		// moving integer into buffer
 		uint32_t* uip = (uint32_t*)(serial + 4 * sizeof(double));
-		uip[0] = leverage;
+		uip[0] = info.leverage();
 
 		//moving bool into buffer
 		bool* bp = (bool*)(serial + 4 * sizeof(double) + sizeof(uint32_t));
-		bp[0] = shorting_enabled;
-
-		// null byte at end so size doesn't need to be sent
-		serial[osize - 1] = 0;
+		bp[0] = info.shorting_enabled();
 
 		return serial;
 	}
 
-	const char* abi_get_asset_info(const char* ticker)
+	char* abi_get_asset_info(const char* ticker)
 	{
-
+		return nullptr;
 	}
 
 	const char* to_interval(uint32_t interval);
@@ -151,10 +189,10 @@ extern "C"
 	uint32_t key_count() { return KEY_COUNT; }
 	uint32_t max_candles() { return MAX_CANDLES; }
 	uint32_t api_version() { return CLIENT_API_VERSION; }
-	const char* error() { return _error; }
+	const char* get_error() { return error; }
 
 	// used for freeing buffer from main executable
-	void free(const char* buffer)
+	void free_buffer(const char* buffer)
 	{
 		delete buffer;
 	}

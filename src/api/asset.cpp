@@ -42,7 +42,7 @@ namespace daytrender
 	void Asset::update(Client& client)
 	{
 		// if the client or asset is currently not live, do not update
-		if (!client.is_live() || !_live) return;
+		if (!_live) return;
 
 		// if the proper amount of time has not passed, do not update
 		if ((hirzel::sys::epoch_seconds() - _last_update) < _interval) return;

@@ -3,12 +3,8 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <hirzel/plugin.h>
 #include "../data/strategydata.h"
-
-namespace hirzel
-{
-	class Plugin;
-}
 
 namespace daytrender
 {
@@ -20,7 +16,7 @@ namespace daytrender
 		// plugin info
 		bool _bound = false;
 		std::string _filename;
-		Plugin* _plugin = nullptr;
+		hirzel::Plugin* _plugin = nullptr;
 		//
 		int _indicator_count = 0;
 		int _data_length = 0;

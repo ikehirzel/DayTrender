@@ -1,5 +1,4 @@
 #define KEY_COUNT 2
-#define BACKTEST_INTERVALS MIN1, MIN5, MIN15, HOUR1
 #define MAX_CANDLES 5000
 
 #include <iostream>
@@ -18,96 +17,94 @@ bool init(const std::vector<std::string>& credentials)
 	return true;
 }
 
-bool get_candles(CandleSet& candles, const std::string& ticker)
+Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t count)
 {
-	std::string url = "/v3/instruments/" + ticker + "/candles";
+	std::string url = "/v3/instruments/" + std::string(ticker) + "/candles";
 	
-	const char* interval_str = to_interval(candles.interval());
+	const char* interval_str = to_interval(interval);
 
 	if (!interval_str)
 	{
-		error = "interval given (" + std::to_string(candles.interval()) + ") is not valid";
-		return false;
+		return "interval given is not valid";
 	}
 	
-	Params p = {
+	httplib::Params p = {
 		{ "granularity", interval_str },
-		{ "count", std::to_string(candles.size()) }
+		{ "count", std::to_string(count) }
 	};
 
-	url += '?' + detail::params_to_query_str(p);
+	url += '?' + httplib::detail::params_to_query_str(p);
 	auto res = client.Get(url.c_str());
 
-	if (res_ok(res))
+	// if there was an error, return it
+	const char *err = res_err(res);
+	if (err) return err;
+
+	Data json = Data::parse_json(res->body);
+	if (json.is_error())
 	{
-		Data json = Data::parse_json(res->body);
-		if (json.is_error())
-		{
-			error = json.to_string();
-			return false;
-		}
-
-		const Data& candles_json = json["candles"];
-
-		if (candles_json.empty() || !candles_json.is_array())
-		{
-			error = "no candles were received";
-			return false;
-		}
-
-		else if (candles_json.size() != candles.size())
-		{
-			error = "not all candles were received";
-			return false;
-		}
-
-		for (int i = 0; i < candles_json.size(); i++)
-		{
-			const Data& candle = candles_json[i];
-			const Data& mid = candle["mid"];
-
-			candles.set(i) =
-			{
-				candle["o"].to_double(),
-				candle["h"].to_double(),
-				candle["l"].to_double(),
-				candle["c"].to_double(),
-				candle["v"].to_double()
-			};
-		}
-
-		return true;
+		return "json failed to parse";
 	}
 
-	return false;
+	const Data& candles_json = json["candles"];
+
+	if (candles_json.empty() || !candles_json.is_array())
+	{
+		return "no candles were received";
+	}
+	else if (candles_json.size() != count)
+	{
+		return "not all candles were received";
+	}
+
+	Candle *out = new Candle[count];
+
+	for (int i = 0; i < count; i++)
+	{
+		const Data& candle = candles_json[i];
+		const Data& mid = candle["mid"];
+		
+		out[i] =
+		{
+			mid["o"].to_double(),
+			mid["h"].to_double(),
+			mid["l"].to_double(),
+			mid["c"].to_double(),
+			candle["volume"].to_double()
+		};
+	}
+
+	return out;
 }
 
-bool get_account_info(AccountInfo& info)
+Result<AccountInfo> get_account_info()
 {
 	std::string url = "/v3/accounts/" + accountid + "/summary";
 	auto res = client.Get(url.c_str());
 
-	if (res_ok(res))
+	const char *err = res_err(res);
+	if (err) return err;
+
+	Data json = Data::parse_json(res->body);
+
+	if (json.is_error())
 	{
-		Data json = Data::parse_json(res->body);
-		if (json.is_error())
-		{
-			error = json.to_string();
-			return false;
-		}
-		const Data& acc = json["account"];
-		double balance = acc["balance"].to_double();
-		double margin_rate = acc["marginRate"].to_double();
-		double buying_power = acc["marginAvailable"].to_double() / margin_rate;
-		double margin_used = acc["marginUsed"].to_double();
-		double equity = acc["NAV"].to_double();
-		int leverage = (int)(1.0 / margin_rate);
-		bool shorting_enabled = true;
-		info = { balance, buying_power, margin_used, equity, leverage, shorting_enabled };
-		return true;
+		return "json failed to parse";
 	}
 
-	return false;
+	const Data& acc = json["account"];
+
+	double margin_rate = acc["marginRate"].to_double();
+
+	return AccountInfo
+	{
+		acc["balance"].to_double(),
+		acc["marginAvailable"].to_double() / margin_rate,
+		acc["marginUsed"].to_double(),
+		acc["NAV"].to_double(),
+		(int)(1.0 / margin_rate),
+		true
+	};
 }
 
 bool market_order(const std::string& ticker, double amount)
@@ -122,12 +119,16 @@ bool market_order(const std::string& ticker, double amount)
 	});
 
 	auto res = client.Post(url.c_str(), req.to_json(), JSON_FORMAT);
-	if (!res_ok(res)) return false;
+
+	// if error exit
+	error = res_err(res);
+	if (error) return false;
+
 	Data json = Data::parse_json(res->body);
 
 	if (json.is_error())
 	{
-		error = json.to_string();
+		error = "json failed to parse";
 		return false;
 	}
 
@@ -157,12 +158,14 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 	// getting share count
 	std::string url = "/v3/accounts/" + accountid + "/positions/" + ticker;
 	auto res = client.Get(url.c_str());
-	if (!res_ok(res)) return false;
+
+	error = res_err(res);
+	if (error) return false;
 
 	Data json = Data::parse_json(res->body);
 	if (json.is_error())
 	{
-		error = json.to_string();
+		error = "json failed to parse";
 		return false;
 	}
 	const Data& long_json = json["position"]["long"];
@@ -185,12 +188,16 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 	// getting fee and price
 	url = "/v3/instruments/" + ticker + "/candles?count=5000&granularity=S5&price=BAM";
 	res = client.Get(url.c_str());
-	if (!res_ok(res)) return false;
+
+	// exit if error
+	error = res_err(res);
+	if (error) return false;
+	
 	
 	json = Data::parse_json(res->body);
 	if (json.is_error())
 	{
-		error = json.to_string();
+		error = "json failed to parse";
 		return false;
 	}
 
@@ -219,19 +226,21 @@ bool set_leverage(int multiplier)
 	client.Patch(url.c_str());
 	if (multiplier > 50)
 	{
-		error = "multiplier (" + std::to_string(multiplier) + " was over maximum (50) and was capped.";
+		error = "multiplier was over maximum (50) and has been capped";
 		multiplier = 50;
 	}
 	else if (multiplier < 1)
 	{
-		error = "multiplier (" + std::to_string(multiplier) + " was below minimum (1) and was capped .";
+		error = "multiplier was below minimum (1) and has been capped";
 		multiplier = 1;
 	}
 	Data req;
 	req["marginRate"] = std::to_string(1.0 / (double)multiplier);
 	auto res = client.Patch(url.c_str(), req.to_json(), JSON_FORMAT);
 	
-	return res_ok(res);
+	error = res_err(res);
+	if (error) return false;
+	return true;
 }
 
 bool close_all_positions()
@@ -239,55 +248,46 @@ bool close_all_positions()
 	std::string url =  "/v3/accounts/" + accountid + "/positions";
 	auto res = client.Get(url.c_str());
 
-	if (res_ok(res))
+	// exit if error
+	error = res_err(res);
+	if (error) return false;
+
+
+	std::string error_glob;
+	std::vector<std::string> failed_tickers;
+	Data json = Data::parse_json(res->body);
+	if (json.is_error())
 	{
-		std::string error_glob;
-		std::vector<std::string> failed_tickers;
-		Data json = Data::parse_json(res->body);
-		if (json.is_error())
-		{
-			error = json.to_string();
-			return false;
-		}
-		auto positions = json["positions"].to_array();
-		for (const Data& p : positions)
-		{
-			// getting total units
-			double shares = p["long"]["units"].to_double() + p["short"]["units"].to_double();
+		error = "json failed to parse";
+		return false;
+	}
+	auto positions = json["positions"].to_array();
+	for (const Data& p : positions)
+	{
+		// getting total units
+		double shares = p["long"]["units"].to_double() + p["short"]["units"].to_double();
 
-			// if the position is still open, close it
-			if (shares != 0.0)
+		// if the position is still open, close it
+		if (shares != 0.0)
+		{
+			// get ticker
+			std::string ticker = p["instrument"].to_string();
+			// if failed, log the error 
+			if (!market_order(ticker, -shares))
 			{
-				// get ticker
-				std::string ticker = p["instrument"].to_string();
-				// if failed, log the error 
-				if (!market_order(ticker, -shares))
-				{
-					error_glob += ticker + ": " + error + ". ";
-					failed_tickers.push_back(ticker);
-				}
+				error_glob += ticker + ": " + error + ". ";
+				failed_tickers.push_back(ticker);
 			}
 		}
-
-		// globbing all errors from trying to close all positions
-		if (!failed_tickers.empty())
-		{
-			error = "failed to close assets: ";
-			for (int i = 0; i < failed_tickers.size(); i++)
-			{
-				if (i > 0)
-				{
-					error += ", ";
-				}
-				error += failed_tickers[i];
-			}
-			error += " ::: " + error_glob;
-			return false;
-		}
-		return true;
 	}
 
-	return false;
+	// globbing all errors from trying to close all positions
+	if (!failed_tickers.empty())
+	{
+		error = "failed to close all assets";
+		return false;
+	}
+	return true;
 }
 
 bool secs_till_market_close(int& seconds)

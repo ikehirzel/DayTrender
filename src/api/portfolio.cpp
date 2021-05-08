@@ -37,7 +37,9 @@ namespace daytrender
 			ERROR("assets must be an array");
 			return;
 		}
-		if (!json_vars_are_arrays(config, check_array)) return;
+		
+		int history_length = config["h
+
 		if (!json_vars_are_positive(config, check_positive)) return;
 	
 		_client = Client(config.get("client"), dir);
