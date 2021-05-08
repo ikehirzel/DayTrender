@@ -81,11 +81,11 @@ namespace daytrender
 		}
 	}
 
-	Client::Client(const std::string& filepath) :
-	_filepath(filepath)
+	Client::Client(const std::string& filename, const std::string& dir) :
+	_filename(filename)
 	{
 		// get plugin
-		_plugin = get_plugin(filepath);
+		_plugin = get_plugin(dir + filename);
 	}
 
 	#define FUNC_CHECK() { if (!_plugin) return "client is not bound"; }

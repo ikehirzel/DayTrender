@@ -19,7 +19,6 @@ namespace daytrender
 		std::vector<int> _ranges;
 		CandleSet _candles;
 
-
 	public:
 		inline void enter_long() { _action = Action::ENTER_LONG; }
 		inline void exit_long() { _action = Action::EXIT_LONG; }
@@ -27,7 +26,7 @@ namespace daytrender
 		inline void exit_short() { _action = Action::EXIT_SHORT; }
 
 		StrategyData() = default;
-		StrategyData(const std::vector<int>& ranges, const CandleSet& candles);
+		StrategyData(const std::vector<int>& ranges, const CandleSet& candles, unsigned window);
 		StrategyData(const StrategyData& other);
 		StrategyData(StrategyData&& other);
 		~StrategyData();

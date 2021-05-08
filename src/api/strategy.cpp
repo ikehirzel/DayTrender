@@ -61,10 +61,10 @@ namespace daytrender
 		_bound = true;
 	}
 
-	StrategyData Strategy::execute(const CandleSet& candles, const std::vector<int>& ranges) const
+	StrategyData Strategy::execute(const CandleSet& candles, const std::vector<int>& ranges, unsigned window) const
 	{
 
-		StrategyData data(ranges, candles);
+		StrategyData data(ranges, candles, window);
 
 		if (!_execute)
 		{

@@ -63,7 +63,7 @@ namespace daytrender
 		~CandleSet();
 
 		CandleSet& operator=(const CandleSet& other);
-		inline Result<CandleSet> slice(unsigned offset, unsigned size, unsigned end)
+		inline Result<CandleSet> slice(unsigned offset, unsigned size)
 		{
 			if (!_data) return "parent data is uninitialized";
 			if (offset + size > _size) return "slice range is out of parent's bounds";

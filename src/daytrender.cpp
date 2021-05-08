@@ -13,7 +13,9 @@
 
 // external libraries
 #include <hirzel/logger.h>
-
+#include <hirzel/util/file.h>
+#include <hirzel/util/str.h>
+#include <hirzel/util/sys.h>
 
 using namespace hirzel;
 
@@ -29,7 +31,7 @@ namespace daytrender
 
 		std::string dir = std::filesystem::current_path().string() + "/" + execpath;
 
-		std::string clients_str = file::read_file_as_string(dir + "/clients.json");
+		std::string clients_str = file::read(dir + "/clients.json");
 
 		if (clients_str.empty())
 		{
@@ -41,7 +43,7 @@ namespace daytrender
 			SUCCESS("SUCCESSully loaded clients.json");
 		}
 
-		std::string server_str = file::read_file_as_string(dir + "/server.json");
+		std::string server_str = file::read(dir + "/server.json");
 
 		if (server_str.empty())
 		{
@@ -53,69 +55,21 @@ namespace daytrender
 			SUCCESS("SUCCESSully loaded server.json");
 		}
 
-		Json json;
-		std::string err = picojson::parse(json, server_str);
-
-		if (!err.empty())
+		Data server_config = Data::parse_json(server_str);
+		if (server_config.is_error())
 		{
-			ERROR("Portfolio config: %s", err);
+			ERROR("server.json: %s", server_config.to_string());
 			return false;
 		}
 
-		if(!server::init(json, dir))
-		{
-			ERROR("Failed to initialize server! aborting...");
-			mtx.unlock();
-			return false;
-		}
+		// if(!server::init(json, dir))
+		// {
+		// 	ERROR("Failed to initialize server! aborting...");
+		// 	mtx.unlock();
+		// 	return false;
+		// }
 
 		return true;
-		
-		///////////////////////////////////////////////
-
-		// std::cout << "Getting account\n";
-		// auto acct = clients[0]->get_account_info();
-		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
-
-		// clients[0]->enter_long("EUR_USD", 0.1);
-
-		// sys::thread_sleep(1000);
-		// std::cout << "Getting account\n";
-		// acct = clients[0]->get_account_info();
-		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
-
-		// //std::cout << "Exiting\n";
-		// clients[0]->exit_long("EUR_USD");
-
-		// sys::thread_sleep(1000);
-		// std::cout << "Getting account\n";
-		// acct = clients[0]->get_account_info();
-		// printfmt("Balance: %f\nBuying_power: %f\nEquity: %f\nLeverage: %d\n\n", acct.balance(), acct.buying_power(), acct.equity(), acct.leverage());
-
-
-		////////////////////////////////////////////
-
-		// PaperAccount acc(500.0, 10, 0.0, 1.0, 2.0, true, 300, { 1, 2, 3 });
-		// acc.handle_action(Action::ENTER_SHORT);
-		// std::cout << "Enter long " << acc << std::endl;
-		// acc.update_price(1.5);
-		// std::cout << "Update " << acc << std::endl;
-		// acc.handle_action(Action::EXIT_SHORT);
-		// std::cout << "Exit short " << acc << std::endl;
-		// std::cout << "Error: " << acc.error() << std::endl;
-
-		////////////////////////////////////////////
-
-		// auto res = interface::backtest(0, 0, 500, true, 5, 155, 10, { });
-		// for (int i = 0; i < res.size(); i++)
-		// {
-		// 	std::cout << "Account " << i+1 << ' ' << res[i] << std::endl;
-		// 	//break;
-			
-		// }
-		// std::cout << "\n\n";
-		// assets[0]->update();
-		// std::cout << "\n\n";
 	}
 
 	void start()
@@ -126,7 +80,7 @@ namespace daytrender
 		std::thread shell_thread(shell::get_input);
 		shell_thread.detach();
 
-		std::thread server_thread(server::start);
+		// std::thread server_thread(server::start);
 
 		while (running)
 		{
@@ -135,11 +89,11 @@ namespace daytrender
 				portfolio.update();
 			}
 			
-			sys::thread_sleep(1000);
+			sys::sleep_millis(1000);
 		}
 
-		server::stop();
-		server_thread.join();
+		// server::stop();
+		// server_thread.join();
 	}
 
 	void stop()
@@ -164,7 +118,7 @@ namespace daytrender
 
 int main(int argc, char *argv[])
 {
-	hirzel::fountain::init("./report.log", true, true, false, 1);
+	hirzel::logger::init();
 
 	if (!daytrender::init(hirzel::str::get_folder(argv[0])))
 	{

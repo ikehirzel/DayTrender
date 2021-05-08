@@ -2,7 +2,7 @@
 
 #include "../daytrender.h"
 
-#include <hirzel/fountain.h>
+#include <hirzel/logger.h>
 
 #include <future>
 #include <chrono>
@@ -32,7 +32,8 @@ namespace daytrender
 
 			for (long i = 0; i < candles.size() - candle_count; i++)
 			{
-				CandleSet slice = candles.slice(i, candle_count, strat->data_length());
+				Result<CandleSet> slice_res = candles.slice(i, candle_count);
+				CandleSet slice = 
 
 				if (slice.error())
 				{

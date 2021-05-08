@@ -98,7 +98,7 @@ namespace daytrender
 		{
 			_assets[i] = Asset(assets_json[i], dir);
 		}
-		
+
 		_live = true;
 	}
 
@@ -107,98 +107,93 @@ namespace daytrender
 	{
 		int till_close = _client.secs_till_market_close();
 
-		if (_live)
+		if (till_close <= _closeout_buffer) return;
+	
+		// updating pl of client
+		Result<AccountInfo> res = _client.get_account_info();
+		if (!res.ok())
 		{
-			// updating pl of client
-			AccountInfo info = _client.get_account_info();
-			long long curr_time = hirzel::sys::epoch_seconds();
-			_equity_history.push_back({ curr_time, info.equity() });
+			ERROR("%s (%s): %s", _client.filename(), _label, res.error());
+			return;
+		}
 
-			while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))
-			{
-				_equity_history.erase(_equity_history.begin());
-			}
+		AccountInfo info = res.get();
 
-			double prev_equity = _equity_history.front().second;
-			_pl = info.equity() - prev_equity;
+		long long curr_time = hirzel::sys::epoch_seconds();
+		_equity_history.push_back({ curr_time, info.equity() });
 
-			// account has lost too much in last interval
-			if (_pl <= prev_equity * -_max_loss)
-			{
-				ERROR("client '%s' has undergone %f loss in the last %f hours! Closing all position...", _filename, _pl, _history_length);
-				close_all_positions();
-				_bound = false;
-				ERROR("client '%s' has gone offline!", _filename);
-				return;
-			}
+		while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))
+		{
+			_equity_history.erase(_equity_history.begin());
+		}
 
-			// checking to see if in range of closeout buffer
+		double prev_equity = _equity_history.front().second;
+		_pl = info.equity() - prev_equity;
+
+		// account has lost too much in last interval
+		if (_pl <= prev_equity * -_max_loss)
+		{
+			ERROR("%s has undergone $%f loss in the last %f hours! Closing all position...", _label, _pl, _history_length);
 			
-			if (till_close <= _closeout_buffer)
+			if (!_client.close_all_positions())
 			{
-				INFO("Client '%s': Market will close in %d minutes. Closing all positions...", _filename, _closeout_buffer / 60);
-				_live = false;
-				if (!close_all_positions())
-				{
-					ERROR("Client '%s': Failed to close positions!", _filename);
-				}
+				ERROR("%s (%s): %s", _client.filename(), _label, _client.get_error());
 			}
+
+			ERROR("%s trading has ceased!", _label);
+			return;
 		}
-		else
+
+		// checking to see if in range of closeout buffer
+		
+		if (till_close <= _closeout_buffer)
 		{
-			if (till_close > 0)
+			INFO("%s market will close in %d minutes. Closing all positions...", _label, _closeout_buffer / 60);
+			if (!_client.close_all_positions())
 			{
-				_live = true;
+				ERROR("%s (%s): %s", _client.filename(), _label, _client.get_error());
 			}
 		}
 
 
-
-		/****
-		 * ASSET UPATE CODE
-		 *////
-
-
-		// bool res = false;
-		// switch (_data.action())
-		// {
-		// case ENTER_LONG:
-		// 	res = client.enter_long(_ticker, _risk);
-		// 	break;
-
-		// case EXIT_LONG:
-		// 	res = client.exit_long(_ticker);
-		// 	SUCCESS("%s: Exited long position", _ticker);
-		// 	break;
-
-		// case ENTER_SHORT:
-		// 	res = client.enter_short(_ticker, _risk);
-		// 	SUCCESS("%s: Entered short position", _ticker);
-		// 	break;
-
-		// case EXIT_SHORT:
-		// 	res = client.exit_short(_ticker);
-		// 	SUCCESS("%s: Exited short position", _ticker);
-		// 	break;
-
-		// case NOTHING:
-		// 	res = true;
-		// 	SUCCESS("%s: No action taken", _ticker);
-		// 	break;
-
-		// default:
-		// 	ERROR("%s: Invalid action received from strategy: %d", _ticker, _data.action());
-		// 	_live = false;
-		// 	break;
-		// }
-
-		// if (!res)
-		// {
-		// 	_live = false;
-		// 	ERROR("%s: Failed to handle action. Asset is no longer live.", _ticker);
-		// }
+		for (Asset& asset : _assets)
+		{
+			unsigned action = asset.update(_client);
 
 
+			bool res = false;
+			switch (action)
+			{
+			case ENTER_LONG:
+				enter_position(asset, false);
+				break;
+
+			case EXIT_LONG:
+				exit_position(asset, false);
+				break;
+
+			case ENTER_SHORT:
+				enter_position(asset, true);
+				break;
+
+			case EXIT_SHORT:
+				exit_position(asset, true);
+				break;
+
+			case NOTHING:
+				INFO("%s (%s): No action taken", asset.ticker(), _label);
+				break;
+
+			case ERROR:
+				ERROR("%s (%s): failed to update", asset.ticker(), _label);
+				break;
+
+			default:
+				ERROR("%s (%s): Invalid action received from strategy: %d",
+					asset.ticker(), _label, action);
+				break;
+			}
+		}
 	}
 
 	/**
@@ -211,74 +206,84 @@ namespace daytrender
 	 * @return	the amount of shares to order
 	 */
 
-	void Portfolio::enter_position(const std::string& ticker)
+	void Portfolio::enter_position(const Asset& asset, bool short_shares)
 	{
-		///
-		//	REMOVE THESE LATER
-		double asset_risk = 0.0;
-		bool short_shares = false;
-		////////////////////////
-
-
-
 		// if not buying anything, exit
-		if (asset_risk == 0.0) return;
+		if (asset.risk() == 0.0) return;
 
 		// will be -1.0 if short_shares is true or 1.0 if it's false
 		double multiplier = (double)short_shares * -2.0 + 1.0;
 
 		// getting current account information
-		AccountInfo account = _client.get_account_info();
+		Result<AccountInfo> acc_res = _client.get_account_info();
+
+		if (!acc_res.ok())
+		{
+			ERROR("%s: %s", _label, acc_res.error());
+			return;
+		}
+
+		AccountInfo acc_info = acc_res.get();
+
+		Result<AssetInfo> asset_res = _client.get_asset_info(asset.ticker());
+
+		if (!asset_res.ok())
+		{
+			ERROR("%s (%s): %s", asset.ticker(), _label, asset_res.error());
+			return;
+		}
+
 		// getting position info
-		AssetInfo asset = _client.get_asset_info(ticker);
+		AssetInfo asset_info = asset_res.get();
 
 		// base buying power
-		double buying_power = (account.buying_power() + account.margin_used()) * _risk
-			* (asset_risk / _risk_sum);
+		double buying_power = (acc_info.buying_power() + acc_info.margin_used())
+			* _risk * (asset.risk() / risk_sum());
 
 		// if we are already in a position of the same type as requested
-		if (asset.shares() * multiplier > 0.0)
+		if (asset_info.shares() * multiplier > 0.0)
 		{
 			// remove the current share of the buying power
-			buying_power -= asset.amt_invested();
+			buying_power -= asset_info.amt_invested();
 		}
 		// we are in a position that is opposite to type requested
-		else if (asset.shares() * multiplier < 0.0)
+		else if (asset_info.shares() * multiplier < 0.0)
 		{
 			// calculate returns upon exiting position for correct buying power calculation
-			buying_power += asset.shares() * asset.price() * (1.0 - multiplier * asset.fee());
+			buying_power += asset_info.shares() * asset_info.price() * (1.0 - multiplier * asset_info.fee());
 		}
 
-		double shares = multiplier * std::floor(((buying_power / (1.0 + asset.fee())) / asset.price()) / asset.minimum()) * asset.minimum();
+		double shares = multiplier * std::floor(((buying_power / (1.0 + asset_info.fee())) / asset_info.price()) / asset_info.minimum()) * asset_info.minimum();
 		INFO("Placing order for %f shares!!!", shares);
 		
-		_client.market_order(ticker, shares);
+		_client.market_order(asset.ticker(), shares);
 	}
 
-	void Portfolio::exit_position(const std::string& ticker)
+	void Portfolio::exit_position(const Asset& asset, bool short_shares)
 	{
-		///
-		// REMOVE THESE LATER
-		bool short_shares = false;
-		//////////////////////
-
 		double multiplier = (double)short_shares * -2.0 + 1.0;
-		AssetInfo info = _client.get_asset_info(ticker);
-		// if we are in a short position or have no shares, do nothing
-		INFO("%s: Exiting position of %f shares", ticker, info.shares());
-		if (info.shares() * multiplier <= 0.0) return;
-		// exit position
-		_client.market_order(ticker, -info.shares());
-	}
-
-
-	void Portfolio::update()
-	{
-		_client.update();
-
-		for (Asset& asset : _assets)
+		Result<AssetInfo> asset_res = _client.get_asset_info(asset.ticker());
+		if (!asset_res.ok())
 		{
-			asset.update(_client);
+			ERROR("%s (%s): %s", asset.ticker(), _label, asset_res.error());
+			return;
+		}
+
+		AssetInfo info = asset_res.get();
+
+		// if we are in a short position or have no shares, do nothing
+		if (info.shares() * multiplier <= 0.0) return;
+
+		// exit position
+		if (!_client.market_order(asset.ticker(), -info.shares()))
+		{
+			ERROR("%s (%s): Failed to exit position of %f shares",
+				asset.ticker(), _label, info.shares());
+		}
+		else
+		{
+			SUCCESS("%s (%s): Successfully exited position of %f shares",
+				asset.ticker(), _label, info.shares());
 		}
 	}
 

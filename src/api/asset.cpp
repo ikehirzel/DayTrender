@@ -58,7 +58,12 @@ namespace daytrender
 		CandleSet candles = res.get();
 
 		// processing the candlestick data gotten from client
-		_data = _strategy.execute(candles, _ranges);
+
+		///
+		///
+		/// REPLACE THE MAGIC NUMBER BELOW
+		///
+		_data = _strategy.execute(candles, _ranges, 15);
 
 		// error handling
 		if (_data.error())

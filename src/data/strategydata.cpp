@@ -2,7 +2,8 @@
 
 namespace daytrender
 {
-	StrategyData::StrategyData(const std::vector<int>& ranges, const CandleSet& candles)
+	StrategyData::StrategyData(const std::vector<int>& ranges,
+		const CandleSet& candles, unsigned window)
 	{
 		_ranges = ranges;
 
@@ -10,9 +11,10 @@ namespace daytrender
 		_capacity = ranges.size();
 		_dataset = new Indicator[_capacity];
 
+		// initializing all the indicators to same size
 		for (int i = 0; i < _capacity; i++)
 		{
-			_dataset[i] = { candles.end() };
+			_dataset[i] = { window };
 		}
 	}
 

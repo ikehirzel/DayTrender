@@ -29,8 +29,8 @@ namespace daytrender
 		std::vector<Asset> _assets;
 		std::vector<std::pair<long long, double>> _equity_history;
 
-		void enter_position(const std::string& ticker);
-		void exit_position(const std::string& ticker);
+		void enter_position(const Asset& asset, bool short_shares);
+		void exit_position(const Asset& asset, bool short_shares);
 
 	public:
 		Portfolio() = default;
