@@ -1,9 +1,7 @@
 #ifndef CLIENTDEFS_H
 #define CLIENTDEFS_H
 
-#define CLIENT_API_VERSION 1
-
-//#ifndef API_VERSION_CHECK
+#include <api_versions.h>
 
 #ifndef MAX_CANDLES
 #define MAX_CANDLES
@@ -20,6 +18,7 @@
 #include <accountinfo.h>
 #include <candle.h>
 #include <assetinfo.h>
+#include <api_versions.h>
 
 // for guaranteed sizes
 #include <cstdint>
@@ -91,10 +90,12 @@ const char *res_err(const httplib::Result& res)
 	return nullptr;
 }
 
+// functions that must be defined by user
 Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t count);
 Result<AccountInfo> get_account_info();
 Result<AssetInfo> get_asset_info(const char* ticker);
 
+// functions for the c api interface
 extern "C"
 {
 	// non-returning functions
@@ -197,4 +198,5 @@ extern "C"
 		delete buffer;
 	}
 }
+
 #endif

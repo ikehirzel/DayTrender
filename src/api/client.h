@@ -17,6 +17,7 @@ namespace daytrender
 	{
 	private:
 		static std::unordered_map<std::string, hirzel::Plugin*> _plugins;
+		static hirzel::Plugin *get_plugin(const std::string& filepath);
 
 		mutable bool _bound = false;
 		hirzel::Plugin* _plugin = nullptr;
@@ -60,27 +61,6 @@ namespace daytrender
 		Client(const std::string& filepath);
 
 		static void free_plugins();
-
-		void update();
-
-		inline bool enter_long(const std::string& ticker, double pct)
-		{
-			return enter_position(ticker, pct, false);
-		}
-
-		inline bool enter_short(const std::string& ticker, double pct)
-		{
-			return enter_position(ticker, pct, true);
-		}
-
-		inline bool exit_long(const std::string& ticker)
-		{
-			return exit_position(ticker, false);
-		}
-		inline bool exit_short(const std::string& ticker)
-		{
-			return exit_position(ticker, true);
-		}
 
 		// api functions
 

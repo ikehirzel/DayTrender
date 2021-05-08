@@ -1,19 +1,19 @@
 #include "daytrender.h"
 
-#include <hirzel/fileutil.h>
-#include <hirzel/strutil.h>
-#include <hirzel/sysutil.h>
-#include <hirzel/fountain.h>
-
+// project inlcudes
 #include "api/portfolio.h"
 #include "interface/interface.h"
 #include "interface/shell.h"
-#include "interface/server.h"
-#include "util/jsonutil.h"
+//#include "interface/server.h"
 
+// standard libararies
 #include <filesystem>
 #include <thread>
 #include <mutex>
+
+// external libraries
+#include <hirzel/logger.h>
+
 
 using namespace hirzel;
 

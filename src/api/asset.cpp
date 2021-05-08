@@ -34,18 +34,13 @@ namespace daytrender
 		double kelly = acc.kelly_criterion();
 		_risk = (kelly >= 0.0 ? kelly : 0.0);
 		*/
-
-		_bound = true;
-		_live = true;
 	}
 	
-	void Asset::update(Client& client)
+	unsigned Asset::update(Client& client)
 	{
-		// if the client or asset is currently not live, do not update
-		if (!_live) return;
-
 		// if the proper amount of time has not passed, do not update
-		if ((hirzel::sys::epoch_seconds() - _last_update) < _interval) return;
+		if ((hirzel::sys::epoch_seconds() - _last_update) < _interval) return NOTHING;
+
 		// updating previously updated time
 		long long curr_time = hirzel::sys::epoch_seconds();
 		_last_update = curr_time - (curr_time % _interval);
@@ -58,7 +53,7 @@ namespace daytrender
 		if (candles.error())
 		{
 			ERROR("%s: CandleSet error: %s", _ticker, candles.error());
-			return;
+			return NOTHING;
 		}
 
 		// processing the candlestick data gotten from client
@@ -68,52 +63,15 @@ namespace daytrender
 		if (_data.error())
 		{
 			ERROR("%s: Algorithm: %s", _ticker, _data.error());
-			return;
+			return NOTHING;
 		}
 
 		if (_data.candles().error())
 		{
 			ERROR("%s: Algorithm candles: %s", _ticker, _data.candles().error());
-			return;
+			return NOTHING;
 		}
 		
-		bool res = false;
-		switch (_data.action())
-		{
-		case ENTER_LONG:
-			res = client.enter_long(_ticker, _risk);
-			break;
-
-		case EXIT_LONG:
-			res = client.exit_long(_ticker);
-			SUCCESS("%s: Exited long position", _ticker);
-			break;
-
-		case ENTER_SHORT:
-			res = client.enter_short(_ticker, _risk);
-			SUCCESS("%s: Entered short position", _ticker);
-			break;
-
-		case EXIT_SHORT:
-			res = client.exit_short(_ticker);
-			SUCCESS("%s: Exited short position", _ticker);
-			break;
-
-		case NOTHING:
-			res = true;
-			SUCCESS("%s: No action taken", _ticker);
-			break;
-
-		default:
-			ERROR("%s: Invalid action received from strategy: %d", _ticker, _data.action());
-			_live = false;
-			break;
-		}
-
-		if (!res)
-		{
-			_live = false;
-			ERROR("%s: Failed to handle action. Asset is no longer live.", _ticker);
-		}
+		return _data.action();
 	}
 }

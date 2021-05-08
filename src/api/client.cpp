@@ -7,14 +7,79 @@
 #include <hirzel/plugin.h>
 #include <hirzel/logger.h>
 
-#define API_VERSION_CHECK
-#include "clientdefs.h"
+#include "api_versions.h"
 
 using namespace hirzel;
 
 namespace daytrender
 {
 	std::unordered_map<std::string, hirzel::Plugin*> Client::_plugins;
+
+	const char *client_api_func_names[] =
+	{
+		"init",
+		"api_version",
+		"get_candles"
+	};
+
+	// gets plugin by filepath and caches it if it had to load a new one
+	Plugin *Client::get_plugin(const std::string& filepath)
+	{
+		Plugin *plugin = _plugins[filepath];
+		// if the plugin is not already cached, attempt to cache it
+		if (!plugin)
+		{
+			plugin = new hirzel::Plugin(filepath);
+
+			// if plugin has errors, log, delete and exit
+			if (plugin->error())
+			{
+				ERROR("%s: error: %s", filepath, plugin->error());
+				delete plugin;
+				return nullptr;
+			}
+			
+			// Binding all of the plugin functions
+			#define FUNC_PAIR(x) { (void(**)())&_##x, #x }
+			// preparing vector so functions can be iterated over
+			std::vector<std::pair<void(**)(), const char*>> funcs =
+			{
+				FUNC_PAIR(init),
+				FUNC_PAIR(api_version),
+				FUNC_PAIR(get_candles),
+				FUNC_PAIR(get_account_info),
+				FUNC_PAIR(get_asset_info),
+				FUNC_PAIR(market_order),
+				FUNC_PAIR(close_all_positions),
+				FUNC_PAIR(secs_till_market_close),
+				FUNC_PAIR(set_leverage),
+				FUNC_PAIR(to_interval),
+				FUNC_PAIR(key_count),
+				FUNC_PAIR(max_candles),
+				FUNC_PAIR(backtest_intervals),
+				FUNC_PAIR(get_error)
+			};
+
+			// checking if every function bound correctly
+			for (const std::pair<void(**)(), const char*>& f: funcs)
+			{
+				*f.first = plugin->bind_function(f.second);
+
+				// if failed to bind, log it and exit
+				if (!*f.first)
+				{
+					ERROR("%s: function '%s' failed to bind", filepath, f.second);
+					delete plugin;
+					return nullptr;
+				}
+			}
+
+			// cache plugin
+			_plugins[filepath] = plugin;
+		}
+
+		return plugin;
+	}
 
 	void Client::free_plugins()
 	{
@@ -24,221 +89,31 @@ namespace daytrender
 		}
 	}
 
-	#define FUNC_PAIR(x) { (void(**)())&_##x, #x }
-
 	Client::Client(const std::string& filepath) :
 	_filename(str::get_filename(filepath))
 	{
-		_plugin = _plugins[filepath];
-		// if the plugin is not already cached, attempt to cache it
-		if (!_plugin)
-		{
-			_plugin = new hirzel::Plugin(filepath);
-			// if plugin has errors, log, delete and exit
-			if (_plugin->error())
-			{
-				ERROR("%s: error: %s", _filename, _plugin->error());
-				delete _plugin;
-				return;
-			}
-			// cache plugin
-			_plugins[filepath] = _plugin;
-		}
-
-		// preparing vector so functions can be iterated over
-		std::vector<std::pair<void(**)(), const char*>> funcs =
-		{
-			FUNC_PAIR(init),
-			FUNC_PAIR(api_version),
-			FUNC_PAIR(get_candles),
-			FUNC_PAIR(get_account_info),
-			FUNC_PAIR(get_asset_info),
-			FUNC_PAIR(market_order),
-			FUNC_PAIR(close_all_positions),
-			FUNC_PAIR(secs_till_market_close),
-			FUNC_PAIR(set_leverage),
-			FUNC_PAIR(to_interval),
-			FUNC_PAIR(key_count),
-			FUNC_PAIR(max_candles),
-			FUNC_PAIR(backtest_intervals),
-			FUNC_PAIR(get_error)
-		};
-
-		// checking if every function bound correctly
-		for (const std::pair<void(**)(), const char*>& f: funcs)
-		{
-			*f.first = _plugin->bind_function(f.second);
-
-			// if it didn't, create an error
-			if (!*f.first)
-			{
-				flag_error();
-				return;
-			}
-		}
-
-		// verifying api version of client matches current one
-		int api_version = _api_version();
-		if (api_version != CLIENT_API_VERSION)
-		{
-			ERROR("%s: api version for (%d) did not match current api version: %d)", api_version, CLIENT_API_VERSION);
-			return;
-		}
-
-		// verifying that the correct amount of credentials passed
-		int key_count = _key_count();
-		if (key_count != keys.size())
-		{
-			ERROR("%s: expected %d keys but %d were supplied.", _filename, key_count, keys.size());
-			return;
-		}
-		
-		// initializing the client
-		if (!_init(keys))
-		{
-			flag_error();
-			return;
-		}
-
-		// setting client leverage
-		if (!_set_leverage(leverage))
-		{
-			flag_error();
-			return;
-		}
+		// get plugin
+		_plugin = get_plugin(filepath);
+		if (!_plugin) return;	
 
 		_bound = _plugin->bound();
 	}
 
 	bool Client::client_ok() const
 	{
-		if (!_live)
-		{
-			ERROR("%s: Client is not live. Function cannot be called.", _filename);
-			return false;
-		}
 
 		if (!_bound)
 		{
 			ERROR("%s: Client is not bound. Function cannot be called.", _filename);
-			return false;
 		}
 
-		return true;
+		return _bound;
 	}
 
 	void Client::flag_error() const
 	{
 		ERROR("%s: %s", _filename, get_error());
 		_bound = false;
-	}
-
-	void Client::update()
-	{
-		if (!_bound) return;
-
-		int till_close = secs_till_market_close();
-
-		if (_live)
-		{
-			// updating pl of client
-			AccountInfo info = get_account_info();
-			long long curr_time = sys::epoch_seconds();
-			_equity_history.push_back({ curr_time, info.equity() });
-
-			while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))
-			{
-				_equity_history.erase(_equity_history.begin());
-			}
-
-			double prev_equity = _equity_history.front().second;
-			_pl = info.equity() - prev_equity;
-
-			// account has lost too much in last interval
-			if (_pl <= prev_equity * -_max_loss)
-			{
-				ERROR("client '%s' has undergone %f loss in the last %f hours! Closing all position...", _filename, _pl, _history_length);
-				close_all_positions();
-				_bound = false;
-				ERROR("client '%s' has gone offline!", _filename);
-				return;
-			}
-
-			// checking to see if in range of closeout buffer
-			
-			if (till_close <= _closeout_buffer)
-			{
-				INFO("Client '%s': Market will close in %d minutes. Closing all positions...", _filename, _closeout_buffer / 60);
-				_live = false;
-				if (!close_all_positions())
-				{
-					ERROR("Client '%s': Failed to close positions!", _filename);
-				}
-			}
-		}
-		else
-		{
-			if (till_close > 0)
-			{
-				_live = true;
-			}
-		}
-	}
-
-	/**
-	 * @brief	Orders max amount of shares orderable
-	 * 
-	 * @param	ticker			the symbol that will be evalutated
-	 * @param	pct				the percentage of available buying power to use
-	 * @param	short_shares	true if going short shares, false if going long on shares
-	 * 
-	 * @return	the amount of shares to order
-	 */
-
-	bool Client::enter_position(const std::string& ticker, double asset_risk, bool short_shares)
-	{
-		// if not buying anything, exit
-		if (asset_risk == 0.0) return true;
-
-		// will be -1.0 if short_shares is true or 1.0 if it's false
-		double multiplier = (double)short_shares * -2.0 + 1.0;
-
-		// getting current account information
-		AccountInfo account = get_account_info();
-		// getting position info
-		AssetInfo asset = get_asset_info(ticker);
-
-		// base buying power
-		double buying_power = (account.buying_power() + account.margin_used()) * _risk
-			* (asset_risk / _risk_sum);
-
-		// if we are already in a position of the same type as requested
-		if (asset.shares() * multiplier > 0.0)
-		{
-			// remove the current share of the buying power
-			buying_power -= asset.amt_invested();
-		}
-		// we are in a position that is opposite to type requested
-		else if (asset.shares() * multiplier < 0.0)
-		{
-			// calculate returns upon exiting position for correct buying power calculation
-			buying_power += asset.shares() * asset.price() * (1.0 - multiplier * asset.fee());
-		}
-
-		double shares = multiplier * std::floor(((buying_power / (1.0 + asset.fee())) / asset.price()) / asset.minimum()) * asset.minimum();
-		INFO("Placing order for %f shares!!!", shares);
-		return market_order(ticker, shares);
-	}
-
-	bool Client::exit_position(const std::string& ticker, bool short_shares)
-	{
-		double multiplier = (double)short_shares * -2.0 + 1.0;
-		AssetInfo info = get_asset_info(ticker);
-		// if we are in a short position or have no shares, do nothing
-		INFO("%s: Exiting position of %f shares", ticker, info.shares());
-		if (info.shares() * multiplier <= 0.0) return true;
-		// exit position
-		return market_order(ticker, -info.shares());
 	}
 
 	CandleSet Client::get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const

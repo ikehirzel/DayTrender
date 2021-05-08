@@ -8,3 +8,5 @@
 #include <hirzel/util/str.h>
 #define HIRZEL_UTIL_FILE_I
 #include <hirzel/util/file.h>
+#define HIRZEL_LOGGER_I
+#include <hirzel/logger.h>
