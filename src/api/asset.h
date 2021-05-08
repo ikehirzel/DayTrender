@@ -26,9 +26,9 @@ namespace daytrender
 		Strategy _strategy;
 		
 		// client wrappers
-		inline CandleSet get_candles(const Client& client) const
+		inline Result<CandleSet> get_candles(const Client& client) const
 		{
-			return client.get_candles(_ticker, _interval, _candle_count, _strategy.data_length());
+			return client.get_candles(_ticker, _interval, _candle_count);
 		}
 
 	public:

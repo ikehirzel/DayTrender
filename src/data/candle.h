@@ -1,7 +1,13 @@
-#pragma once
+#ifndef DAYTRENDER_CANDLE_H
+#define DAYTRENDER_CANDLE_H
 
+// daytrender includes
+#include "result.h"
+
+// standard library
 #include <string>
 #include <iostream>
+
 
 namespace daytrender
 {
@@ -43,23 +49,25 @@ namespace daytrender
 		Candle* _data = nullptr;
 		unsigned _size = 0;
 		unsigned _interval = 0;
-		unsigned _end = 0;
 		bool _slice = false;
-		mutable const char* _error = nullptr;
 
-		CandleSet(Candle* parent_data, unsigned parent_size, int parent_interval, unsigned offset, unsigned size, unsigned end);
+		// constructor for making slices
+		CandleSet(Candle* parent_data, unsigned parent_size,
+			unsigned parent_interval, unsigned offset, unsigned size);
 
 	public:
 		CandleSet() = default;
-		CandleSet(unsigned size, unsigned end, int interval);
+		CandleSet(unsigned size, unsigned interval);
 		CandleSet(CandleSet&& other);
 		CandleSet(const CandleSet& other);
 		~CandleSet();
 
 		CandleSet& operator=(const CandleSet& other);
-		inline CandleSet slice(unsigned offset, unsigned size, unsigned end)
+		inline Result<CandleSet> slice(unsigned offset, unsigned size, unsigned end)
 		{
-			return CandleSet(_data, _size, _interval, offset, size, end);
+			if (!_data) return "parent data is uninitialized";
+			if (offset + size > _size) return "slice range is out of parent's bounds";
+			return CandleSet(_data, _size, _interval, offset, size);
 		}
 
 		inline Candle& set(unsigned index)
@@ -67,7 +75,6 @@ namespace daytrender
 			// this account for shamt but allows for only one check
 			if (index >= _size)
 			{
-				_error = "out of bounds memory access";
 				return *_data;
 			}
 			return _data[index];
@@ -76,11 +83,10 @@ namespace daytrender
 		inline const Candle& operator[] (int index) const
 		{
 			// this account for shamt but allows for only one check
-			unsigned i = index + (int)(_size - _end);
+			unsigned i = index;
 			//std::cout << "getting candle : " << i << std::endl;
 			if (i >= _size)
 			{
-				_error = "out of bounds memory access";
 				return *_data;
 			}
 			return _data[i];
@@ -90,7 +96,6 @@ namespace daytrender
 		{
 			if (index >= _size)
 			{
-				_error = "out of bounds memory access";
 				return *_data;
 			}
 			return _data[(_size - 1) - index];
@@ -100,7 +105,6 @@ namespace daytrender
 		{
 			if (index >= _size)
 			{
-				_error = "out of bounds memory access";
 				return *_data;
 			}
 			return _data[index];
@@ -109,8 +113,8 @@ namespace daytrender
 		inline bool is_slice() const { return _slice; }
 		inline bool empty() const { return _size == 0; }
 		inline unsigned size() const { return _size; }
-		inline unsigned end() const { return _end; }
 		inline int interval() const { return _interval; }
-		const char* error() const { return _error; }
 	};
 }
+
+#endif

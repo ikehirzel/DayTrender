@@ -19,6 +19,7 @@
 #include <candle.h>
 #include <assetinfo.h>
 #include <api_versions.h>
+#include <result.h>
 
 // for guaranteed sizes
 #include <cstdint>
@@ -35,43 +36,6 @@ using namespace hirzel;
 
 const char *error;
 
-namespace hirzel
-{
-	template <typename T>
-	class Result
-	{
-	private:
-		bool _ok = false;
-		T _value;
-		const char *_error = nullptr;
-
-	public:
-		inline Result(T value)
-		{
-			_ok = true;
-			_value = value;
-		}
-
-		inline Result(const char *error)
-		{
-			_ok = false;
-			_error = error;
-		}
-
-		inline T get()
-		{
-			if (_ok) return _value;
-			return {};
-		}
-
-		inline const char* err()
-		{
-			if (!_ok) return _error;
-			return nullptr;
-		}
-		inline bool ok() { return _ok; }
-	};
-}
 const char *res_err(const httplib::Result& res)
 {
 	if (!res)
@@ -116,7 +80,7 @@ extern "C"
 
 		if (!res.ok())
 		{
-			error = res.err();
+			error = res.error();
 			return nullptr;
 		}
 
@@ -148,7 +112,7 @@ extern "C"
 
 		if (!res.ok())
 		{
-			error = res.err();
+			error = res.error();
 			return nullptr;
 		}
 

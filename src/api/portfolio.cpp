@@ -6,6 +6,7 @@
 // external libraries
 #include <hirzel/logger.h>
 #include <hirzel/util/sys.h>
+#include "api_versions.h"
 
 using namespace hirzel;
 
@@ -44,49 +45,60 @@ namespace daytrender
 		}
 		
 		//int history_length = config["h"
-	
-		_client = Client(config["client"].to_string(), dir);
 
-		const picojson::array& assets_json = config.get("assets").get<picojson::array>();
-		_assets.resize(assets_json.size());
-		for (int i = 0; i < assets_json.size(); i++)
-		{
-			Asset a(assets_json[i], dir);
-			if (!a.is_live()) return;
-			_assets[i] = a;
-		}
+		const Data& client_json = config["client"];
 
-		
+		if (!client_json.contains("filename") ||
+			!client_json.contains("keys") ||
+			!client_json["keys"].is_array()) return;
+
+		const Data& keys_json = client_json["keys"];
+
+		_client = Client(client_json["filename"].to_string(), dir);
+		if (!_client.is_bound()) return;
+
 		// verifying api version of client matches current one
-		int api_version = _api_version();
-		if (api_version != CLIENT_API_VERSION)
+		if (_client.api_version() != CLIENT_API_VERSION)
 		{
-			ERROR("%s: api version for (%d) did not match current api version: %d)", api_version, CLIENT_API_VERSION);
+			ERROR("%s: api version for (%d) did not match current api version: %d)",
+				_client.api_version(), CLIENT_API_VERSION);
 			return;
 		}
 
-		// verifying that the correct amount of credentials passed
-		int key_count = _key_count();
-		if (key_count != keys.size())
+		// incorrent number of client keys supplied
+		if (_client.key_count() != keys_json.size())
 		{
-			ERROR("%s: expected %d keys but %d were supplied.", _filename, key_count, keys.size());
+			ERROR("%s: expected %d keys but %d were supplied.",
+				client_json["filename"].to_string(), _client.key_count(),
+				keys_json.size());
 			return;
 		}
-		
-		// initializing the client
-		if (!_init(keys))
+
+		// check if init failed
+		if (!_client.init(keys_json))
 		{
-			flag_error();
+			ERROR("%s: %s", _client.filename(), _client.get_error());
 			return;
 		}
 
 		// setting client leverage
-		if (!_set_leverage(leverage))
+		if (!_client.set_leverage(config["leverage"].to_uint()))
 		{
-			flag_error();
+			ERROR("%s: %s", _client.filename(), _client.get_error());
 			return;
 		}
 
+		// get asset information
+		const Data& assets_json = config["assets"];
+		if (!assets_json.is_array()) return;
+
+		// initializing assets
+		_assets.resize(assets_json.size());
+		for (int i = 0; i < assets_json.size(); i++)
+		{
+			_assets[i] = Asset(assets_json[i], dir);
+		}
+		
 		_live = true;
 	}
 
@@ -146,44 +158,45 @@ namespace daytrender
 		 * ASSET UPATE CODE
 		 *////
 
-		bool res = false;
-		switch (_data.action())
-		{
-		case ENTER_LONG:
-			res = client.enter_long(_ticker, _risk);
-			break;
 
-		case EXIT_LONG:
-			res = client.exit_long(_ticker);
-			SUCCESS("%s: Exited long position", _ticker);
-			break;
+		// bool res = false;
+		// switch (_data.action())
+		// {
+		// case ENTER_LONG:
+		// 	res = client.enter_long(_ticker, _risk);
+		// 	break;
 
-		case ENTER_SHORT:
-			res = client.enter_short(_ticker, _risk);
-			SUCCESS("%s: Entered short position", _ticker);
-			break;
+		// case EXIT_LONG:
+		// 	res = client.exit_long(_ticker);
+		// 	SUCCESS("%s: Exited long position", _ticker);
+		// 	break;
 
-		case EXIT_SHORT:
-			res = client.exit_short(_ticker);
-			SUCCESS("%s: Exited short position", _ticker);
-			break;
+		// case ENTER_SHORT:
+		// 	res = client.enter_short(_ticker, _risk);
+		// 	SUCCESS("%s: Entered short position", _ticker);
+		// 	break;
 
-		case NOTHING:
-			res = true;
-			SUCCESS("%s: No action taken", _ticker);
-			break;
+		// case EXIT_SHORT:
+		// 	res = client.exit_short(_ticker);
+		// 	SUCCESS("%s: Exited short position", _ticker);
+		// 	break;
 
-		default:
-			ERROR("%s: Invalid action received from strategy: %d", _ticker, _data.action());
-			_live = false;
-			break;
-		}
+		// case NOTHING:
+		// 	res = true;
+		// 	SUCCESS("%s: No action taken", _ticker);
+		// 	break;
 
-		if (!res)
-		{
-			_live = false;
-			ERROR("%s: Failed to handle action. Asset is no longer live.", _ticker);
-		}
+		// default:
+		// 	ERROR("%s: Invalid action received from strategy: %d", _ticker, _data.action());
+		// 	_live = false;
+		// 	break;
+		// }
+
+		// if (!res)
+		// {
+		// 	_live = false;
+		// 	ERROR("%s: Failed to handle action. Asset is no longer live.", _ticker);
+		// }
 
 
 	}

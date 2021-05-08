@@ -32,11 +32,10 @@ namespace daytrender
 		return out;
 	}
 
-	CandleSet::CandleSet(unsigned size, unsigned end, int interval)
+	CandleSet::CandleSet(unsigned size, unsigned interval)
 	{
 		_interval = interval;
 		_size = size;
-		_end = end;
 		_data = new Candle[_size];
 	}
 
@@ -45,9 +44,8 @@ namespace daytrender
 		_data = other._data;
 		_size = other._size;
 		_interval = other._interval;
-		_end = other._end;
+		
 		_slice = other._slice;
-		_error = other._error;
 
 		other._slice = true;
 	}
@@ -57,38 +55,13 @@ namespace daytrender
 		*this = other;
 	}
 
-	CandleSet::CandleSet(Candle* parent_data, unsigned parent_size, int parent_interval, unsigned offset, unsigned size, unsigned end)
+	CandleSet::CandleSet(Candle* parent_data, unsigned parent_size,
+		unsigned parent_interval, unsigned offset, unsigned size)
 	{
 		_slice = true;
 		_interval = parent_interval;
-		_data = parent_data;
-		
-		if (!_data)
-		{
-			_error = "slice data is nullptr";
-		}
-		else
-		{
-			_data += offset;
-		}
-
-		if (offset + size > parent_size)
-		{
-			_error = "slice reaches out of parent's bounds";
-		}
-		else
-		{
-			_size = size;
-
-			if (end > _size)
-			{
-				_error = "end is greater than size";
-			}
-			else
-			{
-				_end = end;
-			}
-		}
+		_data = parent_data + offset;
+		_size = size;
 	}
 
 	CandleSet::~CandleSet()
@@ -102,9 +75,7 @@ namespace daytrender
 	CandleSet& CandleSet::operator=(const CandleSet& other)
 	{
 		_interval = other.interval();
-		_error = other.error();
 		_size = other.size();
-		_end = other.end();
 		_data = new Candle[_size];
 
 		for (int i = 0; i < _size; i++)

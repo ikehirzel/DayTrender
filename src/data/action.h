@@ -9,6 +9,7 @@ namespace daytrender
 		EXIT_LONG,
 		ENTER_SHORT,
 		EXIT_SHORT,
+		ERROR,
 		COUNT
 	};
 };

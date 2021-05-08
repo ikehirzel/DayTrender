@@ -19,7 +19,17 @@ namespace daytrender
 	{
 		"init",
 		"api_version",
-		"get_candles"
+		"get_candles",
+		"get_account_info",
+		"get_asset_info",
+		"market_order",
+		"close_all_positions",
+		"secs_till_market_close",
+		"set_leverage",
+		"to_interval",
+		"key_count",
+		"max_candles",
+		"get_error"
 	};
 
 	// gets plugin by filepath and caches it if it had to load a new one
@@ -38,37 +48,19 @@ namespace daytrender
 				delete plugin;
 				return nullptr;
 			}
-			
-			// Binding all of the plugin functions
-			#define FUNC_PAIR(x) { (void(**)())&_##x, #x }
-			// preparing vector so functions can be iterated over
-			std::vector<std::pair<void(**)(), const char*>> funcs =
-			{
-				FUNC_PAIR(init),
-				FUNC_PAIR(api_version),
-				FUNC_PAIR(get_candles),
-				FUNC_PAIR(get_account_info),
-				FUNC_PAIR(get_asset_info),
-				FUNC_PAIR(market_order),
-				FUNC_PAIR(close_all_positions),
-				FUNC_PAIR(secs_till_market_close),
-				FUNC_PAIR(set_leverage),
-				FUNC_PAIR(to_interval),
-				FUNC_PAIR(key_count),
-				FUNC_PAIR(max_candles),
-				FUNC_PAIR(backtest_intervals),
-				FUNC_PAIR(get_error)
-			};
 
-			// checking if every function bound correctly
-			for (const std::pair<void(**)(), const char*>& f: funcs)
-			{
-				*f.first = plugin->bind_function(f.second);
 
-				// if failed to bind, log it and exit
-				if (!*f.first)
+			// attempt to bind all api functions by name
+			size_t func_count = sizeof(client_api_func_names) / sizeof(char*);
+			for (size_t i = 0; i < func_count; i++)
+			{
+				// bind function
+				Function func = plugin->bind_function(client_api_func_names[i]);
+				// check if failed to bind
+				if (!func)
 				{
-					ERROR("%s: function '%s' failed to bind", filepath, f.second);
+					ERROR("%s: client function '%s' failed to bind",
+						filepath, client_api_func_names[i]);
 					delete plugin;
 					return nullptr;
 				}
@@ -90,64 +82,39 @@ namespace daytrender
 	}
 
 	Client::Client(const std::string& filepath) :
-	_filename(str::get_filename(filepath))
+	_filepath(filepath)
 	{
 		// get plugin
 		_plugin = get_plugin(filepath);
-		if (!_plugin) return;	
-
-		_bound = _plugin->bound();
 	}
 
-	bool Client::client_ok() const
-	{
+	#define FUNC_CHECK() { if (!_plugin) return "client is not bound"; }
 
-		if (!_bound)
+
+	Result<CandleSet> Client::get_candles(const std::string& ticker,
+		unsigned interval, unsigned count) const
+	{
+		FUNC_CHECK();
+
+		if (count == 0)
 		{
-			ERROR("%s: Client is not bound. Function cannot be called.", _filename);
+			count = max_candles();
+		}
+		else if (count > max_candles())
+		{
+			return "requested more candles than maximum";
 		}
 
-		return _bound;
+		// CandleSet candles(max, end, interval);
+		// bool res = _get_candles(candles, ticker);
+		// if (!res) flag_error();
+		return CandleSet();
 	}
 
-	void Client::flag_error() const
+	Result<AccountInfo> Client::get_account_info() const
 	{
-		ERROR("%s: %s", _filename, get_error());
-		_bound = false;
-	}
+		FUNC_CHECK();
 
-	CandleSet Client::get_candles(const std::string& ticker, int interval, unsigned max, unsigned end) const
-	{
-		if (!client_ok()) return CandleSet();
-
-		if (max == 0)
-		{
-			max = max_candles();
-		}
-		else if (max > max_candles())
-		{
-			ERROR("Client '%s': requested more candles than maximum!", _filename);
-			return {};
-		}
-
-		if (end == 0)
-		{
-			end = max;
-		}
-		else if (end > max)
-		{
-			ERROR("Client '%s': attempted to set candleset end as greater than max", _filename);
-			return {};
-		}
-
-		CandleSet candles(max, end, interval);
-		bool res = _get_candles(candles, ticker);
-		if (!res) flag_error();
-		return candles;
-	}
-
-	AccountInfo Client::get_account_info() const
-	{
 		if (!client_ok()) return AccountInfo();
 
 		AccountInfo info;
@@ -169,6 +136,7 @@ namespace daytrender
 	 */
 	bool Client::market_order(const std::string& ticker, double amount)
 	{
+		FUNC_CHECK();
 		if (!client_ok()) return false;
 		if (amount == 0.0) return true;
 		bool res = _market_order(ticker, amount);
@@ -176,9 +144,10 @@ namespace daytrender
 		return res;
 	}
 
-	AssetInfo Client::get_asset_info(const std::string& ticker) const
+	Result<AssetInfo> Client::get_asset_info(const std::string& ticker) const
 	{
-		if (!client_ok()) return {};
+		FUNC_CHECK();
+
 		AssetInfo info;
 		bool res = _get_asset_info(info, ticker);
 		if (!res) flag_error();
@@ -195,9 +164,8 @@ namespace daytrender
 		return res;
 	}
 
-	int Client::secs_till_market_close() const
+	unsigned Client::secs_till_market_close() const
 	{
-		if (!client_ok()) return false;
 
 		int seconds;
 		bool res = _secs_till_market_close(seconds);

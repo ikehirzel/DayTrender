@@ -48,13 +48,14 @@ namespace daytrender
 		INFO("Updating %s...", _ticker);
 
 		// getting candlestick data from client
-		CandleSet candles = get_candles(client);
-		// 
-		if (candles.error())
+		Result<CandleSet> res = get_candles(client);
+		if (!res.ok()) 
 		{
-			ERROR("%s: CandleSet error: %s", _ticker, candles.error());
-			return NOTHING;
+			ERROR("Candles: %s", res.error());
+			return ERROR;
 		}
+
+		CandleSet candles = res.get();
 
 		// processing the candlestick data gotten from client
 		_data = _strategy.execute(candles, _ranges);
@@ -63,13 +64,7 @@ namespace daytrender
 		if (_data.error())
 		{
 			ERROR("%s: Algorithm: %s", _ticker, _data.error());
-			return NOTHING;
-		}
-
-		if (_data.candles().error())
-		{
-			ERROR("%s: Algorithm candles: %s", _ticker, _data.candles().error());
-			return NOTHING;
+			return ERROR;
 		}
 		
 		return _data.action();
