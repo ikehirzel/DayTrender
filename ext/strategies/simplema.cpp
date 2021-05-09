@@ -2,7 +2,7 @@
 #define DATA_LENGTH 5
 
 #include <candle.h>
-#include <strategydefs.h>
+#include <strategyapi.h>
 #include <iostream>
 
 void EMA(Indicator& data, const CandleSet& candles, int range)

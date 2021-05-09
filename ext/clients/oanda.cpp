@@ -2,7 +2,7 @@
 #define MAX_CANDLES 5000
 
 #include <iostream>
-#include <clientdefs.h>
+#include <clientapi.h>
 #include <ctime>
 
 std::string accountid, token;

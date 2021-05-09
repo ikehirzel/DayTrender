@@ -1,4 +1,4 @@
-#include "interface.h"
+#include "backtest.h"
 
 #include "../daytrender.h"
 
@@ -10,6 +10,7 @@
 /*
 	CHANGING THE MIN BACKTEST RANGE CAUSE IT TO NOT CRASH
 	KNOWN CRASHES AT MIN = 2
+	// TODO: rename defs.h files to api.h files and move all h files into include dir then push and clean roo
 */
 
 namespace daytrender
@@ -33,13 +34,14 @@ namespace daytrender
 			for (long i = 0; i < candles.size() - candle_count; i++)
 			{
 				Result<CandleSet> slice_res = candles.slice(i, candle_count);
-				CandleSet slice = 
 
-				if (slice.error())
+				if (!slice_res.ok())
 				{
-					ERROR("Backtest: CandleSet: %s", slice.error());
+					ERROR("Backtest: CandleSet: %s", slice_res.error());
 					return false;
 				}
+
+				CandleSet slice = slice_res.get();
 				
 				acc.update_price(slice.back().close());
 				StrategyData data = strat->execute(slice, ranges);

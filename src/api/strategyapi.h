@@ -1,17 +1,17 @@
 
-#pragma once
+#ifndef STRATEGY_DEFS_H
+#define STRATEGY_DEFS_H
 
-#define STRATEGY_API_VERSION 1
-
-#ifndef API_VERSION_CHECK
-
-#include "strategydata.h"
+#include "../data/strategydata.h"
+#include "api_versions.h"
 
 #ifndef INDICATORS
+#define INDICATORS
 #error INDICATORS must be defined
 #endif
 
 #ifndef DATA_LENGTH
+#define DATA_LENGTH
 #error DATA_LENGTH must be defined
 #endif
 

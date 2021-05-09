@@ -5,8 +5,7 @@
 
 #include <unordered_map>
 
-#define API_VERSION_CHECK
-#include "strategydefs.h"
+#include "api_versions.h"
 
 namespace daytrender
 {
