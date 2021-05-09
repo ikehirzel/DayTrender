@@ -1,8 +1,12 @@
-#pragma once
+#ifndef DAYTRENDER_STRATEGY_DATA_H
+#define DAYTRENDER_STRATEGY_DATA_H
 
-#include "indicator.h"
-#include "candle.h"
-#include "action.h"
+// local includes
+#include <api/action.h>
+#include <data/candle.h>
+#include <data/indicator.h>
+
+// standard library
 #include <vector>
 
 namespace daytrender
@@ -47,3 +51,5 @@ namespace daytrender
 		inline void increment_size() { _size++; }
 	};
 }
+
+#endif

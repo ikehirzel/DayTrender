@@ -1,11 +1,14 @@
-#include "backtest.h"
+#include <interface/backtest.h>
 
-#include "../daytrender.h"
+// daytrender includes
+#include <daytrender.h>
 
-#include <hirzel/logger.h>
-
+// standard libarary
 #include <future>
 #include <chrono>
+
+// external libraries
+#include <hirzel/logger.h>
 
 /*
 	CHANGING THE MIN BACKTEST RANGE CAUSE IT TO NOT CRASH
@@ -111,8 +114,8 @@ namespace daytrender
 			const Client* client;// = asset->client();
 			const Strategy& strategy = asset->strategy();
 
-			AccountInfo account_info;// = asset->client()->get_account_info();
-			AssetInfo asset_info;// = asset->client()->get_asset_info(asset->ticker());
+			Account account_info;// = asset->client()->get_account_info();
+			Position asset_info;// = asset->client()->get_asset_info(asset->ticker());
 			CandleSet candles = client->get_candles(asset->ticker(), asset->interval(), 0, 0);
 			PaperAccount account
 			{
@@ -192,8 +195,8 @@ namespace daytrender
 				}
 			}
 
-			AccountInfo acct = client->get_account_info();
-			AssetInfo info = client->get_asset_info(asset->ticker());
+			Account acct = client->get_account_info();
+			Position info = client->get_asset_info(asset->ticker());
 			std::vector<PaperAccount> out(intervals.size());
 			std::vector<std::future<bool>> threads(intervals.size());
 			// for every intervals

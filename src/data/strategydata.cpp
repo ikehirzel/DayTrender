@@ -1,4 +1,4 @@
-#include "strategydata.h"
+#include <data/strategydata.h>
 
 namespace daytrender
 {

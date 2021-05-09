@@ -1,6 +1,6 @@
-#include "paperaccount.h"
+#include <data/paperaccount.h>
 
-#include "../data/mathutil.h"
+#include <data/mathutil.h>
 
 namespace daytrender
 {

@@ -1,10 +1,16 @@
-#pragma once
+#ifndef DAYTRENDER_STRATEGY_H
+#define DAYTRENDER_STRATEGY_H
 
+// local includes
+#include <data/strategydata.h>
+
+// standard library
 #include <string>
 #include <vector>
 #include <unordered_map>
+
+// external libraries
 #include <hirzel/plugin.h>
-#include "../data/strategydata.h"
 
 namespace daytrender
 {
@@ -35,3 +41,5 @@ namespace daytrender
 		inline int data_length() const { return _data_length; }
 	};
 }
+
+#endif

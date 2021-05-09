@@ -1,4 +1,4 @@
-#include "portfolio.h"
+#include <data/portfolio.h>
 
 // standard library
 #include <cmath>
@@ -6,7 +6,7 @@
 // external libraries
 #include <hirzel/logger.h>
 #include <hirzel/util/sys.h>
-#include "api_versions.h"
+#include <api/versions.h>
 
 using namespace hirzel;
 
@@ -110,14 +110,14 @@ namespace daytrender
 		if (till_close <= _closeout_buffer) return;
 	
 		// updating pl of client
-		Result<AccountInfo> res = _client.get_account_info();
+		Result<Account> res = _client.get_account_info();
 		if (!res.ok())
 		{
 			ERROR("%s (%s): %s", _client.filename(), _label, res.error());
 			return;
 		}
 
-		AccountInfo info = res.get();
+		Account info = res.get();
 
 		long long curr_time = hirzel::sys::epoch_seconds();
 		_equity_history.push_back({ curr_time, info.equity() });
@@ -215,7 +215,7 @@ namespace daytrender
 		double multiplier = (double)short_shares * -2.0 + 1.0;
 
 		// getting current account information
-		Result<AccountInfo> acc_res = _client.get_account_info();
+		Result<Account> acc_res = _client.get_account_info();
 
 		if (!acc_res.ok())
 		{
@@ -223,9 +223,9 @@ namespace daytrender
 			return;
 		}
 
-		AccountInfo acc_info = acc_res.get();
+		Account acc_info = acc_res.get();
 
-		Result<AssetInfo> asset_res = _client.get_asset_info(asset.ticker());
+		Result<Position> asset_res = _client.get_asset_info(asset.ticker());
 
 		if (!asset_res.ok())
 		{
@@ -234,7 +234,7 @@ namespace daytrender
 		}
 
 		// getting position info
-		AssetInfo asset_info = asset_res.get();
+		Position asset_info = asset_res.get();
 
 		// base buying power
 		double buying_power = (acc_info.buying_power() + acc_info.margin_used())
@@ -262,14 +262,14 @@ namespace daytrender
 	void Portfolio::exit_position(const Asset& asset, bool short_shares)
 	{
 		double multiplier = (double)short_shares * -2.0 + 1.0;
-		Result<AssetInfo> asset_res = _client.get_asset_info(asset.ticker());
+		Result<Position> asset_res = _client.get_asset_info(asset.ticker());
 		if (!asset_res.ok())
 		{
 			ERROR("%s (%s): %s", asset.ticker(), _label, asset_res.error());
 			return;
 		}
 
-		AssetInfo info = asset_res.get();
+		Position info = asset_res.get();
 
 		// if we are in a short position or have no shares, do nothing
 		if (info.shares() * multiplier <= 0.0) return;

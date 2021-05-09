@@ -1,7 +1,6 @@
-#ifndef CLIENTDEFS_H
-#define CLIENTDEFS_H
+#ifndef DAYTRENDER_CLIENTAPI_H
+#define DAYTRENDER_CLIENTAPI_H
 
-#include <api_versions.h>
 
 #ifndef MAX_CANDLES
 #define MAX_CANDLES
@@ -13,15 +12,11 @@
 #error KEY_COUNT must be defined!
 #endif
 
-// Daytrender files
-#include <interval.h>
-#include <accountinfo.h>
-#include <candle.h>
-#include <assetinfo.h>
-#include <api_versions.h>
-#include <result.h>
+// local includes
+#include <api/versions.h>
+#include <api/interval.h>
 
-// for guaranteed sizes
+// standard library
 #include <cstdint>
 
 // external libraries
@@ -29,12 +24,36 @@
 #include <httplib.h>
 #include <hirzel/data.h>
 
-using namespace daytrender;
+namespace api
+{
+	struct candle
+	{
+		double open;
+		double high;
+		double low;
+		double close;
+		double volume;
+	};
+
+	struct asset_info
+	{
+		double balance;
+		double buying_power;
+		double margin_used;
+		double equity;
+		uint32_t leverage;
+		bool shorting_enabled;
+	};
+
+
+};
+
+using namespace api;
 using namespace hirzel;
 
 #define JSON_FORMAT "application/json"
 
-const char *error;
+extern "C" 
 
 const char *res_err(const httplib::Result& res)
 {
@@ -56,12 +75,13 @@ const char *res_err(const httplib::Result& res)
 
 // functions that must be defined by user
 Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t count);
-Result<AccountInfo> get_account_info();
-Result<AssetInfo> get_asset_info(const char* ticker);
+Result<Position> get_account_info();
+Result<Asset::Data> get_asset_info(const char* ticker);
 
 // functions for the c api interface
 extern "C"
 {
+	const char *error;
 	// non-returning functions
 	bool init(const char** credentials, char n);
 	bool market_order(const char* ticker, double amount);

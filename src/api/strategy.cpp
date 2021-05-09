@@ -1,11 +1,15 @@
-#include "strategy.h"
+#include <api/strategy.h>
+
+// local includes
+#include <api/versions.h>
+
+// standard library
+#include <unordered_map>
+
+// external libararies
 #include <hirzel/plugin.h>
 #include <hirzel/logger.h>
 #include <hirzel/util/str.h>
-
-#include <unordered_map>
-
-#include "api_versions.h"
 
 namespace daytrender
 {

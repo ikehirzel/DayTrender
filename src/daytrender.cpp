@@ -1,10 +1,9 @@
-#include "daytrender.h"
+#include <daytrender.h>
 
-// project inlcudes
-#include "api/portfolio.h"
-#include "interface/interface.h"
-#include "interface/shell.h"
-//#include "interface/server.h"
+// local inlcudes
+#include <interface/backtest.h>
+#include <interface/shell.h>
+//#include <interface/server.h>
 
 // standard libararies
 #include <filesystem>
@@ -77,8 +76,8 @@ namespace daytrender
 		running = true;
 		INFO("Starting DayTrender");
 
-		std::thread shell_thread(shell::get_input);
-		shell_thread.detach();
+		// std::thread shell_thread(shell::get_input);
+		// shell_thread.detach();
 
 		// std::thread server_thread(server::start);
 

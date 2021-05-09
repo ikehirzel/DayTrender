@@ -1,5 +1,6 @@
-#include "indicator.h"
+#include <data/indicator.h>
 
+// standard library
 #include <iostream>
 
 

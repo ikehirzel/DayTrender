@@ -1,4 +1,5 @@
-#pragma once
+#ifndef DAYTRENDER_ACTION_H
+#define DAYTRENDER_ACTION_H
 
 namespace daytrender
 {
@@ -13,3 +14,5 @@ namespace daytrender
 		COUNT
 	};
 };
+
+#endif

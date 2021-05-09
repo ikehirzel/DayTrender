@@ -1,8 +1,9 @@
-#pragma once
+#ifndef DAYTRENDER_POSITION_H
+#define DAYTRENDER_POSITION_H
 
 namespace daytrender
 {
-	class AssetInfo
+	class Position
 	{
 	private:
 		double _amt_invested = 0.0;
@@ -12,8 +13,9 @@ namespace daytrender
 		double _shares = 0.0;
 
 	public:
-		AssetInfo() = default;
-		AssetInfo(double amt_invested, double fee, double minimum, double price, double shares);
+		Position() = default;
+		Position(double amt_invested, double fee, double minimum,
+			double price, double shares);
 
 		inline double amt_invested() const { return _amt_invested; }
 		inline double fee() const { return _fee; }
@@ -22,3 +24,5 @@ namespace daytrender
 		inline double shares() const { return _shares; }
 	};
 }
+
+#endif

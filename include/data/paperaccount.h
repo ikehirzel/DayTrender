@@ -1,10 +1,13 @@
-#pragma once
+#ifndef DAYTRENDER_PAPERACCOUNT_H
+#define DAYTRENDER_PAPERACCOUNT_H
 
+// local includesifndef
+#include <api/action.h>
+
+// standard library
 #include <iostream>
 #include <vector>
 #include <string>
-
-#include "../data/action.h"
 
 namespace daytrender
 {
@@ -157,3 +160,5 @@ namespace daytrender
 		friend std::ostream& operator<<(std::ostream& out, const PaperAccount& acc);
 	};
 }
+
+#endif

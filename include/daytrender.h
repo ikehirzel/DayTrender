@@ -7,10 +7,13 @@
 #ifndef DAYTRENDER_H
 #define DAYTRENDER_H
 
+// local includes
+#include <data/portfolio.h>
+
+// standard library
 #include <string>
 #include <vector>
 
-#include "api/portfolio.h"
 
 namespace daytrender
 {

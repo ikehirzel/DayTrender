@@ -1,12 +1,16 @@
-#pragma once
+#ifndef DAYTRENDER_ASSET_H
+#define DAYTRENDER_ASSET_H
 
+// local includes
+#include <api/client.h>
+#include <api/strategy.h>
+#include <data/candle.h>
+
+// standard libarary
 #include <string>
 #include <vector>
 
-#include "../data/candle.h"
-#include "strategy.h"
-#include "client.h"
-
+// external libraries
 #include <hirzel/data.h>
 
 namespace daytrender
@@ -48,3 +52,5 @@ namespace daytrender
 
 	};
 }
+
+#endif

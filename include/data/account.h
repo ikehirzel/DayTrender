@@ -2,7 +2,7 @@
 
 namespace daytrender
 {
-	class AccountInfo
+	class Account
 	{
 	private:
 		double _balance = 0.0;
@@ -13,8 +13,8 @@ namespace daytrender
 		bool _shorting_enabled = false;
 
 	public:
-		AccountInfo() = default;
-		AccountInfo(double balance, double buying_power, double margin_used, double equity, int leverage, bool shorting_enabled);
+		Account() = default;
+		Account(double balance, double buying_power, double margin_used, double equity, int leverage, bool shorting_enabled);
 
 		inline double balance() const { return _balance; }
 		inline double buying_power() const { return _buying_power; }

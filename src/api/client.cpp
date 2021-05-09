@@ -1,13 +1,15 @@
-#include "client.h"
+#include <api/client.h>
 
-#include "../data/mathutil.h"
+// local includes
+#include <api/versions.h>
+#include <data/mathutil.h>
 
+// external libraries
 #include <hirzel/util/str.h>
 #include <hirzel/util/sys.h>
 #include <hirzel/plugin.h>
 #include <hirzel/logger.h>
 
-#include "api_versions.h"
 
 using namespace hirzel;
 
@@ -91,6 +93,17 @@ namespace daytrender
 	#define FUNC_CHECK() { if (!_plugin) return "client is not bound"; }
 
 
+	bool Client::init(const hirzel::Data& keys)
+	{
+		return false;
+	}
+
+	bool Client::set_leverage(unsigned leverage)
+	{
+		return false;
+	}
+
+
 	Result<CandleSet> Client::get_candles(const std::string& ticker,
 		unsigned interval, unsigned count) const
 	{
@@ -111,15 +124,12 @@ namespace daytrender
 		return CandleSet();
 	}
 
-	Result<AccountInfo> Client::get_account_info() const
+	Result<Account> Client::get_account_info() const
 	{
 		FUNC_CHECK();
 
-		if (!client_ok()) return AccountInfo();
-
-		AccountInfo info;
+		Account info;
 		bool res = _get_account_info(info);
-		if (!res) flag_error();
 
 		return info;
 	}
@@ -137,20 +147,17 @@ namespace daytrender
 	bool Client::market_order(const std::string& ticker, double amount)
 	{
 		FUNC_CHECK();
-		if (!client_ok()) return false;
 		if (amount == 0.0) return true;
 		bool res = _market_order(ticker, amount);
-		if (!res) flag_error();
 		return res;
 	}
 
-	Result<AssetInfo> Client::get_asset_info(const std::string& ticker) const
+	Result<Position> Client::get_asset_info(const std::string& ticker) const
 	{
 		FUNC_CHECK();
 
-		AssetInfo info;
+		Position info;
 		bool res = _get_asset_info(info, ticker);
-		if (!res) flag_error();
 		return info;
 	}
 
@@ -159,25 +166,19 @@ namespace daytrender
 		// this function can happen when not live
 
 		bool res = _close_all_positions();
-		if (!res) flag_error();
 
 		return res;
 	}
 
 	unsigned Client::secs_till_market_close() const
 	{
-
-		int seconds;
-		bool res = _secs_till_market_close(seconds);
-		if (!res) flag_error();
-
+		int seconds = 0;
+		_secs_till_market_close(seconds);
 		return seconds;
 	}
 
 	std::string Client::to_interval(int interval) const
 	{
-		if (!client_ok()) return "";
-		
 		const char* interval_str = _to_interval(interval);
 		if (!interval_str)
 		{
