@@ -50,14 +50,14 @@ namespace daytrender
 		INFO("Updating %s...", _ticker);
 
 		// getting candlestick data from client
-		Result<PriceHistory> res = get_candles(client);
-		if (!res.ok()) 
+		Result<PriceHistory> price_res = get_candles(client);
+		if (!price_res.ok()) 
 		{
-			ERROR("Candles: %s", res.error());
+			ERROR("Candles: %s", price_res.error());
 			return ERROR;
 		}
 
-		PriceHistory candles = res.get();
+		PriceHistory candles = price_res.get();
 
 		// processing the candlestick data gotten from client
 
@@ -65,14 +65,15 @@ namespace daytrender
 		///
 		/// REPLACE THE MAGIC NUMBER BELOW
 		///
-		_data = _strategy.execute(candles, _ranges, 15);
+		Result<Chart> chart_res = _strategy.execute(candles, _ranges);
 
-		// error handling
-		if (_data.error())
+		if (!chart_res.ok())
 		{
-			ERROR("%s: Algorithm: %s", _ticker, _data.error());
+			ERROR("%s: Algorithm: %s", _ticker, chart_res.error());
 			return ERROR;
 		}
+
+		_data = chart_res.get();
 		
 		return _data.action();
 	}

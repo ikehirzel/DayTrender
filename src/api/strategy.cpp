@@ -57,37 +57,23 @@ namespace daytrender
 			ERROR("%s: api version (%d) did not match current api version: %d)", _filename, api_version, STRATEGY_API_VERSION);
 			return;
 		}
-		_indicator_count = _plugin->execute<int>("indicator_count");
-		_data_length = _plugin->execute<int>("data_length");
-		_execute = (void(*)(Chart*))_plugin->get_func("strategy");
+		_indicator_count = _plugin->execute<uint32_t>("indicator_count");
+		_data_length = _plugin->execute<uint32_t>("data_length");
+		_execute = (const char *(*)(Chart*))_plugin->get_func("strategy");
 		if (!_plugin->bound()) return;
 		_bound = true;
 	}
 
-	Chart Strategy::execute(const PriceHistory& candles, const std::vector<int>& ranges, unsigned window) const
+	Result<Chart> Strategy::execute(const PriceHistory& candles,
+		const std::vector<int>& ranges) const
 	{
+		if (!_execute) return "execute function is not bound";
 
-		Chart data(ranges, candles, window);
+		Chart data(ranges, candles, _data_length);
 
-		if (!_execute)
-		{
-			ERROR("%s: strategy function is not bound!", _filename);
-			return data;
-		}
+		const char *error = _execute(&data);
 
-		_execute(&data);
-
-		if (data.error())
-		{
-			std::string args_glob;
-			const std::vector<int>& ranges = data.ranges();
-			for (int i = 0; i < ranges.size(); i++)
-			{
-				if (i > 0) args_glob += ", ";
-				args_glob += std::to_string(ranges[i]);
-			}
-			ERROR("%s(%s): %s", data.label(), args_glob, data.error());
-		}
+		if (error) return error;
 
 		return data;
 	}

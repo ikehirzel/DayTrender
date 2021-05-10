@@ -28,7 +28,7 @@ struct IndicatorConfig
 };
 
 //extern std::vector<indicator_conf> indi_confs;
-extern std::vector<IndicatorConfig> config;
+extern const std::vector<IndicatorConfig> config;
 
 Action strategy(Chart& chart);
 // api interface
@@ -54,7 +54,7 @@ extern "C"
 		if (chart.ranges().size() != indicator_count())
 			return "strategy dataset size did not match expected sizse";
 
-		for (size_t i = 0; i < indicator_count(); ++i)
+		for (size_t i = 0; i < config.size(); ++i)
 		{
 			chart[i].set_ident(config[i].type, config[i].label);
 			config[i].func(chart[i], chart.candles(), chart.ranges()[i]);
@@ -62,7 +62,7 @@ extern "C"
 
 		Action act = strategy(chart);
 		chart.set_action(act);
-		
+
 		return NULL;
 	}
 	// pre-defined functions

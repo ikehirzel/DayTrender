@@ -9,11 +9,11 @@ namespace daytrender
 		_ranges = ranges;
 
 		_candles = candles;
-		_capacity = ranges.size();
-		_dataset = new Indicator[_capacity];
+		_size = ranges.size();
+		_dataset = new Indicator[_size];
 
 		// initializing all the indicators to same size
-		for (int i = 0; i < _capacity; i++)
+		for (int i = 0; i < _size; i++)
 		{
 			_dataset[i] = { window };
 		}
@@ -27,11 +27,9 @@ namespace daytrender
 	Chart::Chart(Chart&& other)
 	{
 		_dataset = other._dataset;
-		_capacity = other._capacity;
 		_size = other._size;
 		_action = other._action;
 		_label = other._label;
-		_error = other._error;
 		_ranges = other._ranges;
 		_candles = other._candles;
 

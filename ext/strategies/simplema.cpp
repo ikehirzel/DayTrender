@@ -20,7 +20,7 @@ void EMA(Indicator& data, const PriceHistory& candles, unsigned range)
 	}
 }
 
-std::vector<IndicatorConfig> config = 
+const std::vector<IndicatorConfig> config = 
 {
 	{ EMA, "EMA", "long" },
 	{ EMA, "EMA", "short" }

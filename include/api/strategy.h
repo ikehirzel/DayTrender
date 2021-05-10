@@ -3,6 +3,7 @@
 
 // local includes
 #include <data/chart.h>
+#include <data/result.h>
 
 // standard library
 #include <string>
@@ -26,7 +27,7 @@ namespace daytrender
 		//
 		int _indicator_count = 0;
 		int _data_length = 0;
-		void(*_execute)(Chart*) = nullptr;
+		const char *(*_execute)(Chart*) = nullptr;
 
 	public:
 		Strategy() = default;
@@ -34,7 +35,8 @@ namespace daytrender
 
 		static void free_plugins();
 
-		Chart execute(const PriceHistory& candles, const std::vector<int>& ranges, unsigned window) const;
+		Result<Chart> execute(const PriceHistory& candles,
+			const std::vector<int>& ranges) const;
 		inline const std::string& filename() const { return _filename; };
 		inline int indicator_count() const { return _indicator_count; }
 		inline bool is_bound() const { return _execute != nullptr; }

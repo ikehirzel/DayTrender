@@ -20,9 +20,16 @@ file(CREATE_LINK ../src/interface/webinterface.html webinterface.html SYMBOLIC)
 add_executable(daytrender ${DAYTRENDER_SRCS})
 
 
-# creating tests
-add_executable(types_test "src/test/types.cpp")
-target_include_directories(types_test PRIVATE "include")
+################################################################################
+#		COMPILING TESTS
+################################################################################
+file(GLOB TEST_SRCS "src/test/*.cpp")
+
+foreach(TEST ${TEST_SRCS})
+	get_filename_component(FILENAME ${TEST} NAME_WE)
+	add_executable(${FILENAME}_test ${TEST})
+	target_include_directories(${FILENAME}_test PRIVATE "include")
+endforeach()
 
 # stops cmake from prepending lib before plugin names
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
