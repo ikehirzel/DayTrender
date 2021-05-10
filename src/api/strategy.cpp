@@ -34,7 +34,14 @@ namespace daytrender
 		if (!_plugin)
 		{
 			// initialize new plugin
-			_plugin = new hirzel::Plugin(filepath, { "indicator_count", "data_length", "strategy", "api_version" });
+			_plugin = new hirzel::Plugin(filepath, 
+			{
+				"indicator_count",
+				"data_length",
+				"execute",
+				"api_version"
+			});
+			
 			if (!_plugin->bound())
 			{
 				ERROR("plugin %s failed to bind", filepath);

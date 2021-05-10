@@ -107,7 +107,7 @@ const char *get_account(Account *out)
 	return NULL;
 }
 
-bool market_order(const std::string& ticker, double amount)
+const char *market_order(const char *ticker, double amount)
 {
 	std::string url = "/v3/accounts/" + accountid + "/orders";
 
@@ -252,6 +252,7 @@ const char *close_all_positions()
 	if (json.is_error()) return "json failed to parse";
 
 	auto positions = json["positions"].to_array();
+
 	for (const Data& p : positions)
 	{
 		// getting total units
@@ -262,12 +263,7 @@ const char *close_all_positions()
 		{
 			// get ticker
 			std::string ticker = p["instrument"].to_string();
-			// if failed, log the error 
-			if (!market_order(ticker, -shares))
-			{
-				error_glob += ticker + ": " + error + ". ";
-				failed_tickers.push_back(ticker);
-			}
+			error = market_order(ticker.c_str(), -shares);
 		}
 	}
 
@@ -276,12 +272,12 @@ const char *close_all_positions()
 	{
 		return "failed to close all assets";
 	}
-	return NULL;
+	return error;
 }
 
-bool secs_till_market_close(int& seconds)
+uint32_t secs_till_market_close()
 {
-	seconds = 0;
+	uint32_t seconds = 0;
 	time_t time_since_epoch = time(NULL);
 	tm* curr_time = gmtime(&time_since_epoch);
 
@@ -302,10 +298,10 @@ bool secs_till_market_close(int& seconds)
 	int hours_till_close = (22 - hour) + days_till_close * 24;
 	int mins_till_close = -minute + hours_till_close * 60;
 	seconds = -second + mins_till_close * 60;
-	return true;
+	return seconds;
 }
 
-const char* to_interval(int interval)
+const char* to_interval(uint32_t interval)
 {
 	switch(interval)
 	{
@@ -326,6 +322,6 @@ const char* to_interval(int interval)
 	case DAY:		return "D";
 	case WEEK:		return "W";
 	case MONTH:		return "M";
+	default:		return nullptr;
 	}
-	return nullptr;
 }

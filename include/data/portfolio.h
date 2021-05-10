@@ -22,7 +22,6 @@ namespace daytrender
 		double _max_loss = 0.05;
 		double _history_length = 24.0;
 		unsigned _closeout_buffer = 15 * 60;
-		///////////<<
 
 		std::string _label;
 		Client _client;

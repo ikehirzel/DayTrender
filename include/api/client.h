@@ -22,7 +22,7 @@ namespace daytrender
 	{
 	private:
 		static std::unordered_map<std::string, hirzel::Plugin*> _plugins;
-		static hirzel::Plugin *get_plugin(const std::string& filename);
+		static hirzel::Plugin *get_plugin(const std::string& filename, const std::string& dir);
 
 		hirzel::Plugin* _plugin = nullptr;
 		std::string _filename;

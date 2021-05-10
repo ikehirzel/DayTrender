@@ -4,7 +4,7 @@
 namespace daytrender
 {
 	Chart::Chart(const std::vector<int>& ranges,
-		const PriceHistory& candles, unsigned window)
+		const PriceHistory& candles, unsigned data_length)
 	{
 		_ranges = ranges;
 
@@ -15,7 +15,7 @@ namespace daytrender
 		// initializing all the indicators to same size
 		for (int i = 0; i < _size; i++)
 		{
-			_dataset[i] = { window };
+			_dataset[i] = { data_length };
 		}
 	}
 

@@ -18,6 +18,8 @@
 
 using namespace hirzel;
 
+#define CONFIG_FOLDER "/config"
+
 namespace daytrender
 {
 	bool running = false;
@@ -26,47 +28,47 @@ namespace daytrender
 
 	bool init(const std::string& execpath)
 	{
-		return false;
-
 		std::string dir = std::filesystem::current_path().string() + "/" + execpath;
+		std::string portfolios_str = file::read(dir + CONFIG_FOLDER "/portfolios.json");
 
-		std::string clients_str = file::read(dir + "/clients.json");
-
-		if (clients_str.empty())
+		if (portfolios_str.empty())
 		{
-			FATAL("Failed to load clients.json! Aborting...");
-			return false;
-		}
-		else
-		{
-			SUCCESS("SUCCESSully loaded clients.json");
-		}
-
-		std::string server_str = file::read(dir + "/server.json");
-
-		if (server_str.empty())
-		{
-			FATAL("Failed to load server.json! Aborting...");
-			return false;
-		}
-		else
-		{
-			SUCCESS("SUCCESSully loaded server.json");
-		}
-
-		Data server_config = Data::parse_json(server_str);
-		if (server_config.is_error())
-		{
-			ERROR("server.json: %s", server_config.to_string());
+			FATAL("failed to read portfolios.json");
 			return false;
 		}
 
-		// if(!server::init(json, dir))
-		// {
-		// 	ERROR("Failed to initialize server! aborting...");
-		// 	mtx.unlock();
-		// 	return false;
-		// }
+		Data portfolios_json = Data::parse_json(portfolios_str);
+		if (portfolios_json.is_error())
+		{
+			FATAL("portfolios.json: %s", portfolios_json.to_string());
+			return false;
+		}
+
+		if (!portfolios_json.is_table())
+		{
+			FATAL("portfolios.json is not the correct format");
+			return false;
+		}
+
+		// reading portfolio configs
+		const Data::Table& table = portfolios_json.to_table();
+		for (auto pair : table)
+		{
+			const std::string& label = pair.first;
+			std::string file = file::read(dir + CONFIG_FOLDER "/portfolios/" + pair.second.to_string());
+			Data json = Data::parse_json(file);
+			if (json.is_error())
+			{
+				ERROR("%s: %s", pair.second.to_string(), json.to_string());
+				return false;
+			}
+
+			Portfolio portfolio(json, dir);
+			if (portfolio.is_live())
+			{
+				portfolios.push_back(portfolio);
+			}
+		}
 
 		return true;
 	}

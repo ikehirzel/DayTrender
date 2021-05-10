@@ -8,7 +8,12 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
 # globbing sources for daytrender
 file(GLOB DAYTRENDER_SRCS "src/daytrender.cpp" "src/api/*.cpp" "src/data/*.cpp" "src/util/impl.cpp")
 file(GLOB STRATEGY_TYPES_SRCS src/data/strategydata.cpp src/data/indicator.cpp src/data/candle.cpp)
-file(GLOB CLIENT_TYPES_SRCS src/data/assetinfo.cpp src/data/accountinfo.cpp src/data/candle.cpp)
+file(GLOB CLIENT_TYPES_SRCS
+	"src/data/position.cpp"
+	"src/data/account.cpp"
+	"src/data/candle.cpp"
+	"src/data/pricehistory.cpp"
+)
 
 # creating symlinks so files can be shared between build folder and project folder
 file(CREATE_LINK ../config config SYMBOLIC)

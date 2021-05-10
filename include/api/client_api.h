@@ -1,6 +1,5 @@
-#ifndef DAYTRENDER_CLIENTAPI_H
-#define DAYTRENDER_CLIENTAPI_H
-
+#ifndef DAYTRENDER_CLIENT_API_H
+#define DAYTRENDER_CLIENT_API_H
 
 #ifndef MAX_CANDLES
 #define MAX_CANDLES
@@ -22,14 +21,13 @@
 // external libraries
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
+#define HIRZEL_DATA_I
 #include <hirzel/data.h>
 
-extern "C"
-{
-	#include <data/account.h>
-	#include <data/pricehistory.h>
-	#include <data/position.h>
-}
+
+#include <data/account.h>
+#include <data/pricehistory.h>
+#include <data/position.h>
 
 using namespace daytrender;
 using namespace hirzel;

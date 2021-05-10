@@ -11,6 +11,8 @@
 #include <hirzel/logger.h>
 
 
+#define CLIENT_DIR "/clients/"
+
 using namespace hirzel;
 
 namespace daytrender
@@ -21,22 +23,23 @@ namespace daytrender
 	{
 		"init",
 		"api_version",
-		"get_candles",
-		"get_account_info",
-		"get_asset_info",
+		"get_price_history",
+		"get_account",
+		"get_position",
 		"market_order",
 		"close_all_positions",
 		"secs_till_market_close",
 		"set_leverage",
 		"to_interval",
 		"key_count",
-		"max_candles",
-		"get_error"
+		"max_candles"
 	};
 
 	// gets plugin by filepath and caches it if it had to load a new one
-	Plugin *Client::get_plugin(const std::string& filepath)
+	Plugin *Client::get_plugin(const std::string &filename, const std::string& dir)
 	{
+		std::string filepath = dir + CLIENT_DIR + filename;
+		PRINT("filepath : %s\n", filepath);
 		Plugin *plugin = _plugins[filepath];
 		// if the plugin is not already cached, attempt to cache it
 		if (!plugin)
@@ -46,7 +49,7 @@ namespace daytrender
 			// if plugin has errors, log, delete and exit
 			if (plugin->error())
 			{
-				ERROR("%s: error: %s", filepath, plugin->error());
+				ERROR(plugin->error());
 				delete plugin;
 				return nullptr;
 			}
@@ -62,7 +65,7 @@ namespace daytrender
 				if (!func)
 				{
 					ERROR("%s: client function '%s' failed to bind",
-						filepath, client_api_func_names[i]);
+						filename, client_api_func_names[i]);
 					delete plugin;
 					return nullptr;
 				}
@@ -87,7 +90,7 @@ namespace daytrender
 	_filename(filename)
 	{
 		// get plugin
-		_plugin = get_plugin(dir + filename);
+		_plugin = get_plugin(filename, dir);
 	}
 
 	#define FUNC_CHECK() { if (!_plugin) return "client is not bound"; }
