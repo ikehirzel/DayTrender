@@ -19,6 +19,11 @@ file(CREATE_LINK ../src/interface/webinterface.html webinterface.html SYMBOLIC)
 # creating main executable of project
 add_executable(daytrender ${DAYTRENDER_SRCS})
 
+
+# creating tests
+add_executable(types_test "src/test/types.cpp")
+target_include_directories(types_test PRIVATE "include")
+
 # stops cmake from prepending lib before plugin names
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
@@ -38,26 +43,26 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
 # endforeach()
 
-# ################################################################################
-# #		COMPILING CLIENTS
-# ################################################################################
-# file(GLOB CLIENT_SRCS "ext/clients/*.cpp")
+################################################################################
+#		COMPILING CLIENTS
+################################################################################
+file(GLOB CLIENT_SRCS "ext/clients/*.cpp")
 
-# foreach(CLIENT ${CLIENT_SRCS})
-# 	# get filename without folder or extension
-# 	get_filename_component(FILENAME ${CLIENT} NAME_WE)
-# 	# create shared object for it
-# 	add_library(${FILENAME} SHARED ${CLIENT} ${CLIENT_TYPES_SRCS})
-# 	# tell it to go to strategies folder
-# 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
-# 	target_include_directories(${FILENAME} PRIVATE
-# 		"include"
-# 		"lib/cpp-httplib/include"
-# 		"lib/cxx-logger/include"
-# 	)
-# 	target_link_libraries(${FILENAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+foreach(CLIENT ${CLIENT_SRCS})
+	# get filename without folder or extension
+	get_filename_component(FILENAME ${CLIENT} NAME_WE)
+	# create shared object for it
+	add_library(${FILENAME} SHARED ${CLIENT} ${CLIENT_TYPES_SRCS})
+	# tell it to go to strategies folder
+	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
+	target_include_directories(${FILENAME} PRIVATE
+		"include"
+		"lib/cpp-httplib/include"
+		"lib/cxx-logger/include"
+	)
+	target_link_libraries(${FILENAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
-# endforeach()
+endforeach()
 
 
 ################################################################################

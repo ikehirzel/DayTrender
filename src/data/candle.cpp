@@ -1,8 +1,5 @@
 #include <data/candle.h>
 
-// standard library
-#include <cstring>
-
 
 namespace daytrender
 {
@@ -32,59 +29,5 @@ namespace daytrender
 	{
 		out << candle.to_string();
 		return out;
-	}
-
-	CandleSet::CandleSet(unsigned size, unsigned interval)
-	{
-		_interval = interval;
-		_size = size;
-		_data = new Candle[_size];
-	}
-
-	CandleSet::CandleSet(CandleSet&& other)
-	{
-		_data = other._data;
-		_size = other._size;
-		_interval = other._interval;
-		
-		_slice = other._slice;
-
-		other._slice = true;
-	}
-
-	CandleSet::CandleSet(const CandleSet& other)
-	{
-		*this = other;
-	}
-
-	CandleSet::CandleSet(Candle* parent_data, unsigned parent_size,
-		unsigned parent_interval, unsigned offset, unsigned size)
-	{
-		_slice = true;
-		_interval = parent_interval;
-		_data = parent_data + offset;
-		_size = size;
-	}
-
-	CandleSet::~CandleSet()
-	{
-		if (!_slice)
-		{
-			delete[] _data;
-		}
-	}
-
-	CandleSet& CandleSet::operator=(const CandleSet& other)
-	{
-		_interval = other.interval();
-		_size = other.size();
-		_data = new Candle[_size];
-
-		for (int i = 0; i < _size; i++)
-		{
-			_data[i] = other.front(i);
-		}
-	
-		return *this;
 	}
 }

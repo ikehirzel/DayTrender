@@ -3,7 +3,7 @@
 
 // daytrender includes
 #include <data/account.h>
-#include <data/candle.h>
+#include <data/pricehistory.h>
 #include <data/position.h>
 #include <data/result.h>
 
@@ -41,7 +41,7 @@ namespace daytrender
 
 		// returning
 		bool (*_get_account_info)(Account&) = nullptr;
-		bool (*_get_candles)(CandleSet&, const std::string&) = nullptr;
+		bool (*_get_candles)(PriceHistory&, const std::string&) = nullptr;
 		bool (*_get_asset_info)(Position&, const std::string&) = nullptr;
 		bool (*_secs_till_market_close)(int&) = nullptr;
 		const char* (*_to_interval)(int) = nullptr;
@@ -75,12 +75,12 @@ namespace daytrender
 		bool set_leverage(unsigned leverage);
 
 		// returning
-		Result<Account> get_account_info() const;
+		Result<Account> get_account() const;
 
-		Result<CandleSet> get_candles(const std::string& ticker,
+		Result<PriceHistory> get_price_history(const std::string& ticker,
 			unsigned interval, unsigned count) const;
 
-		Result<Position> get_asset_info(const std::string& ticker) const;
+		Result<Position> get_position(const std::string& ticker) const;
 
 		unsigned secs_till_market_close() const;
 		std::string to_interval(int interval) const;

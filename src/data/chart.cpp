@@ -1,9 +1,10 @@
-#include <data/strategydata.h>
+#include <data/chart.h>
+
 
 namespace daytrender
 {
-	StrategyData::StrategyData(const std::vector<int>& ranges,
-		const CandleSet& candles, unsigned window)
+	Chart::Chart(const std::vector<int>& ranges,
+		const PriceHistory& candles, unsigned window)
 	{
 		_ranges = ranges;
 
@@ -18,12 +19,12 @@ namespace daytrender
 		}
 	}
 
-	StrategyData::StrategyData(const StrategyData& other)
+	Chart::Chart(const Chart& other)
 	{
 		*this = other;
 	}
 
-	StrategyData::StrategyData(StrategyData&& other)
+	Chart::Chart(Chart&& other)
 	{
 		_dataset = other._dataset;
 		_capacity = other._capacity;
@@ -37,12 +38,12 @@ namespace daytrender
 		other._dataset = nullptr;
 	}
 
-	StrategyData::~StrategyData()
+	Chart::~Chart()
 	{
 		delete[] _dataset;
 	}
 
-	StrategyData& StrategyData::operator=(const StrategyData& other)
+	Chart& Chart::operator=(const Chart& other)
 	{
 		_ranges = other.ranges();
 		_candles = other.candles();

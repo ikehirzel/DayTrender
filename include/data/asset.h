@@ -24,15 +24,15 @@ namespace daytrender
 		double _risk = 0.0;
 
 		std::string _ticker;
-		StrategyData _data;
+		Chart _data;
 		std::vector<int> _ranges;
 
 		Strategy _strategy;
 		
 		// client wrappers
-		inline Result<CandleSet> get_candles(const Client& client) const
+		inline Result<PriceHistory> get_candles(const Client& client) const
 		{
-			return client.get_candles(_ticker, _interval, _candle_count);
+			return client.get_price_history(_ticker, _interval, _candle_count);
 		}
 
 	public:
@@ -42,7 +42,7 @@ namespace daytrender
 		unsigned update(Client& client);
 
 		// inline getter functions
-		inline const StrategyData& data() const { return _data; }
+		inline const Chart& data() const { return _data; }
 		inline const Strategy& strategy() const { return _strategy; }
 		inline const std::string& ticker() const { return _ticker; }
 		inline const std::vector<int>& ranges() const { return _ranges; }

@@ -119,9 +119,10 @@ int main(int argc, char *argv[])
 {
 	hirzel::logger::init();
 
+	// 
 	if (!daytrender::init(hirzel::str::get_folder(argv[0])))
 	{
-		ERROR("Execution cannot continue");
+		FATAL("DayTrender failed to initialize");
 		return 0;
 	}
 

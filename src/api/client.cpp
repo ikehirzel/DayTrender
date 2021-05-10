@@ -104,7 +104,7 @@ namespace daytrender
 	}
 
 
-	Result<CandleSet> Client::get_candles(const std::string& ticker,
+	Result<PriceHistory> Client::get_price_history(const std::string& ticker,
 		unsigned interval, unsigned count) const
 	{
 		FUNC_CHECK();
@@ -121,10 +121,10 @@ namespace daytrender
 		// CandleSet candles(max, end, interval);
 		// bool res = _get_candles(candles, ticker);
 		// if (!res) flag_error();
-		return CandleSet();
+		return "failed to get price history";
 	}
 
-	Result<Account> Client::get_account_info() const
+	Result<Account> Client::get_account() const
 	{
 		FUNC_CHECK();
 
@@ -152,7 +152,7 @@ namespace daytrender
 		return res;
 	}
 
-	Result<Position> Client::get_asset_info(const std::string& ticker) const
+	Result<Position> Client::get_position(const std::string& ticker) const
 	{
 		FUNC_CHECK();
 

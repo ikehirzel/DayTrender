@@ -110,7 +110,7 @@ namespace daytrender
 		if (till_close <= _closeout_buffer) return;
 	
 		// updating pl of client
-		Result<Account> res = _client.get_account_info();
+		Result<Account> res = _client.get_account();
 		if (!res.ok())
 		{
 			ERROR("%s (%s): %s", _client.filename(), _label, res.error());
@@ -215,7 +215,7 @@ namespace daytrender
 		double multiplier = (double)short_shares * -2.0 + 1.0;
 
 		// getting current account information
-		Result<Account> acc_res = _client.get_account_info();
+		Result<Account> acc_res = _client.get_account();
 
 		if (!acc_res.ok())
 		{
@@ -225,7 +225,7 @@ namespace daytrender
 
 		Account acc_info = acc_res.get();
 
-		Result<Position> asset_res = _client.get_asset_info(asset.ticker());
+		Result<Position> asset_res = _client.get_position(asset.ticker());
 
 		if (!asset_res.ok())
 		{
@@ -262,7 +262,7 @@ namespace daytrender
 	void Portfolio::exit_position(const Asset& asset, bool short_shares)
 	{
 		double multiplier = (double)short_shares * -2.0 + 1.0;
-		Result<Position> asset_res = _client.get_asset_info(asset.ticker());
+		Result<Position> asset_res = _client.get_position(asset.ticker());
 		if (!asset_res.ok())
 		{
 			ERROR("%s (%s): %s", asset.ticker(), _label, asset_res.error());

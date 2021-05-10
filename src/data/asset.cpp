@@ -50,14 +50,14 @@ namespace daytrender
 		INFO("Updating %s...", _ticker);
 
 		// getting candlestick data from client
-		Result<CandleSet> res = get_candles(client);
+		Result<PriceHistory> res = get_candles(client);
 		if (!res.ok()) 
 		{
 			ERROR("Candles: %s", res.error());
 			return ERROR;
 		}
 
-		CandleSet candles = res.get();
+		PriceHistory candles = res.get();
 
 		// processing the candlestick data gotten from client
 

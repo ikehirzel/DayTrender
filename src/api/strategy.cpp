@@ -59,15 +59,15 @@ namespace daytrender
 		}
 		_indicator_count = _plugin->execute<int>("indicator_count");
 		_data_length = _plugin->execute<int>("data_length");
-		_execute = (void(*)(StrategyData&))_plugin->get_func("strategy");
+		_execute = (void(*)(Chart*))_plugin->get_func("strategy");
 		if (!_plugin->bound()) return;
 		_bound = true;
 	}
 
-	StrategyData Strategy::execute(const CandleSet& candles, const std::vector<int>& ranges, unsigned window) const
+	Chart Strategy::execute(const PriceHistory& candles, const std::vector<int>& ranges, unsigned window) const
 	{
 
-		StrategyData data(ranges, candles, window);
+		Chart data(ranges, candles, window);
 
 		if (!_execute)
 		{
@@ -75,7 +75,7 @@ namespace daytrender
 			return data;
 		}
 
-		_execute(data);
+		_execute(&data);
 
 		if (data.error())
 		{

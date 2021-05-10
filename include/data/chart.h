@@ -1,9 +1,9 @@
-#ifndef DAYTRENDER_STRATEGY_DATA_H
-#define DAYTRENDER_STRATEGY_DATA_H
+#ifndef DAYTRENDER_CHART_H
+#define DAYTRENDER_CHART_H
 
 // local includes
 #include <api/action.h>
-#include <data/candle.h>
+#include <data/pricehistory.h>
 #include <data/indicator.h>
 
 // standard library
@@ -11,7 +11,7 @@
 
 namespace daytrender
 {
-	class StrategyData
+	class Chart
 	{
 	private:
 		Indicator* _dataset = nullptr;
@@ -21,7 +21,7 @@ namespace daytrender
 		const char* _label = nullptr;
 		const char* _error = nullptr;
 		std::vector<int> _ranges;
-		CandleSet _candles;
+		PriceHistory _candles;
 
 	public:
 		inline void enter_long() { _action = Action::ENTER_LONG; }
@@ -29,13 +29,13 @@ namespace daytrender
 		inline void enter_short() { _action = Action::ENTER_SHORT; }
 		inline void exit_short() { _action = Action::EXIT_SHORT; }
 
-		StrategyData() = default;
-		StrategyData(const std::vector<int>& ranges, const CandleSet& candles, unsigned window);
-		StrategyData(const StrategyData& other);
-		StrategyData(StrategyData&& other);
-		~StrategyData();
+		Chart() = default;
+		Chart(const std::vector<int>& ranges, const PriceHistory& candles, unsigned window);
+		Chart(const Chart& other);
+		Chart(Chart&& other);
+		~Chart();
 
-		StrategyData& operator=(const StrategyData& other);
+		Chart& operator=(const Chart& other);
 		inline Indicator& operator[](unsigned index) { return _dataset[index]; }
 		inline const Indicator& operator[](unsigned index) const { return _dataset[index]; }
 
@@ -46,7 +46,7 @@ namespace daytrender
 		inline void flag_error(const char* error) { _error = error; }
 		inline const char* label() const { return _label; }
 		inline const char* error() const { return _error; }
-		inline const CandleSet& candles() const { return _candles; }
+		inline const PriceHistory& candles() const { return _candles; }
 		inline const std::vector<int>& ranges() const { return _ranges; }
 		inline void increment_size() { _size++; }
 	};

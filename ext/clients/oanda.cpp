@@ -9,19 +9,19 @@ std::string accountid, token;
 
 httplib::SSLClient client("api-fxpractice.oanda.com");
 
-bool init(const std::vector<std::string>& credentials)
+const char *init(const char** credentials)
 {
 	accountid = credentials[0];
 	token = credentials[1];
 	client.set_bearer_token_auth(token.c_str());
-	return true;
+	return NULL;
 }
 
-Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t count)
+const char *get_price_history(PriceHistory* out, const char *ticker)
 {
 	std::string url = "/v3/instruments/" + std::string(ticker) + "/candles";
-	
-	const char* interval_str = to_interval(interval);
+	PriceHistory& hist = *out;
+	const char* interval_str = to_interval(hist.interval());
 
 	if (!interval_str)
 	{
@@ -30,7 +30,7 @@ Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t coun
 	
 	httplib::Params p = {
 		{ "granularity", interval_str },
-		{ "count", std::to_string(count) }
+		{ "count", std::to_string(hist.size()) }
 	};
 
 	url += '?' + httplib::detail::params_to_query_str(p);
@@ -52,19 +52,17 @@ Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t coun
 	{
 		return "no candles were received";
 	}
-	else if (candles_json.size() != count)
+	else if (candles_json.size() != hist.size())
 	{
 		return "not all candles were received";
 	}
 
-	Candle *out = new Candle[count];
-
-	for (int i = 0; i < count; i++)
+	for (int i = 0; i < hist.size(); i++)
 	{
 		const Data& candle = candles_json[i];
 		const Data& mid = candle["mid"];
 		
-		out[i] =
+		hist[i] =
 		{
 			mid["o"].to_double(),
 			mid["h"].to_double(),
@@ -74,10 +72,10 @@ Result<Candle*> get_candles(const char* ticker, uint32_t interval, uint32_t coun
 		};
 	}
 
-	return out;
+	return NULL;
 }
 
-Result<AccountInfo> get_account_info()
+const char *get_account(Account *out)
 {
 	std::string url = "/v3/accounts/" + accountid + "/summary";
 	auto res = client.Get(url.c_str());
@@ -96,7 +94,7 @@ Result<AccountInfo> get_account_info()
 
 	double margin_rate = acc["marginRate"].to_double();
 
-	return AccountInfo
+	*out =
 	{
 		acc["balance"].to_double(),
 		acc["marginAvailable"].to_double() / margin_rate,
@@ -105,6 +103,8 @@ Result<AccountInfo> get_account_info()
 		(int)(1.0 / margin_rate),
 		true
 	};
+
+	return NULL;
 }
 
 bool market_order(const std::string& ticker, double amount)
@@ -121,52 +121,47 @@ bool market_order(const std::string& ticker, double amount)
 	auto res = client.Post(url.c_str(), req.to_json(), JSON_FORMAT);
 
 	// if error exit
-	error = res_err(res);
-	if (error) return false;
+	const char *error = res_err(res);
+	if (error) return error;
 
 	Data json = Data::parse_json(res->body);
 
 	if (json.is_error())
 	{
 		error = "json failed to parse";
-		return false;
 	}
 
 	if (json["orderCreateTransaction"].is_null())
 	{
-		error = "order was not created correctly";
-		return false;
+		return "order was not created correctly";
 	}
 
 	if (json["orderCancelTransaction"].is_null())
 	{
-		error = "order was cancelled";
-		return false;
+		return "order was cancelled";
 	}
 
 	if (json["orderFillTransaction"].is_null())
 	{
-		error = "order was not fulfilled";
-		return false;
+		return "order was not fulfilled";
 	}
 
-	return true;
+	return NULL;
 }
 
-bool get_asset_info(AssetInfo& info, const std::string& ticker)
+const char *get_position(Position* out, const char *ticker)
 {
 	// getting share count
 	std::string url = "/v3/accounts/" + accountid + "/positions/" + ticker;
 	auto res = client.Get(url.c_str());
 
-	error = res_err(res);
-	if (error) return false;
+	const char *error = res_err(res);
+	if (error) return error;
 
 	Data json = Data::parse_json(res->body);
 	if (json.is_error())
 	{
-		error = "json failed to parse";
-		return false;
+		return "json failed to parse";
 	}
 	const Data& long_json = json["position"]["long"];
 	const Data& short_json = json["position"]["short"];
@@ -186,19 +181,18 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 	}
 
 	// getting fee and price
-	url = "/v3/instruments/" + ticker + "/candles?count=5000&granularity=S5&price=BAM";
+	url = "/v3/instruments/" + std::string(ticker) + "/candles?count=20&granularity=S5&price=BAM";
 	res = client.Get(url.c_str());
 
 	// exit if error
 	error = res_err(res);
-	if (error) return false;
+	if (error) return error;
 	
 	
 	json = Data::parse_json(res->body);
 	if (json.is_error())
 	{
-		error = "json failed to parse";
-		return false;
+		return "json failed to parse";
 	}
 
 	
@@ -215,52 +209,48 @@ bool get_asset_info(AssetInfo& info, const std::string& ticker)
 	fee /= price;
 
 	// constructing info
-	info = { amt_invested, fee, 1.0, price, shares };
+	*out = { amt_invested, fee, 1.0, price, shares };
 	
-	return true;
+	return NULL;
 }
 
-bool set_leverage(int multiplier)
+const char *set_leverage(uint32_t multiplier)
 {
 	std::string url = "/v3/accounts/" + accountid + "/configuration";
 	client.Patch(url.c_str());
 	if (multiplier > 50)
 	{
-		error = "multiplier was over maximum (50) and has been capped";
-		multiplier = 50;
+		return "leverage higher than maximum (50) is not allowed";
 	}
-	else if (multiplier < 1)
+	else if (multiplier == 0)
 	{
-		error = "multiplier was below minimum (1) and has been capped";
-		multiplier = 1;
+		return "leverage of 0 is not allowed";
 	}
 	Data req;
 	req["marginRate"] = std::to_string(1.0 / (double)multiplier);
 	auto res = client.Patch(url.c_str(), req.to_json(), JSON_FORMAT);
 	
-	error = res_err(res);
-	if (error) return false;
-	return true;
+	const char *error = res_err(res);
+	if (error) return error;
+
+	return NULL;
 }
 
-bool close_all_positions()
+const char *close_all_positions()
 {
 	std::string url =  "/v3/accounts/" + accountid + "/positions";
 	auto res = client.Get(url.c_str());
 
 	// exit if error
-	error = res_err(res);
-	if (error) return false;
-
+	const char *error = res_err(res);
+	if (error) return error;
 
 	std::string error_glob;
 	std::vector<std::string> failed_tickers;
+
 	Data json = Data::parse_json(res->body);
-	if (json.is_error())
-	{
-		error = "json failed to parse";
-		return false;
-	}
+	if (json.is_error()) return "json failed to parse";
+
 	auto positions = json["positions"].to_array();
 	for (const Data& p : positions)
 	{
@@ -284,10 +274,9 @@ bool close_all_positions()
 	// globbing all errors from trying to close all positions
 	if (!failed_tickers.empty())
 	{
-		error = "failed to close all assets";
-		return false;
+		return "failed to close all assets";
 	}
-	return true;
+	return NULL;
 }
 
 bool secs_till_market_close(int& seconds)
