@@ -24,10 +24,6 @@ namespace daytrender
 		PriceHistory _candles;
 
 	public:
-		inline void enter_long() { _action = Action::ENTER_LONG; }
-		inline void exit_long() { _action = Action::EXIT_LONG; }
-		inline void enter_short() { _action = Action::ENTER_SHORT; }
-		inline void exit_short() { _action = Action::EXIT_SHORT; }
 
 		Chart() = default;
 		Chart(const std::vector<int>& ranges, const PriceHistory& candles, unsigned window);
@@ -39,6 +35,7 @@ namespace daytrender
 		inline Indicator& operator[](unsigned index) { return _dataset[index]; }
 		inline const Indicator& operator[](unsigned index) const { return _dataset[index]; }
 
+		inline void set_action(short action) { _action = action; }
 		inline int action() const { return _action; }
 		inline short size() const { return _size; }
 		inline short capacity() const { return _capacity; }

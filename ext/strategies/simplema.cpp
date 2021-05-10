@@ -1,11 +1,9 @@
-#define INDICATORS 2
 #define DATA_LENGTH 5
+#define LABEL "Simple MA"
 
-#include <candle.h>
-#include <strategyapi.h>
-#include <iostream>
+#include <api/strategy_api.h>
 
-void EMA(Indicator& data, const CandleSet& candles, int range)
+void EMA(Indicator& data, const PriceHistory& candles, unsigned range)
 {
 	double multiplier = 2.0 / (double)(range + 1);
 
@@ -22,21 +20,25 @@ void EMA(Indicator& data, const CandleSet& candles, int range)
 	}
 }
 
-
-void strategy(StrategyData& out)
+std::vector<IndicatorConfig> config = 
 {
-	init_strategy(out, "Simple MA");
-	const Indicator& longma = add_indicator(out, EMA, "long");
-	const Indicator& shortma = add_indicator(out, EMA, "short");
+	{ EMA, "EMA", "long" },
+	{ EMA, "EMA", "short" }
+};
+
+Action strategy(const Chart& chart)
+{
+	const Indicator& longma = chart[0];
+	const Indicator& shortma = chart[1];
 
 	if (shortma.back() > longma.back() && shortma.back(1) < longma.back(1))
 	{
-		out.enter_long();
-		//out.exit_short();
+		return ENTER_LONG;
 	}
 	else if (shortma.back() < longma.back() && shortma.back(1) > longma.back(1))
 	{
-		//out.enter_short();
-		out.exit_long();
+		return EXIT_LONG;
 	}
+
+	return NOTHING;
 }

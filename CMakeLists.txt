@@ -27,21 +27,21 @@ target_include_directories(types_test PRIVATE "include")
 # stops cmake from prepending lib before plugin names
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
-# ################################################################################
-# #		COMPILING STRATEGIES
-# ################################################################################
-# file(GLOB STRAT_SRCS "ext/strategies/*.cpp")
+################################################################################
+#		COMPILING STRATEGIES
+################################################################################
+file(GLOB STRAT_SRCS "ext/strategies/*.cpp")
 
-# foreach(STRAT ${STRAT_SRCS})
-# 	# get filename without folder or extension
-# 	get_filename_component(FILENAME ${STRAT} NAME_WE)
-# 	# create shared object for it
-# 	add_library(${FILENAME} SHARED ${STRAT} ${STRATEGY_TYPES_SRCS})
-# 	# tell it to go to strategies folder
-# 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/strategies)
-# 	target_include_directories(${FILENAME} PRIVATE "include")
+foreach(STRAT ${STRAT_SRCS})
+	# get filename without folder or extension
+	get_filename_component(FILENAME ${STRAT} NAME_WE)
+	# create shared object for it
+	add_library(${FILENAME} SHARED ${STRAT} ${STRATEGY_TYPES_SRCS})
+	# tell it to go to strategies folder
+	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/strategies)
+	target_include_directories(${FILENAME} PRIVATE "include")
 
-# endforeach()
+endforeach()
 
 ################################################################################
 #		COMPILING CLIENTS
