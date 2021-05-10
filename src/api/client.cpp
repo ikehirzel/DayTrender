@@ -4,6 +4,9 @@
 #include <api/versions.h>
 #include <data/mathutil.h>
 
+// standard library
+#include <cstring>
+
 // external libraries
 #include <hirzel/util/str.h>
 #include <hirzel/util/sys.h>
@@ -39,7 +42,6 @@ namespace daytrender
 	Plugin *Client::get_plugin(const std::string &filename, const std::string& dir)
 	{
 		std::string filepath = dir + CLIENT_DIR + filename;
-		PRINT("filepath : %s\n", filepath);
 		Plugin *plugin = _plugins[filepath];
 		// if the plugin is not already cached, attempt to cache it
 		if (!plugin)
@@ -53,7 +55,6 @@ namespace daytrender
 				delete plugin;
 				return nullptr;
 			}
-
 
 			// attempt to bind all api functions by name
 			size_t func_count = sizeof(client_api_func_names) / sizeof(char*);
@@ -91,26 +92,47 @@ namespace daytrender
 	{
 		// get plugin
 		_plugin = get_plugin(filename, dir);
+
+		_init = (const char *(*)(const char **))_plugin->get_func("init");
+		_api_version = (uint32_t(*)())_plugin->get_func("api_version");
+
 	}
 
 	#define FUNC_CHECK() { if (!_plugin) return "client is not bound"; }
 
 
-	bool Client::init(const hirzel::Data& keys)
+	const char *Client::init(const hirzel::Data& keys)
 	{
-		return false;
+		unsigned keyc = key_count();
+		if (keyc != keys.size()) return nullptr;
+
+		char **key_arr = new char*[keyc];
+
+		for (unsigned i = 0; i < keys.size(); i++)
+		{
+			const std::string& str = keys[i].to_string();
+			key_arr[i] = new char[str.size() + 1];
+			strcpy(key_arr[i], str.c_str());
+		}
+
+		const char *error = _init((const char**)key_arr);
+
+		for (unsigned i = 0; i< keyc; ++i) delete[] key_arr[i];
+		delete[] key_arr;
+
+		return error;
 	}
 
-	bool Client::set_leverage(unsigned leverage)
+	const char *Client::set_leverage(unsigned leverage)
 	{
-		return false;
+		return "this function is not implemented yet";
 	}
 
 
 	Result<PriceHistory> Client::get_price_history(const std::string& ticker,
 		unsigned interval, unsigned count) const
 	{
-		FUNC_CHECK();
+		cli_func_check();
 
 		if (count == 0)
 		{
@@ -120,21 +142,19 @@ namespace daytrender
 		{
 			return "requested more candles than maximum";
 		}
-
-		// CandleSet candles(max, end, interval);
-		// bool res = _get_candles(candles, ticker);
-		// if (!res) flag_error();
-		return "failed to get price history";
+		PriceHistory hist(count, interval);
+		const char *error = _get_price_history(&hist, ticker.c_str());
+		if (error) return error;
+		return hist;
 	}
 
 	Result<Account> Client::get_account() const
 	{
-		FUNC_CHECK();
-
-		Account info;
-		bool res = _get_account_info(info);
-
-		return info;
+		cli_func_check();
+		Account account;
+		const char *error = _get_account(&account);
+		if (error) return error;
+		return account;
 	}
 
 	/**
@@ -147,47 +167,27 @@ namespace daytrender
 	 * @param	amount	the amount of shares the client should order
 	 * @return			a bool representing success or failure of the function
 	 */
-	bool Client::market_order(const std::string& ticker, double amount)
+	const char *Client::market_order(const std::string& ticker, double amount)
 	{
-		FUNC_CHECK();
-		if (amount == 0.0) return true;
-		bool res = _market_order(ticker, amount);
-		return res;
+		cli_func_check();
+		if (amount == 0.0) return nullptr;
+		return _market_order(ticker.c_str(), amount);
 	}
 
 	Result<Position> Client::get_position(const std::string& ticker) const
 	{
-		FUNC_CHECK();
+		cli_func_check();
 
-		Position info;
-		bool res = _get_asset_info(info, ticker);
-		return info;
+		Position position;
+		const char *error = _get_position(&position, ticker.c_str());
+		if (error) return error;
+		return position;
 	}
 
-	bool Client::close_all_positions()
+	const char *Client::close_all_positions()
 	{
 		// this function can happen when not live
-
-		bool res = _close_all_positions();
-
-		return res;
-	}
-
-	unsigned Client::secs_till_market_close() const
-	{
-		int seconds = 0;
-		_secs_till_market_close(seconds);
-		return seconds;
-	}
-
-	std::string Client::to_interval(int interval) const
-	{
-		const char* interval_str = _to_interval(interval);
-		if (!interval_str)
-		{
-			return "";
-		}
-
-		return std::string(interval_str);
+		cli_func_check();
+		return _close_all_positions();
 	}
 }

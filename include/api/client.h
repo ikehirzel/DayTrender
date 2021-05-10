@@ -16,6 +16,8 @@
 #include <hirzel/plugin.h>
 #include <hirzel/data.h>
 
+#define cli_func_check() if (!_plugin) return "client is not bound"
+
 namespace daytrender
 {
 	class Client
@@ -29,29 +31,24 @@ namespace daytrender
 		
 		// init func
 
-		bool (*_init)(const char **) = nullptr;
+		const char *(*_init)(const char **) = nullptr;
 
 		// api functions
-
-		// non returning
 		
-		bool (*_market_order)(const std::string&, double) = nullptr;
-		bool (*_close_all_positions)() = nullptr;
-		bool (*_set_leverage)(int) = nullptr;
-
-		// returning
-		bool (*_get_account_info)(Account&) = nullptr;
-		bool (*_get_candles)(PriceHistory&, const std::string&) = nullptr;
-		bool (*_get_asset_info)(Position&, const std::string&) = nullptr;
-		bool (*_secs_till_market_close)(int&) = nullptr;
-		const char* (*_to_interval)(int) = nullptr;
+		const char *(*_market_order)(const char*, double) = nullptr;
+		const char *(*_close_all_positions)() = nullptr;
+		const char *(*_set_leverage)(uint32_t) = nullptr;
+		const char *(*_get_account)(Account*) = nullptr;
+		const char *(*_get_price_history)(PriceHistory*, const char*) = nullptr;
+		const char *(*_get_position)(Position*, const char*) = nullptr;
+		const char* (*_to_interval)(uint32_t) = nullptr;
+		uint32_t(*_secs_till_market_close)() = nullptr;
 
 		// getters
 
-		int (*_key_count)() = nullptr;
-		int (*_max_candles)() = nullptr;
-		void (*_get_error)(std::string&) = nullptr;
-		int (*_api_version)() = nullptr;
+		uint32_t (*_key_count)() = nullptr;
+		uint32_t (*_max_candles)() = nullptr;
+		uint32_t (*_api_version)() = nullptr;
 
 		void flag_error() const;
 		bool client_ok() const;
@@ -67,12 +64,12 @@ namespace daytrender
 
 		// api functions
 
-		bool init(const hirzel::Data& keys);
+		const char *init(const hirzel::Data& keys);
 
 		// non returning
-		bool market_order(const std::string& ticker, double amount);
-		bool close_all_positions();
-		bool set_leverage(unsigned leverage);
+		const char *market_order(const std::string& ticker, double amount);
+		const char *close_all_positions();
+		const char *set_leverage(unsigned leverage);
 
 		// returning
 		Result<Account> get_account() const;
@@ -82,24 +79,26 @@ namespace daytrender
 
 		Result<Position> get_position(const std::string& ticker) const;
 
-		unsigned secs_till_market_close() const;
-		std::string to_interval(int interval) const;
+		const char *to_interval(int interval) const;
 
 		// getters for constants
 
-		int key_count() const { return _key_count(); }
-		inline int max_candles() const { return _max_candles(); }
+		inline unsigned key_count() const { return _key_count(); }
+		inline unsigned max_candles() const { return _max_candles(); }
 		inline unsigned api_version() const { return _api_version(); }
-
-		inline std::string get_error() const
+		inline const char *to_interval(unsigned multiplier) const
 		{
-			std::string error;
-			_get_error(error);
-			return error;
+			if (!_plugin) return nullptr;
+			return _to_interval((uint32_t)multiplier);
+		}
+		inline unsigned secs_till_market_close() const
+		{
+			if (!_plugin) return 0;
+			return _secs_till_market_close();
 		}
 
 		// inline getter functions
-		inline bool is_bound() const { return !_plugin; }
+		inline bool is_bound() const { return _plugin != NULL; }
 		inline const std::string& filename() const { return _filename; }
 	};
 }

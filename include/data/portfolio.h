@@ -33,7 +33,8 @@ namespace daytrender
 
 	public:
 		Portfolio() = default;
-		Portfolio(const hirzel::Data& config, const std::string& dir);
+		Portfolio(const hirzel::Data& config, const std::string& label,
+			const std::string& dir);
 
 		void update();
 		void remove_asset(const std::string& ticker);

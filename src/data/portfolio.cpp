@@ -21,8 +21,9 @@ namespace daytrender
 		"closeout_buffer"
 	};
 
-	Portfolio::Portfolio(const Data& config, const std::string& dir) :
-	_label(config["label"].to_string())
+	Portfolio::Portfolio(const Data& config, const std::string& label,
+		const std::string& dir) :
+	_label(label)
 	{
 		double max_loss = config["max_loss"].to_double();
 		double risk = config["risk"].to_double();
@@ -47,21 +48,43 @@ namespace daytrender
 		//int history_length = config["h"
 
 		const Data& client_json = config["client"];
+		if (!client_json.contains("filename"))
+		{
+			ERROR("%s: client filename must be given in config", _label);
+			return;
+		}
 
-		if (!client_json.contains("filename") ||
-			!client_json.contains("keys") ||
-			!client_json["keys"].is_array()) return;
+		if (!client_json.contains("keys"))
+		{
+			ERROR("%s: client keys must be given in config", _label);
+			return;
+		}
+
+		if (!client_json["keys"].is_array())
+		{
+			ERROR("%s: keys were not formatted correctly", _label);
+			return;
+		}
 
 		const Data& keys_json = client_json["keys"];
-
 		_client = Client(client_json["filename"].to_string(), dir);
-		if (!_client.is_bound()) return;
+		if (!_client.is_bound())
+		{
+			ERROR("%s: client failed to bind", _label);
+			return;
+		}
+		else
+		{
+			SUCCESS("%s: client successfully bound", _label);
+		}
+
+		_client.api_version();
 
 		// verifying api version of client matches current one
 		if (_client.api_version() != CLIENT_API_VERSION)
 		{
-			ERROR("%s: api version for (%d) did not match current api version: %d)",
-				_client.api_version(), CLIENT_API_VERSION);
+			ERROR("%s: api version for (%u) did not match current api version: %u)",
+				_label, _client.api_version(), CLIENT_API_VERSION);
 			return;
 		}
 
@@ -74,17 +97,21 @@ namespace daytrender
 			return;
 		}
 
+		const char *error = nullptr;
+
 		// check if init failed
-		if (!_client.init(keys_json))
+		error = _client.init(keys_json);
+		if (error)
 		{
-			ERROR("%s: %s", _client.filename(), _client.get_error());
+			ERROR("%s: %s", _client.filename(), error);
 			return;
 		}
 
 		// setting client leverage
-		if (!_client.set_leverage(config["leverage"].to_uint()))
+		//error = _client.set_leverage(config["leverage"].to_uint());
+		if (error)
 		{
-			ERROR("%s: %s", _client.filename(), _client.get_error());
+			ERROR("%s: %s", _client.filename(), error);
 			return;
 		}
 
@@ -105,7 +132,8 @@ namespace daytrender
 
 	void Portfolio::update()
 	{
-		int till_close = _client.secs_till_market_close();
+		INFO("Updating %s", _label);
+		unsigned till_close = _client.secs_till_market_close();
 
 		if (till_close <= _closeout_buffer) return;
 	
@@ -135,12 +163,13 @@ namespace daytrender
 		{
 			ERROR("%s has undergone $%f loss in the last %f hours! Closing all position...", _label, _pl, _history_length);
 			
-			if (!_client.close_all_positions())
+			const char *error = _client.close_all_positions();
+			if (error)
 			{
-				ERROR("%s (%s): %s", _client.filename(), _label, _client.get_error());
+				ERROR("%s (%s): %s", _client.filename(), _label, error);
 			}
 
-			ERROR("%s trading has ceased!", _label);
+			INFO("%s trading has ceased!", _label);
 			return;
 		}
 

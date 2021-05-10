@@ -55,6 +55,7 @@ namespace daytrender
 		for (auto pair : table)
 		{
 			const std::string& label = pair.first;
+			INFO("Loading %s portfolio", label);
 			std::string file = file::read(dir + CONFIG_FOLDER "/portfolios/" + pair.second.to_string());
 			Data json = Data::parse_json(file);
 			if (json.is_error())
@@ -63,11 +64,17 @@ namespace daytrender
 				return false;
 			}
 
-			Portfolio portfolio(json, dir);
+			Portfolio portfolio(json, label, dir);
 			if (portfolio.is_live())
 			{
 				portfolios.push_back(portfolio);
 			}
+		}
+
+		if (portfolios.empty())
+		{
+			WARNING("No portfolios were loaded...");
+			return false;
 		}
 
 		return true;
@@ -132,5 +139,6 @@ int main(int argc, char *argv[])
 	daytrender::Strategy::free_plugins();
 
 	SUCCESS("DayTrender has stopped");
+
 	return 0;
 }
