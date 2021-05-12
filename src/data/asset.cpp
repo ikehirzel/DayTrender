@@ -14,13 +14,12 @@ using namespace hirzel;
 
 namespace daytrender
 {
-	Asset::Asset(const Data& config, const std::string& dir)
+	Asset::Asset(const Data& config, const std::string& dir) :
+	_ticker(config["ticker"].to_string()),
+	_interval(config["inteval"].to_uint()),
+	_strategy(config["strategy"].to_string(), dir)
 	{
-		if (!config["ticker"].is_string() || !config["strategy"].is_string()) return;
-		if (!(config["interval"].to_double() > 0.0)) return;
-
-		_ticker = config["ticker"].to_string();
-		_interval = config["interval"].to_int();
+		if (!_strategy.is_bound()) return;
 		const Data& ranges_json = config["ranges"];
 
 		_ranges.resize(ranges_json.size());
@@ -69,7 +68,7 @@ namespace daytrender
 
 		if (!chart_res.ok())
 		{
-			ERROR("%s: Algorithm: %s", _ticker, chart_res.error());
+			ERROR("%s (%s): %s", _strategy.filename(), _ticker, chart_res.error());
 			return ERROR;
 		}
 

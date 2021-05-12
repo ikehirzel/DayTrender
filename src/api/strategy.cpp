@@ -11,6 +11,8 @@
 #include <hirzel/logger.h>
 #include <hirzel/util/str.h>
 
+#define STRATEGY_DIR "/strategies/"
+
 namespace daytrender
 {
 	std::unordered_map<std::string, hirzel::Plugin*> Strategy::_plugins;
@@ -23,18 +25,17 @@ namespace daytrender
 		}
 	}
 
-	Strategy::Strategy(const std::string& filepath)
+	Strategy::Strategy(const std::string& filename, const std::string& dir) :
+	_filename(filename)
 	{
-		_filename = hirzel::str::get_filename(filepath);
-
 		// fetching pointer corresponding to name
-		_plugin = _plugins[filepath];
+		_plugin = _plugins[filename];
 
 		// if no such pointer exists
 		if (!_plugin)
 		{
 			// initialize new plugin
-			_plugin = new hirzel::Plugin(filepath, 
+			_plugin = new hirzel::Plugin(dir + STRATEGY_DIR + filename, 
 			{
 				"indicator_count",
 				"data_length",
@@ -42,20 +43,16 @@ namespace daytrender
 				"api_version"
 			});
 			
-			if (!_plugin->bound())
+			if (!_plugin->bound() || _plugin->error())
 			{
-				ERROR("plugin %s failed to bind", filepath);
+				ERROR("%s: %s", _filename, _plugin->error());
 				delete _plugin;
+				_plugin = nullptr;
 				return;
 			}
+
 			// store pointer in map
-			_plugins[filepath] = _plugin;
-		}
-		
-		if (_plugin->error())
-		{
-			ERROR("%s: error: %s", _filename, _plugin->error());
-			return;
+			_plugins[filename] = _plugin;
 		}
 
 		int api_version = _plugin->execute<int>("api_version");
@@ -64,11 +61,10 @@ namespace daytrender
 			ERROR("%s: api version (%d) did not match current api version: %d)", _filename, api_version, STRATEGY_API_VERSION);
 			return;
 		}
+
 		_indicator_count = _plugin->execute<uint32_t>("indicator_count");
 		_data_length = _plugin->execute<uint32_t>("data_length");
-		_execute = (const char *(*)(Chart*))_plugin->get_func("strategy");
-		if (!_plugin->bound()) return;
-		_bound = true;
+		_execute = (decltype(_execute))_plugin->get_func("strategy");
 	}
 
 	Result<Chart> Strategy::execute(const PriceHistory& candles,

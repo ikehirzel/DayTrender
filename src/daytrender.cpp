@@ -50,19 +50,30 @@ namespace daytrender
 			return false;
 		}
 
+		SUCCESS("Loaded porfolios.json");
+
 		// reading portfolio configs
 		const Data::Table& table = portfolios_json.to_table();
 		for (auto pair : table)
 		{
 			const std::string& label = pair.first;
-			INFO("Loading %s portfolio", label);
-			std::string file = file::read(dir + CONFIG_FOLDER "/portfolios/" + pair.second.to_string());
+			std::string filename = pair.second.to_string();
+			
+			std::string file = file::read(dir + CONFIG_FOLDER "/portfolios/" + filename);
+			if (file.empty())
+			{
+				ERROR("Failed to load config for %s portfolio: %s", label, filename);
+				return false;
+			}
+			
 			Data json = Data::parse_json(file);
 			if (json.is_error())
 			{
 				ERROR("%s: %s", pair.second.to_string(), json.to_string());
 				return false;
 			}
+
+			SUCCESS("Loaded %s", filename);
 
 			Portfolio portfolio(json, label, dir);
 			if (portfolio.is_live())

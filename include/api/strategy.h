@@ -21,7 +21,6 @@ namespace daytrender
 		static std::unordered_map<std::string, hirzel::Plugin*> _plugins;
 
 		// plugin info
-		bool _bound = false;
 		std::string _filename;
 		hirzel::Plugin* _plugin = nullptr;
 		//
@@ -31,7 +30,7 @@ namespace daytrender
 
 	public:
 		Strategy() = default;
-		Strategy(const std::string& _filepath);
+		Strategy(const std::string& filename, const std::string& dir);
 
 		static void free_plugins();
 
@@ -39,7 +38,7 @@ namespace daytrender
 			const std::vector<int>& ranges) const;
 		inline const std::string& filename() const { return _filename; };
 		inline int indicator_count() const { return _indicator_count; }
-		inline bool is_bound() const { return _execute != nullptr; }
+		inline bool is_bound() const { return _plugin != nullptr; }
 		inline int data_length() const { return _data_length; }
 	};
 }

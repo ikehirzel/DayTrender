@@ -93,9 +93,19 @@ namespace daytrender
 		// get plugin
 		_plugin = get_plugin(filename, dir);
 
-		_init = (const char *(*)(const char **))_plugin->get_func("init");
-		_api_version = (uint32_t(*)())_plugin->get_func("api_version");
+		_init = (decltype(_init))_plugin->get_func("init");
+		_market_order = (decltype(_market_order))_plugin->get_func("market_order");
+		_close_all_positions = (decltype(_close_all_positions))_plugin->get_func("close_all_positions");
+		_set_leverage = (decltype(_set_leverage))_plugin->get_func("set_leverage");
+		_get_account = (decltype(_get_account))_plugin->get_func("get_account");
+		_get_price_history = (decltype(_get_price_history))_plugin->get_func("get_price_history");
+		_get_position = (decltype(_get_position))_plugin->get_func("get_position");
+		_to_interval = (decltype(_to_interval))_plugin->get_func("to_interval");
+		_secs_till_market_close = (decltype(_secs_till_market_close))_plugin->get_func("secs_till_market_close");
 
+		_api_version = (decltype(_api_version))_plugin->get_func("api_version");
+		_key_count = (decltype(_key_count))_plugin->get_func("key_count");
+		_max_candles = (decltype(_max_candles))_plugin->get_func("max_candles");
 	}
 
 	#define FUNC_CHECK() { if (!_plugin) return "client is not bound"; }

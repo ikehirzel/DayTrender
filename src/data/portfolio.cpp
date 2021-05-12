@@ -10,6 +10,8 @@
 
 using namespace hirzel;
 
+using logger::print;
+
 namespace daytrender
 {
 	const std::vector<const char*> check_array = { "assets" };
@@ -75,7 +77,7 @@ namespace daytrender
 		}
 		else
 		{
-			SUCCESS("%s: client successfully bound", _label);
+			SUCCESS("%s: bound client", _label);
 		}
 
 		_client.api_version();
@@ -97,10 +99,8 @@ namespace daytrender
 			return;
 		}
 
-		const char *error = nullptr;
-
 		// check if init failed
-		error = _client.init(keys_json);
+		const char *error = _client.init(keys_json);
 		if (error)
 		{
 			ERROR("%s: %s", _client.filename(), error);
@@ -124,6 +124,12 @@ namespace daytrender
 		for (int i = 0; i < assets_json.size(); i++)
 		{
 			_assets[i] = Asset(assets_json[i], dir);
+			if (!_assets[i].is_bound())
+			{
+				ERROR("%s (%s) could not be initialized", _assets[i].ticker(), _label);
+				_assets.clear();
+				return;
+			}
 		}
 
 		_live = true;
@@ -178,9 +184,11 @@ namespace daytrender
 		if (till_close <= _closeout_buffer)
 		{
 			INFO("%s market will close in %d minutes. Closing all positions...", _label, _closeout_buffer / 60);
-			if (!_client.close_all_positions())
+			const char *error = _client.close_all_positions();
+			if (error)
 			{
-				ERROR("%s (%s): %s", _client.filename(), _label, _client.get_error());
+				ERROR("%s (%s): %s", _client.filename(), _label, error);
+
 			}
 		}
 

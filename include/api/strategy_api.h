@@ -30,7 +30,7 @@ struct IndicatorConfig
 //extern std::vector<indicator_conf> indi_confs;
 extern const std::vector<IndicatorConfig> config;
 
-Action strategy(Chart& chart);
+Action strategy(const Chart& chart);
 // api interface
 extern "C"
 {

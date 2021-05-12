@@ -91,6 +91,7 @@ namespace daytrender
 			if (!_plugin) return nullptr;
 			return _to_interval((uint32_t)multiplier);
 		}
+		
 		inline unsigned secs_till_market_close() const
 		{
 			if (!_plugin) return 0;

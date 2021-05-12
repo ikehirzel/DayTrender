@@ -49,7 +49,7 @@ namespace daytrender
 		inline unsigned interval() const { return _interval; }
 		inline double risk() const { return _risk; }
 		inline unsigned data_length() const { return _strategy.data_length(); }
-
+		inline bool is_bound() const { return _strategy.is_bound(); }
 	};
 }
 
