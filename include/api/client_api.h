@@ -42,6 +42,7 @@ const char *res_err(const httplib::Result& res)
 	}
 	else if (res->status < 200 || res->status > 299)
 	{
+		std::cout << res->status << ": " << res->body << std::endl;
 		return "response status was not okay";
 	}
 	else if (res->body.empty())

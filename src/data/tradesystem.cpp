@@ -1,4 +1,4 @@
-#include <daytrender.h>
+#include <data/tradesystem.h>
 
 // local inlcudes
 #include <interface/backtest.h>
@@ -22,13 +22,15 @@ using namespace hirzel;
 
 namespace daytrender
 {
-	bool running = false;
-	std::vector<Portfolio> portfolios;
-	std::mutex mtx;
-
-	bool init(const std::string& execpath)
+	TradeSystem::TradeSystem(const std::string& dir)
 	{
-		std::string dir = std::filesystem::current_path().string() + "/" + execpath;
+		_initialized = init(dir);
+		if (!_initialized) _portfolios.clear();
+	}
+
+	bool TradeSystem::init(const std::string& dir)
+	{
+		
 		std::string portfolios_str = file::read(dir + CONFIG_FOLDER "/portfolios.json");
 
 		if (portfolios_str.empty())
@@ -78,11 +80,11 @@ namespace daytrender
 			Portfolio portfolio(json, label, dir);
 			if (portfolio.is_live())
 			{
-				portfolios.push_back(portfolio);
+				_portfolios.push_back(portfolio);
 			}
 		}
 
-		if (portfolios.empty())
+		if (_portfolios.empty())
 		{
 			WARNING("No portfolios were loaded...");
 			return false;
@@ -91,9 +93,9 @@ namespace daytrender
 		return true;
 	}
 
-	void start()
+	void TradeSystem::start()
 	{
-		running = true;
+		_running = true;
 		INFO("Starting DayTrender");
 
 		// std::thread shell_thread(shell::get_input);
@@ -101,9 +103,9 @@ namespace daytrender
 
 		// std::thread server_thread(server::start);
 
-		while (running)
+		while (_running)
 		{
-			for (Portfolio& portfolio : portfolios)
+			for (Portfolio& portfolio : _portfolios)
 			{
 				portfolio.update();
 			}
@@ -115,41 +117,17 @@ namespace daytrender
 		// server_thread.join();
 	}
 
-	void stop()
+	void TradeSystem::stop()
 	{
-		mtx.lock();
-		if (!running)
+		_mtx.lock();
+		if (!_running)
 		{
 			WARNING("DayTrender has already stopped");
 			return;
 		}
 
-		running = false;
+		_running = false;
 		INFO("Shutting down DayTrender...");
-		mtx.unlock();
+		_mtx.unlock();
 	}
-
-	const std::vector<Portfolio>& get_portfolios()
-	{
-		return portfolios; 
-	}
-}
-
-int main(int argc, char *argv[])
-{
-	hirzel::logger::init();
-
-	// 
-	if (!daytrender::init(hirzel::str::get_folder(argv[0])))
-	{
-		FATAL("DayTrender failed to initialize");
-		return 0;
-	}
-
-	daytrender::start();
-	daytrender::Strategy::free_plugins();
-
-	SUCCESS("DayTrender has stopped");
-
-	return 0;
 }

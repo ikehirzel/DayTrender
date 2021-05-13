@@ -34,6 +34,7 @@ const char *get_price_history(PriceHistory* out, const char *ticker)
 	};
 
 	url += '?' + httplib::detail::params_to_query_str(p);
+	std::cout << url << std::endl;
 	auto res = client.Get(url.c_str());
 
 	// if there was an error, return it
