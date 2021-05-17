@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 // external libararies
 #include <hirzel/plugin.h>
@@ -23,10 +24,9 @@ namespace daytrender
 	class Client
 	{
 	private:
-		static std::unordered_map<std::string, hirzel::Plugin*> _plugins;
-		static hirzel::Plugin *get_plugin(const std::string& filename, const std::string& dir);
+		static std::unordered_map<std::string, std::shared_ptr<hirzel::Plugin>> _plugins;
 
-		hirzel::Plugin* _plugin = nullptr;
+		std::shared_ptr<hirzel::Plugin> _plugin;
 		std::string _filename;
 		
 		// init func

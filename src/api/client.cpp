@@ -20,79 +20,47 @@ using namespace hirzel;
 
 namespace daytrender
 {
-	std::unordered_map<std::string, hirzel::Plugin*> Client::_plugins;
+	std::unordered_map<std::string, std::shared_ptr<Plugin>> Client::_plugins;
 
-	const char *client_api_func_names[] =
+	Client::Client(const std::string& filename, const std::string& dir) :
+	_filename(filename)
 	{
-		"init",
-		"api_version",
-		"get_price_history",
-		"get_account",
-		"get_position",
-		"market_order",
-		"close_all_positions",
-		"secs_till_market_close",
-		"set_leverage",
-		"to_interval",
-		"key_count",
-		"max_candles"
-	};
-
-	// gets plugin by filepath and caches it if it had to load a new one
-	Plugin *Client::get_plugin(const std::string &filename, const std::string& dir)
-	{
+		// get plugin
 		std::string filepath = dir + CLIENT_DIR + filename;
-		Plugin *plugin = _plugins[filepath];
+		std::shared_ptr<Plugin> plugin = _plugins[filepath];
 		// if the plugin is not already cached, attempt to cache it
 		if (!plugin)
 		{
-			plugin = new hirzel::Plugin(filepath);
+			plugin = std::make_shared<Plugin>(filepath,
+			(std::vector<std::string>)
+			{
+				"init",
+				"api_version",
+				"get_price_history",
+				"get_account",
+				"get_position",
+				"market_order",
+				"close_all_positions",
+				"secs_till_market_close",
+				"set_leverage",
+				"to_interval",
+				"key_count",
+				"max_candles"
+			});
 
 			// if plugin has errors, log, delete and exit
-			if (plugin->error())
+			if (!plugin->bound() || plugin->error())
 			{
 				ERROR(plugin->error());
-				delete plugin;
-				return nullptr;
-			}
-
-			// attempt to bind all api functions by name
-			size_t func_count = sizeof(client_api_func_names) / sizeof(char*);
-			for (size_t i = 0; i < func_count; i++)
-			{
-				// bind function
-				Function func = plugin->bind_function(client_api_func_names[i]);
-				// check if failed to bind
-				if (!func)
-				{
-					ERROR("%s: client function '%s' failed to bind",
-						filename, client_api_func_names[i]);
-					delete plugin;
-					return nullptr;
-				}
+				_plugin.reset();
+				return;
 			}
 
 			// cache plugin
 			_plugins[filepath] = plugin;
 		}
 
-		return plugin;
-	}
-
-	void Client::free_plugins()
-	{
-		for (auto p : _plugins)
-		{
-			delete p.second;
-		}
-	}
-
-	Client::Client(const std::string& filename, const std::string& dir) :
-	_filename(filename)
-	{
-		// get plugin
-		_plugin = get_plugin(filename, dir);
-
+		// point functions
 		_init = (decltype(_init))_plugin->get_func("init");
 		_market_order = (decltype(_market_order))_plugin->get_func("market_order");
 		_close_all_positions = (decltype(_close_all_positions))_plugin->get_func("close_all_positions");
@@ -107,9 +75,6 @@ namespace daytrender
 		_key_count = (decltype(_key_count))_plugin->get_func("key_count");
 		_max_candles = (decltype(_max_candles))_plugin->get_func("max_candles");
 	}
-
-	#define FUNC_CHECK() { if (!_plugin) return "client is not bound"; }
-
 
 	const char *Client::init(const hirzel::Data& keys)
 	{

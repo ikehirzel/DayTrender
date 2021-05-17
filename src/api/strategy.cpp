@@ -29,7 +29,8 @@ namespace daytrender
 		if (!_plugin)
 		{
 			_plugin = std::make_shared<Plugin>((std::string)(dir + STRATEGY_DIR + filename),
-			(std::vector<std::string>){
+			(std::vector<std::string>)
+			{
 				"indicator_count",
 				"data_length",
 				"execute",
