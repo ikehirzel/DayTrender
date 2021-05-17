@@ -93,8 +93,7 @@ int main(int argc, const char *argv[])
 	}
 
 	system.start();
-
-	daytrender::Strategy::free_plugins();
+	
 	SUCCESS("DayTrender has stopped");
 	return 0;
 }

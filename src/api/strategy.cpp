@@ -13,17 +13,11 @@
 
 #define STRATEGY_DIR "/strategies/"
 
+using hirzel::Plugin;
+
 namespace daytrender
 {
-	std::unordered_map<std::string, hirzel::Plugin*> Strategy::_plugins;
-
-	void Strategy::free_plugins()
-	{
-		for (auto p : _plugins)
-		{
-			delete p.second;
-		}
-	}
+	std::unordered_map<std::string, std::shared_ptr<Plugin>> Strategy::_plugins;
 
 	Strategy::Strategy(const std::string& filename, const std::string& dir) :
 	_filename(filename)
@@ -34,9 +28,8 @@ namespace daytrender
 		// if no such pointer exists
 		if (!_plugin)
 		{
-			// initialize new plugin
-			_plugin = new hirzel::Plugin(dir + STRATEGY_DIR + filename, 
-			{
+			_plugin = std::make_shared<Plugin>((std::string)(dir + STRATEGY_DIR + filename),
+			(std::vector<std::string>){
 				"indicator_count",
 				"data_length",
 				"execute",
@@ -46,12 +39,10 @@ namespace daytrender
 			if (!_plugin->bound() || _plugin->error())
 			{
 				ERROR("%s: %s", _filename, _plugin->error());
-				delete _plugin;
-				_plugin = nullptr;
+				_plugin.reset();
 				return;
 			}
 
-			// store pointer in map
 			_plugins[filename] = _plugin;
 		}
 

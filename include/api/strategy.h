@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 // external libraries
 #include <hirzel/plugin.h>
@@ -18,11 +19,11 @@ namespace daytrender
 	class Strategy
 	{
 	private:
-		static std::unordered_map<std::string, hirzel::Plugin*> _plugins;
+		static std::unordered_map<std::string, std::shared_ptr<hirzel::Plugin>> _plugins;
 
 		// plugin info
 		std::string _filename;
-		hirzel::Plugin* _plugin = nullptr;
+		std::shared_ptr<hirzel::Plugin> _plugin = nullptr;
 		//
 		int _indicator_count = 0;
 		int _data_length = 0;
@@ -31,8 +32,6 @@ namespace daytrender
 	public:
 		Strategy() = default;
 		Strategy(const std::string& filename, const std::string& dir);
-
-		static void free_plugins();
 
 		Result<Chart> execute(const PriceHistory& candles,
 			const std::vector<int>& ranges) const;
