@@ -22,7 +22,11 @@ bool cli_backtest(int argc, const char *args[], const char *dir)
 
 bool cli_price(int argc, const char *args[], const char *dir)
 {
-	if (argc < 4) return false;
+	if (argc < 4)
+	{
+		PRINT("daytrender: not enough args supplied!\nThey must be in the following order:\n\tclient filename\n\tasset ticker\n\tcandle interval\n\tcandle count\n");
+		return false;
+	}
 	// need to get ticker, client, count
 	const char *client = args[0];
 	const char *ticker = args[1];
@@ -37,7 +41,7 @@ bool cli_price(int argc, const char *args[], const char *dir)
 	Result<PriceHistory> res = cli.get_price_history(ticker, interval_num, count_num);
 	if (!res.ok())
 	{
-		ERROR(res.error());
+		ERROR("%s: %s", client, res.error());
 		return false;
 	}
 
@@ -46,7 +50,6 @@ bool cli_price(int argc, const char *args[], const char *dir)
 	{
 		PRINT("O: %f, H: %f, L: %f, C: %f, V: %f\n", ph[i].o(), ph[i].h(), ph[i].l(), ph[i].c(), ph[i].v());
 	}
-
 
 	return true;
 }
@@ -66,34 +69,35 @@ bool handle_input(int argc, const char *args[], const char *dir)
 		break;
 	}
 
-	PRINT("Invalid command\n");
+	PRINT("daytrender: Invalid command\n");
 	return false;
 }
 
 int main(int argc, const char *argv[])
 {
-	hirzel::logger::init();
+	bool command_line = argc > 1;
+	// if using as cli, do not print normal logs
+	hirzel::logger::init(true, !command_line, "", 0UL);
+
 	std::string dir = std::filesystem::current_path().string() + "/" + hirzel::str::get_folder(argv[0]);
 
-	// handling console input
-	if (argc > 1)
-	{
-		if (handle_input(argc - 1, argv + 1, dir.c_str())) return 0;
-		return 1;
-	}
 
-
-	// trade system
+	// initializing trade system
 	daytrender::TradeSystem system(hirzel::str::get_folder(argv[0]));
-	return 0;
+
 	if (!system.is_initialized())
 	{
 		FATAL("DayTrender failed to initialize");
+		if (command_line) PRINT("DayTrender failed to initialize. Run in trade mode for more information\n");
 		return 1;
 	}
 
+	// handling console input
+	if (command_line) return !handle_input(argc - 1, argv + 1, dir.c_str());
+
+	// returns when program has ended
 	system.start();
-	
+
 	SUCCESS("DayTrender has stopped");
 	return 0;
 }
