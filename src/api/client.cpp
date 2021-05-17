@@ -26,12 +26,11 @@ namespace daytrender
 	_filename(filename)
 	{
 		// get plugin
-		std::string filepath = dir + CLIENT_DIR + filename;
-		std::shared_ptr<Plugin> plugin = _plugins[filepath];
+		_plugin = _plugins[filename];
 		// if the plugin is not already cached, attempt to cache it
-		if (!plugin)
+		if (!_plugin)
 		{
-			plugin = std::make_shared<Plugin>(filepath,
+			_plugin = std::make_shared<Plugin>((std::string)dir + CLIENT_DIR + filename,
 			(std::vector<std::string>)
 			{
 				"init",
@@ -49,15 +48,15 @@ namespace daytrender
 			});
 
 			// if plugin has errors, log, delete and exit
-			if (!plugin->bound() || plugin->error())
+			if (!_plugin->bound() || _plugin->error())
 			{
-				ERROR(plugin->error());
+				ERROR(_plugin->error());
 				_plugin.reset();
 				return;
 			}
 
 			// cache plugin
-			_plugins[filepath] = plugin;
+			_plugins[filename] = _plugin;
 		}
 
 		// point functions
