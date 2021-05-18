@@ -171,7 +171,7 @@ namespace daytrender
 		// account has lost too much in last interval
 		if (_pl <= prev_equity * -_max_loss)
 		{
-			ERROR("%s has undergone $%f loss in the last %f hours! Closing all position...", _label, _pl, _history_length);
+			ERROR("%s has undergone $%f loss in the last %f hours! Closing all positions...", _label, _pl, _history_length);
 			
 			const char *error = _client.close_all_positions();
 			if (error)
@@ -188,6 +188,8 @@ namespace daytrender
 		// if within closeout buffer of market is closed
 		if (!is_live())
 		{
+			DEBUG("till close: %d", _client.secs_till_market_close());
+			DEBUG("Closeout buffer: %d", _closeout_buffer);
 			INFO("%s market will close in %d minutes. Closing all positions...",
 				_label, _closeout_buffer / 60);
 

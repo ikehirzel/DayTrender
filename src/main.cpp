@@ -52,17 +52,14 @@ bool cli_account(TradeSystem& system, int argc, const char *args[], const char *
 
 bool cli_backtest(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
-	if (!argc) return false;
-	const char *strat = nullptr;
-
 	return false;
 }
 
 bool cli_price(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
-	if (argc < 4)
+	if (argc != 4)
 	{
-		PRINT("error: not enough args supplied!\nThey must be in the following order:\n\tclient filename\n\tasset ticker\n\tcandle interval\n\tcandle count\n");
+		PRINT("error: args must be as follows:\n\tclient filename\n\tasset ticker\n\tcandle interval\n\tcandle count\n");
 		return false;
 	}
 	// need to get ticker, client, count

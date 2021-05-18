@@ -65,7 +65,7 @@ namespace daytrender
 		inline bool is_ok() const { return _ok; }
 		inline bool is_live() const
 		{
-			return _client.secs_till_market_close() <= _closeout_buffer;
+			return (_client.secs_till_market_close() > _closeout_buffer);
 		}
 	};
 }
