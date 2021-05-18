@@ -8,12 +8,19 @@
 
 #include <hirzel/data.h>
 
+#define PORTFOLIO_UPDATE_INTERVAL 60
+
 namespace daytrender
 {
 	class Portfolio
 	{
 	private:
-		bool _live = false;
+		// status flag
+		bool _ok = false;
+		// update timer
+		long long _last_update = 0;
+
+		// portfolio settings
 		bool _shorting_enabled = false;
 		unsigned _asset_count = 0;
 		double _risk_sum = 0.0;
@@ -22,6 +29,8 @@ namespace daytrender
 		double _max_loss = 0.05;
 		double _history_length = 24.0;
 		unsigned _closeout_buffer = 15 * 60;
+
+
 
 		std::string _label;
 		Client _client;
@@ -37,26 +46,25 @@ namespace daytrender
 			const std::string& dir);
 
 		void update();
-		void remove_asset(const std::string& ticker);
+		void update_assets();
+		inline bool should_update() const
+		{
+			// update once per minute
+			return hirzel::sys::epoch_seconds() - _last_update >= PORTFOLIO_UPDATE_INTERVAL;
+		}
 		
 		double risk_sum() const;
-
-		inline void add_asset(const Asset& asset)
-		{
-			_assets.push_back(asset);
-		}
 
 		inline std::string label() const { return _label; }
 
 		/**
-		 * @return	State of whether the portfolio is able to trade or not
-		 */
-		inline bool is_live() const { return _live; }
-
-		/**
 		 *	@return	State on whether its client and assets are bound 
 		 */
-		bool is_bound() const;
+		inline bool is_ok() const { return _ok; }
+		inline bool is_live() const
+		{
+			return _client.secs_till_market_close() <= _closeout_buffer;
+		}
 	};
 }
 

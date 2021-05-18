@@ -41,7 +41,7 @@ namespace daytrender
 		const char *(*_get_account)(Account*) = nullptr;
 		const char *(*_get_price_history)(PriceHistory*, const char*) = nullptr;
 		const char *(*_get_position)(Position*, const char*) = nullptr;
-		const char* (*_to_interval)(uint32_t) = nullptr;
+		const char *(*_to_interval)(uint32_t) = nullptr;
 		uint32_t(*_secs_till_market_close)() = nullptr;
 
 		// getters
@@ -99,7 +99,7 @@ namespace daytrender
 		}
 
 		// inline getter functions
-		inline bool is_bound() const { return _plugin != NULL; }
+		inline bool is_bound() const { return (bool)_plugin; }
 		inline const std::string& filename() const { return _filename; }
 	};
 }

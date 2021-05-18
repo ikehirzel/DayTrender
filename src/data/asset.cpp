@@ -6,20 +6,40 @@
 #include <interface/backtest.h>
 
 // external libararies
-#include <hirzel/util/sys.h>
 #include <hirzel/logger.h>
-#include <hirzel/data.h>
 
 using namespace hirzel;
 
 namespace daytrender
 {
-	Asset::Asset(const Data& config, const std::string& dir) :
-	_ticker(config["ticker"].to_string()),
-	_interval(config["inteval"].to_uint()),
-	_strategy(config["strategy"].to_string(), dir)
+	Asset::Asset(const Data& config, const std::string& dir)
 	{
+		if (!config["ticker"].is_string())
+		{
+			ERROR("ticker is not a string");
+			return;
+		}
+
+		_ticker = config["ticker"].to_string();
+
+		if (!config["interval"].is_num())
+		{
+			ERROR("%s: interval is not a number", _ticker);
+			return;
+		}
+
+		_interval = config["interval"].to_uint();
+
+		if (!config["strategy"].is_string())
+		{
+			ERROR("%s: strategy is not a string", _ticker);
+			return;
+		}
+
+		_strategy = Strategy(config["strategy"].to_string(), dir);
 		if (!_strategy.is_bound()) return;
+		
+
 		const Data& ranges_json = config["ranges"];
 
 		_ranges.resize(ranges_json.size());
@@ -39,14 +59,11 @@ namespace daytrender
 	
 	unsigned Asset::update(Client& client)
 	{
-		// if the proper amount of time has not passed, do not update
-		if ((hirzel::sys::epoch_seconds() - _last_update) < _interval) return NOTHING;
-
 		// updating previously updated time
 		long long curr_time = hirzel::sys::epoch_seconds();
 		_last_update = curr_time - (curr_time % _interval);
 
-		INFO("Updating %s...", _ticker);
+		INFO("Updating $%s", _ticker);
 
 		// getting candlestick data from client
 		Result<PriceHistory> price_res = get_candles(client);
@@ -59,16 +76,11 @@ namespace daytrender
 		PriceHistory candles = price_res.get();
 
 		// processing the candlestick data gotten from client
-
-		///
-		///
-		/// REPLACE THE MAGIC NUMBER BELOW
-		///
 		Result<Chart> chart_res = _strategy.execute(candles, _ranges);
 
 		if (!chart_res.ok())
 		{
-			ERROR("%s (%s): %s", _strategy.filename(), _ticker, chart_res.error());
+			ERROR("[%s] %s: %s", _ticker, _strategy.filename(), chart_res.error());
 			return ERROR;
 		}
 

@@ -14,15 +14,6 @@ using logger::print;
 
 namespace daytrender
 {
-	const std::vector<const char*> check_array = { "assets" };
-	const std::vector<const char*> check_ratio = { "max_loss", "risk" };
-	const std::vector<const char*> check_positive =
-	{
-		"history_length",
-		"leverage",
-		"closeout_buffer"
-	};
-
 	Portfolio::Portfolio(const Data& config, const std::string& label,
 		const std::string& dir) :
 	_label(label)
@@ -41,13 +32,7 @@ namespace daytrender
 			return;
 		}
 
-		if (!config["assets"].is_array())
-		{
-			ERROR("assets must be an array");
-			return;
-		}
-		
-		//int history_length = config["h"
+		// CLIENT	============================================================
 
 		const Data& client_json = config["client"];
 		if (!client_json.contains("filename"))
@@ -115,45 +100,62 @@ namespace daytrender
 			return;
 		}
 
-		// get asset information
+		// ASSETS	============================================================
+
+		// assuring config is valid
 		const Data& assets_json = config["assets"];
-		if (!assets_json.is_array()) return;
+
+		if (!assets_json.is_array())
+		{
+			ERROR("assets must be an array");
+			return;
+		}
+
+		if (assets_json.empty())
+		{
+			WARNING("%s: no assets to be initialized", _label);
+			return;
+		}
+
 
 		// initializing assets
 		_assets.resize(assets_json.size());
-		for (int i = 0; i < assets_json.size(); i++)
+		unsigned i = 0;
+		for (Asset& asset : _assets)
 		{
-			_assets[i] = Asset(assets_json[i], dir);
-			if (!_assets[i].is_bound())
+			asset = Asset(assets_json[i], dir);
+			if (!asset.is_bound())
 			{
-				ERROR("%s (%s) could not be initialized", _assets[i].ticker(), _label);
+				ERROR("(%s) $%s could not be initialized", _label, _assets[i].ticker());
 				_assets.clear();
 				return;
 			}
+
+			i += 1;
 		}
 
-		_live = true;
+		_ok = true;
 	}
 
 
 	void Portfolio::update()
 	{
-		INFO("Updating %s", _label);
-		unsigned till_close = _client.secs_till_market_close();
+		if (!_ok) return;
+		INFO("Updating %s portfolio information", _label);
 
-		if (till_close <= _closeout_buffer) return;
-	
+		long long curr_time = hirzel::sys::epoch_seconds();
+		_last_update = curr_time - (curr_time % PORTFOLIO_UPDATE_INTERVAL);
+
 		// updating pl of client
 		Result<Account> res = _client.get_account();
 		if (!res.ok())
 		{
-			ERROR("%s (%s): %s", _client.filename(), _label, res.error());
+			ERROR("(%s) $%s: %s", _label, _client.filename(), res.error());
 			return;
 		}
 
 		Account info = res.get();
 
-		long long curr_time = hirzel::sys::epoch_seconds();
 		_equity_history.push_back({ curr_time, info.equity() });
 
 		while (curr_time - _equity_history[0].first > (long long)(_history_length * 3600))
@@ -172,66 +174,85 @@ namespace daytrender
 			const char *error = _client.close_all_positions();
 			if (error)
 			{
-				ERROR("%s (%s): %s", _client.filename(), _label, error);
+				ERROR("(%s) $%s: %s", _label, _client.filename(), error);
 			}
 
 			INFO("%s trading has ceased!", _label);
+			// shut down portfolio
+			_ok = false;
 			return;
 		}
-
-		// checking to see if in range of closeout buffer
 		
-		if (till_close <= _closeout_buffer)
+		// if within closeout buffer of market is closed
+		if (!is_live())
 		{
-			INFO("%s market will close in %d minutes. Closing all positions...", _label, _closeout_buffer / 60);
+			INFO("%s market will close in %d minutes. Closing all positions...",
+				_label, _closeout_buffer / 60);
+
+			// attempt to close all positions
 			const char *error = _client.close_all_positions();
+
+			// report error
 			if (error)
 			{
-				ERROR("%s (%s): %s", _client.filename(), _label, error);
-
+				// shut down portfolio
+				_ok = false;
+				ERROR("(%s) $%s: %s", _label, _client.filename(), error);
 			}
-		}
+		}		
+	}
 
 
+	void Portfolio::update_assets()
+	{
 		for (Asset& asset : _assets)
 		{
+			// skip if it shouldn't update yet
+			if (!asset.should_update()) continue;
+
 			unsigned action = asset.update(_client);
+			bool update_portfolio = false;
 
-
-			bool res = false;
 			switch (action)
 			{
 			case ENTER_LONG:
 				enter_position(asset, false);
+				update_portfolio = true;
 				break;
 
 			case EXIT_LONG:
 				exit_position(asset, false);
+				update_portfolio = true;
 				break;
 
 			case ENTER_SHORT:
 				enter_position(asset, true);
+				update_portfolio = true;
 				break;
 
 			case EXIT_SHORT:
 				exit_position(asset, true);
+				update_portfolio = true;
 				break;
 
 			case NOTHING:
-				INFO("%s (%s): No action taken", asset.ticker(), _label);
+				INFO("(%s) $%s: No action taken", _label, asset.ticker());
 				break;
 
 			case ERROR:
-				ERROR("%s (%s): failed to update", asset.ticker(), _label);
+				ERROR("(%s) $%s: failed to update", _label, asset.ticker());
+				_ok = false;
 				break;
 
 			default:
-				ERROR("%s (%s): Invalid action received from strategy: %d",
-					asset.ticker(), _label, action);
+				ERROR("(%s) $%s: Invalid action received from strategy: %d",
+					_label, asset.ticker(), action);
 				break;
 			}
+			if (update_portfolio) update();
 		}
 	}
+
 
 	/**
 	 * @brief	Orders max amount of shares orderable
@@ -242,7 +263,6 @@ namespace daytrender
 	 * 
 	 * @return	the amount of shares to order
 	 */
-
 	void Portfolio::enter_position(const Asset& asset, bool short_shares)
 	{
 		// if not buying anything, exit
@@ -266,7 +286,7 @@ namespace daytrender
 
 		if (!asset_res.ok())
 		{
-			ERROR("%s (%s): %s", asset.ticker(), _label, asset_res.error());
+			ERROR("(%s) $%s: %s", _label, asset.ticker(), asset_res.error());
 			return;
 		}
 
@@ -296,13 +316,14 @@ namespace daytrender
 		_client.market_order(asset.ticker(), shares);
 	}
 
+
 	void Portfolio::exit_position(const Asset& asset, bool short_shares)
 	{
 		double multiplier = (double)short_shares * -2.0 + 1.0;
 		Result<Position> asset_res = _client.get_position(asset.ticker());
 		if (!asset_res.ok())
 		{
-			ERROR("%s (%s): %s", asset.ticker(), _label, asset_res.error());
+			ERROR("(%s) $%s: %s", _label, asset.ticker(), asset_res.error());
 			return;
 		}
 
@@ -314,27 +335,16 @@ namespace daytrender
 		// exit position
 		if (!_client.market_order(asset.ticker(), -info.shares()))
 		{
-			ERROR("%s (%s): Failed to exit position of %f shares",
-				asset.ticker(), _label, info.shares());
+			ERROR("(%s) $%s: Failed to exit position of %f shares",
+				_label, asset.ticker(), info.shares());
 		}
 		else
 		{
-			SUCCESS("%s (%s): Successfully exited position of %f shares",
-				asset.ticker(), _label, info.shares());
+			SUCCESS("(%s) $%s: Successfully exited position of %f shares",
+				_label, info.shares(), asset.ticker());
 		}
 	}
 
-	void Portfolio::remove_asset(const std::string& ticker)
-	{
-		for (int i = 0; i < _assets.size(); i++)
-		{
-			if (_assets[i].ticker() == ticker)
-			{
-				_assets.erase(_assets.begin() + i);
-				break;
-			}
-		}
-	}
 
 	double Portfolio::risk_sum() const
 	{

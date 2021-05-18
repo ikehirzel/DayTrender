@@ -78,7 +78,7 @@ namespace daytrender
 			SUCCESS("Loaded %s", filename);
 
 			Portfolio portfolio(json, label, dir);
-			if (portfolio.is_live())
+			if (portfolio.is_ok())
 			{
 				_portfolios.push_back(portfolio);
 			}
@@ -107,7 +107,8 @@ namespace daytrender
 		{
 			for (Portfolio& portfolio : _portfolios)
 			{
-				portfolio.update();
+				if (portfolio.should_update()) portfolio.update();
+				portfolio.update_assets();
 			}
 			
 			sys::sleep_millis(1000);

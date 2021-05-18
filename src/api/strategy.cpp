@@ -56,7 +56,7 @@ namespace daytrender
 
 		_indicator_count = _plugin->execute<uint32_t>("indicator_count");
 		_data_length = _plugin->execute<uint32_t>("data_length");
-		_execute = (decltype(_execute))_plugin->get_func("strategy");
+		_execute = (decltype(_execute))_plugin->get_func("execute");
 	}
 
 	Result<Chart> Strategy::execute(const PriceHistory& candles,

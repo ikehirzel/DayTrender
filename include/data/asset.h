@@ -12,15 +12,18 @@
 
 // external libraries
 #include <hirzel/data.h>
+#include <hirzel/util/sys.h>
 
 namespace daytrender
 {
 	class Asset
 	{
 	private:
-		unsigned _candle_count = 0;
+		// update timer
 		unsigned _interval = 0;
 		long long _last_update = 0;
+
+		unsigned _candle_count = 0;
 		double _risk = 0.0;
 
 		std::string _ticker;
@@ -40,6 +43,10 @@ namespace daytrender
 		Asset() = default;
 
 		unsigned update(Client& client);
+		inline bool should_update() const
+		{
+			return hirzel::sys::epoch_seconds() - _last_update >= _interval;
+		}
 
 		// inline getter functions
 		inline const Chart& data() const { return _data; }

@@ -37,7 +37,7 @@ namespace daytrender
 			const std::vector<int>& ranges) const;
 		inline const std::string& filename() const { return _filename; };
 		inline int indicator_count() const { return _indicator_count; }
-		inline bool is_bound() const { return _plugin != nullptr; }
+		inline bool is_bound() const { return (bool)_plugin; }
 		inline int data_length() const { return _data_length; }
 	};
 }
