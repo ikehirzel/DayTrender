@@ -144,7 +144,9 @@ namespace daytrender
 		INFO("Updating %s portfolio information", _label);
 
 		long long curr_time = hirzel::sys::epoch_seconds();
-		_last_update = curr_time - (curr_time % PORTFOLIO_UPDATE_INTERVAL);
+		_last_update = curr_time;
+		// 
+		//_last_update = curr_time - (curr_time % PORTFOLIO_UPDATE_INTERVAL);
 
 		// updating pl of client
 		Result<Account> res = _client.get_account();
@@ -354,5 +356,14 @@ namespace daytrender
 			sum += asset.risk();
 		}
 		return sum;
+	}
+
+	Asset *Portfolio::get_asset(const std::string& ticker)
+	{
+		for (Asset& a : _assets)
+		{
+			if (a.ticker() == ticker) return &a;
+		}
+		return nullptr;
 	}
 }

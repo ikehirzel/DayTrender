@@ -63,8 +63,6 @@ namespace daytrender
 		long long curr_time = hirzel::sys::epoch_seconds();
 		_last_update = curr_time - (curr_time % _interval);
 
-		INFO("Updating $%s", _ticker);
-
 		// getting candlestick data from client
 		Result<PriceHistory> price_res = get_candles(client);
 		if (!price_res.ok()) 

@@ -12,7 +12,45 @@
 
 using namespace daytrender;
 
-bool cli_backtest(int argc, const char *args[], const char *dir)
+bool portfolio_error()
+{
+	PRINT("error: portfolio requested does not exist\n");
+	return false;
+}
+
+bool cli_account(TradeSystem& system, int argc, const char *args[], const char *dir)
+{
+	if (argc != 1)
+	{
+		PRINT("error: account takes in portfolio label as argument");
+		return false;
+	}
+
+	const char *label = args[0];
+
+	Portfolio *portfolio = system.get_portfolio(label);
+	if (!portfolio) return portfolio_error();
+
+	Client& cli = portfolio->get_client();
+
+	Result<Account> res = cli.get_account();
+	if (!res)
+	{
+		PRINT("error: %s", res.error());
+		return false;
+	}
+
+	Account acc = res.get();
+
+	PRINT("%s Account:\n\tBalance:       %f\n\tBuying Power:  %f\n\tMargin Used:"
+		"   %f\n\tEquity:        %f\n\tLeverage:      %u:1\n\tShorting:      %t\n",
+		label, acc.balance(), acc.buying_power(), acc.margin_used(),
+		acc.equity(), acc.leverage(), acc.shorting_enabled());
+
+	return true;
+}
+
+bool cli_backtest(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
 	if (!argc) return false;
 	const char *strat = nullptr;
@@ -20,11 +58,11 @@ bool cli_backtest(int argc, const char *args[], const char *dir)
 	return false;
 }
 
-bool cli_price(int argc, const char *args[], const char *dir)
+bool cli_price(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
 	if (argc < 4)
 	{
-		PRINT("daytrender: not enough args supplied!\nThey must be in the following order:\n\tclient filename\n\tasset ticker\n\tcandle interval\n\tcandle count\n");
+		PRINT("error: not enough args supplied!\nThey must be in the following order:\n\tclient filename\n\tasset ticker\n\tcandle interval\n\tcandle count\n");
 		return false;
 	}
 	// need to get ticker, client, count
@@ -36,7 +74,10 @@ bool cli_price(int argc, const char *args[], const char *dir)
 	int count_num = std::stoi(count);
 	int interval_num = std::stoi(interval);
 
-	Client cli(client, dir);
+	Portfolio *portfolio = system.get_portfolio(client);
+	if (!portfolio) return portfolio_error();
+
+	Client& cli = portfolio->get_client();
 
 	Result<PriceHistory> res = cli.get_price_history(ticker, interval_num, count_num);
 	if (!res.ok())
@@ -54,18 +95,21 @@ bool cli_price(int argc, const char *args[], const char *dir)
 	return true;
 }
 
-bool handle_input(int argc, const char *args[], const char *dir)
+bool handle_input(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
 	switch (args[0][0])
 	{
+	case 'a':
+		if (!std::strcmp(args[0], "account"))
+			return cli_account(system, argc - 1, args + 1, dir);
 	case 'b':
 		if (!std::strcmp(args[0], "backtest"))
-			return cli_backtest(argc - 1, args + 1, dir);
+			return cli_backtest(system, argc - 1, args + 1, dir);
 		break;
 
 	case 'p':
 		if (!std::strcmp(args[0], "price"))
-			return cli_price(argc - 1, args + 1, dir);
+			return cli_price(system, argc - 1, args + 1, dir);
 		break;
 	}
 
@@ -93,7 +137,7 @@ int main(int argc, const char *argv[])
 	}
 
 	// handling console input
-	if (command_line) return !handle_input(argc - 1, argv + 1, dir.c_str());
+	if (command_line) return !handle_input(system, argc - 1, argv + 1, dir.c_str());
 
 	// returns when program has ended
 	system.start();

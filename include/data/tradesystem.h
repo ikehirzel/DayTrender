@@ -47,6 +47,7 @@ namespace daytrender
 
 		inline bool is_running() const { return _running; }
 		inline bool is_initialized() const { return _initialized; }
+		Portfolio *get_portfolio(const std::string& label);
 	};
 }
 

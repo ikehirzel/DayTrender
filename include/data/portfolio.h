@@ -55,6 +55,8 @@ namespace daytrender
 		
 		double risk_sum() const;
 
+		Asset *get_asset(const std::string& ticker);
+		inline Client& get_client() { return _client; }
 		inline std::string label() const { return _label; }
 
 		/**

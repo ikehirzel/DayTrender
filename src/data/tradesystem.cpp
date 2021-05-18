@@ -98,9 +98,6 @@ namespace daytrender
 		_running = true;
 		INFO("Starting DayTrender");
 
-		// std::thread shell_thread(shell::get_input);
-		// shell_thread.detach();
-
 		// std::thread server_thread(server::start);
 
 		while (_running)
@@ -130,5 +127,14 @@ namespace daytrender
 		_running = false;
 		INFO("Shutting down DayTrender...");
 		_mtx.unlock();
+	}
+
+	Portfolio *TradeSystem::get_portfolio(const std::string& label)
+	{
+		for (Portfolio& p : _portfolios)
+		{
+			if (p.label() == label) return &p;
+		}
+		return nullptr;
 	}
 }

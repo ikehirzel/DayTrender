@@ -67,6 +67,8 @@ namespace daytrender
 				_data.error = other.error();
 			}
 		}
+
+		inline operator bool() const { return _ok; }
 	};
 }
 
