@@ -2,7 +2,6 @@
 #define DAYTRENDER_ASSET_H
 
 // local includes
-#include <api/client.h>
 #include <api/strategy.h>
 #include <data/candle.h>
 
@@ -33,16 +32,13 @@ namespace daytrender
 		Strategy _strategy;
 		
 		// client wrappers
-		inline Result<PriceHistory> get_candles(const Client& client) const
-		{
-			return client.get_price_history(_ticker, _interval, _candle_count);
-		}
+		// client.get_price_history(_ticker, _interval, _candle_count);
 
 	public:
 		Asset(const hirzel::Data& config, const std::string& dir);
 		Asset() = default;
 
-		unsigned update(Client& client);
+		unsigned update(const PriceHistory& hist);
 		inline bool should_update() const
 		{
 			return hirzel::sys::epoch_seconds() - _last_update >= _interval;
@@ -54,6 +50,7 @@ namespace daytrender
 		inline const std::string& ticker() const { return _ticker; }
 		inline const std::vector<int>& ranges() const { return _ranges; }
 		inline unsigned interval() const { return _interval; }
+		inline unsigned candle_count() const { return _candle_count; }
 		inline double risk() const { return _risk; }
 		inline unsigned data_length() const { return _strategy.data_length(); }
 		inline bool is_bound() const { return _strategy.is_bound(); }

@@ -2,6 +2,7 @@
 #define DAYTRENDER_CLIENT_H
 
 // daytrender includes
+#include <data/asset.h>
 #include <data/account.h>
 #include <data/pricehistory.h>
 #include <data/position.h>
@@ -36,7 +37,6 @@ namespace daytrender
 		// api functions
 		
 		const char *(*_market_order)(const char*, double) = nullptr;
-		const char *(*_close_all_positions)() = nullptr;
 		const char *(*_set_leverage)(uint32_t) = nullptr;
 		const char *(*_get_account)(Account*) = nullptr;
 		const char *(*_get_price_history)(PriceHistory*, const char*) = nullptr;
@@ -50,11 +50,6 @@ namespace daytrender
 		uint32_t (*_max_candles)() = nullptr;
 		uint32_t (*_api_version)() = nullptr;
 
-		void flag_error() const;
-		bool client_ok() const;
-
-		bool enter_position(const std::string& ticker, double pct, bool short_shares);
-		bool exit_position(const std::string& ticker, bool short_shares);
 
 	public:
 		Client() = default;
@@ -68,7 +63,6 @@ namespace daytrender
 
 		// non returning
 		const char *market_order(const std::string& ticker, double amount);
-		const char *close_all_positions();
 		const char *set_leverage(unsigned leverage);
 
 		// returning
@@ -81,8 +75,27 @@ namespace daytrender
 
 		const char *to_interval(int interval) const;
 
-		// getters for constants
+		// derivative functions
+		inline Result<PriceHistory> get_price_history(const Asset& asset)
+		{
+			return get_price_history(asset.ticker(), asset.interval(), asset.candle_count());
+		}
 
+		const char *enter_position(const Asset& asset, double pct, bool short_shares);
+		const char *exit_position(const Asset& asset, bool short_shares);
+		const char *close_position(const Asset& asset);
+		const char *close_all_positions(const std::vector<Asset>& assets);
+
+		inline const char *enter_long(const Asset& asset, double pct)
+			{ return enter_position(asset, pct, false); }
+		inline const char *enter_short(const Asset& asset, double pct)
+			{ return enter_position(asset, pct, true); }
+		inline const char *exit_long(const Asset& asset)
+			{ return exit_position(asset, false); }
+		inline const char *exit_short(const Asset& asset)
+			{ return exit_position(asset, true); }
+		
+		// getters for constants
 		inline unsigned key_count() const { return _key_count(); }
 		inline unsigned max_candles() const { return _max_candles(); }
 		inline unsigned api_version() const { return _api_version(); }

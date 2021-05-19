@@ -57,32 +57,18 @@ namespace daytrender
 		*/
 	}
 	
-	unsigned Asset::update(Client& client)
+	unsigned Asset::update(const PriceHistory& hist)
 	{
-		// updating previously updated time
-		long long curr_time = hirzel::sys::epoch_seconds();
-		_last_update = curr_time - (curr_time % _interval);
-
-		// getting candlestick data from client
-		Result<PriceHistory> price_res = get_candles(client);
-		if (!price_res.ok()) 
-		{
-			ERROR("Candles: %s", price_res.error());
-			return ERROR;
-		}
-
-		PriceHistory candles = price_res.get();
-
 		// processing the candlestick data gotten from client
-		Result<Chart> chart_res = _strategy.execute(candles, _ranges);
+		Result<Chart> res = _strategy.execute(hist, _ranges);
 
-		if (!chart_res.ok())
+		if (!res)
 		{
-			ERROR("[%s] %s: %s", _ticker, _strategy.filename(), chart_res.error());
+			ERROR("(%s) %s: %s", _ticker, _strategy.filename(), res.error());
 			return ERROR;
 		}
 
-		_data = chart_res.get();
+		_data = res.get();
 		
 		return _data.action();
 	}

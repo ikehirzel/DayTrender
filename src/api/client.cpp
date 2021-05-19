@@ -62,7 +62,6 @@ namespace daytrender
 		// point functions
 		_init = (decltype(_init))_plugin->get_func("init");
 		_market_order = (decltype(_market_order))_plugin->get_func("market_order");
-		_close_all_positions = (decltype(_close_all_positions))_plugin->get_func("close_all_positions");
 		_set_leverage = (decltype(_set_leverage))_plugin->get_func("set_leverage");
 		_get_account = (decltype(_get_account))_plugin->get_func("get_account");
 		_get_price_history = (decltype(_get_price_history))_plugin->get_func("get_price_history");
@@ -99,7 +98,8 @@ namespace daytrender
 
 	const char *Client::set_leverage(unsigned leverage)
 	{
-		return "this function is not implemented yet";
+		cli_func_check();
+		return _set_leverage(leverage);
 	}
 
 
@@ -158,10 +158,86 @@ namespace daytrender
 		return position;
 	}
 
-	const char *Client::close_all_positions()
+	const char *Client::close_position(const Asset& asset)
 	{
-		// this function can happen when not live
-		cli_func_check();
-		return _close_all_positions();
+		Result<Position> res = get_position(asset.ticker());
+		if (!res) return res.error();
+		Position pos = res.get();
+		return market_order(asset.ticker(), -pos.shares());
+	}
+
+	const char *Client::close_all_positions(const std::vector<Asset>& assets)
+	{
+		bool failed = false;
+		for (const Asset& a : assets)
+		{
+			const char *error = close_position(a);
+			if (error)
+			{
+				failed = true;
+				ERROR("Failed to close position for $%s: %s", a.ticker(), error);
+			}
+		}
+		return (failed) ? "failed to close all positions" : nullptr;
+	}
+
+	const char *Client::enter_position(const Asset& asset, double pct, bool short_shares)
+	{
+		// if not buying anything, exit
+		if (asset.risk() == 0.0) return nullptr;
+
+		// will be -1.0 if short_shares is true or 1.0 if it's false
+		double multiplier = (double)short_shares * -2.0 + 1.0;
+
+		// getting current account information
+		Result<Account> acc_res = get_account();
+		if (!acc_res) return acc_res.error();
+		Account acc = acc_res.get();
+
+		// get position information
+		Result<Position> pos_res = get_position(asset.ticker());
+		if (!pos_res) return pos_res.error();
+		Position pos = pos_res.get();
+
+
+		// pct should equal _risk / risk_sum()
+
+		// base buying power
+		double buying_power = (acc.buying_power() + acc.margin_used()) * asset.risk() * pct;
+
+		// if we are already in a position of the same type as requested
+		if (pos.shares() * multiplier > 0.0)
+		{
+			// remove the current share of the buying power
+			buying_power -= pos.amt_invested();
+		}
+		// we are in a position that is opposite to type requested
+		else if (pos.shares() * multiplier < 0.0)
+		{
+			// calculate returns upon exiting position for correct buying power calculation
+			buying_power += pos.shares() * pos.price() * (1.0 - multiplier * pos.fee());
+		}
+
+		double shares = multiplier * std::floor(((buying_power / (1.0 + pos.fee())) / pos.price()) / pos.minimum()) * pos.minimum();
+		DEBUG("Placing order for %f shares!!!", shares);
+		
+		return market_order(asset.ticker(), shares);
+	}
+
+	
+	const char *Client::exit_position(const Asset& asset, bool short_shares)
+	{
+		double multiplier = (double)short_shares * -2.0 + 1.0;
+
+		// get position information
+		Result<Position> pos_res = get_position(asset.ticker());
+		if (!pos_res) return pos_res.error();
+		Position pos = pos_res.get();
+
+		// if we are in an opposite position or have no shares
+		if (pos.shares() * multiplier <= 0.0) return nullptr;
+
+		// exit position
+		return market_order(asset.ticker(), -pos.shares());
 	}
 }

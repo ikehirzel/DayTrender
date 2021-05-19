@@ -1,11 +1,15 @@
 #ifndef PORTFOLIO_H
 #define PORTFOLIO_H
 
-#include "asset.h"
+// local includes
+#include <data/asset.h>
+#include <api/client.h>
 
+//standard library
 #include <string>
 #include <vector>
 
+// external libraries
 #include <hirzel/data.h>
 
 #define PORTFOLIO_UPDATE_INTERVAL 60
@@ -30,15 +34,11 @@ namespace daytrender
 		double _history_length = 24.0;
 		unsigned _closeout_buffer = 15 * 60;
 
-
-
+		// data
 		std::string _label;
 		Client _client;
 		std::vector<Asset> _assets;
 		std::vector<std::pair<long long, double>> _equity_history;
-
-		void enter_position(const Asset& asset, bool short_shares);
-		void exit_position(const Asset& asset, bool short_shares);
 
 	public:
 		Portfolio() = default;
@@ -47,11 +47,6 @@ namespace daytrender
 
 		void update();
 		void update_assets();
-		inline bool should_update() const
-		{
-			// update once per minute
-			return hirzel::sys::epoch_seconds() - _last_update >= PORTFOLIO_UPDATE_INTERVAL;
-		}
 		
 		double risk_sum() const;
 
@@ -63,6 +58,11 @@ namespace daytrender
 		 *	@return	State on whether its client and assets are bound 
 		 */
 		inline bool is_ok() const { return _ok; }
+		inline bool should_update() const
+		{
+			// update once per minute
+			return hirzel::sys::epoch_seconds() - _last_update >= PORTFOLIO_UPDATE_INTERVAL;
+		}
 		inline bool is_live() const
 		{
 			return (_client.secs_till_market_close() > _closeout_buffer);

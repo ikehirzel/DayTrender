@@ -61,7 +61,6 @@ extern "C"
 	// non returning functions
 	const char *init(const char** credentials);
 	const char *market_order(const char* ticker, double amount);
-	const char *close_all_positions();
 	const char *set_leverage(uint32_t multiplier);
 
 	// returning functions

@@ -98,21 +98,21 @@ namespace daytrender
 		_running = true;
 		INFO("Starting DayTrender");
 
-		// std::thread server_thread(server::start);
-
 		while (_running)
 		{
 			for (Portfolio& portfolio : _portfolios)
 			{
+				// do nothing if portfolio is not live
+				if (!portfolio.is_live()) continue;
+				// update account/ pl info if hasn't been done recently
 				if (portfolio.should_update()) portfolio.update();
+				// update assets
 				portfolio.update_assets();
 			}
 			
-			sys::sleep_millis(1000);
+			// check all portfolios every 3 seconds
+			sys::sleep_millis(3000);
 		}
-
-		// server::stop();
-		// server_thread.join();
 	}
 
 	void TradeSystem::stop()
