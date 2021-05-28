@@ -15,6 +15,7 @@ const char *init(const char** credentials)
 	token = credentials[1];
 	client.set_bearer_token_auth(token.c_str());
 	return NULL;
+
 }
 
 const char *get_price_history(PriceHistory* out, const char *ticker)
@@ -235,45 +236,6 @@ const char *set_leverage(uint32_t multiplier)
 	if (error) return error;
 
 	return NULL;
-}
-
-const char *close_all_positions()
-{
-	std::string url =  "/v3/accounts/" + accountid + "/positions";
-	auto res = client.Get(url.c_str());
-
-	// exit if error
-	const char *error = res_err(res);
-	if (error) return error;
-
-	std::string error_glob;
-	std::vector<std::string> failed_tickers;
-
-	Data json = Data::parse_json(res->body);
-	if (json.is_error()) return "json failed to parse";
-
-	auto positions = json["positions"].to_array();
-
-	for (const Data& p : positions)
-	{
-		// getting total units
-		double shares = p["long"]["units"].to_double() + p["short"]["units"].to_double();
-
-		// if the position is still open, close it
-		if (shares != 0.0)
-		{
-			// get ticker
-			std::string ticker = p["instrument"].to_string();
-			error = market_order(ticker.c_str(), -shares);
-		}
-	}
-
-	// globbing all errors from trying to close all positions
-	if (!failed_tickers.empty())
-	{
-		return "failed to close all assets";
-	}
-	return error;
 }
 
 uint32_t secs_till_market_close()

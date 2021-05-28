@@ -122,9 +122,11 @@ int main(int argc, const char *argv[])
 
 	std::string dir = std::filesystem::current_path().string() + "/" + hirzel::str::get_folder(argv[0]);
 
+	// cut off '.' part of directory if it is there
+	if (dir.back() == '.') dir.resize(dir.size() - 2);
 
 	// initializing trade system
-	daytrender::TradeSystem system(hirzel::str::get_folder(argv[0]));
+	daytrender::TradeSystem system(dir);
 
 	if (!system.is_initialized())
 	{

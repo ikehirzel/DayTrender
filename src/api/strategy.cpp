@@ -28,18 +28,23 @@ namespace daytrender
 		// if no such pointer exists
 		if (!_plugin)
 		{
-			_plugin = std::make_shared<Plugin>((std::string)(dir + STRATEGY_DIR + filename),
-			(std::vector<std::string>)
+			_plugin = std::make_shared<Plugin>();
+			const char *error = _plugin->bind(dir + STRATEGY_DIR + filename);
+			if (error)
 			{
+				ERROR(error);
+				_plugin.reset();
+				return;
+			};
+			error = _plugin->bind_functions({
 				"indicator_count",
 				"data_length",
 				"execute",
 				"api_version"
 			});
-			
-			if (!_plugin->bound() || _plugin->error())
+			if (error)
 			{
-				ERROR("%s: %s", _filename, _plugin->error());
+				ERROR(error);
 				_plugin.reset();
 				return;
 			}
@@ -56,7 +61,7 @@ namespace daytrender
 
 		_indicator_count = _plugin->execute<uint32_t>("indicator_count");
 		_data_length = _plugin->execute<uint32_t>("data_length");
-		_execute = (decltype(_execute))_plugin->get_func("execute");
+		_execute = (decltype(_execute))_plugin->get_function("execute");
 	}
 
 	Result<Chart> Strategy::execute(const PriceHistory& candles,

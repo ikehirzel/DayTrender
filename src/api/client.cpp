@@ -30,48 +30,52 @@ namespace daytrender
 		// if the plugin is not already cached, attempt to cache it
 		if (!_plugin)
 		{
-			_plugin = std::make_shared<Plugin>((std::string)dir + CLIENT_DIR + filename,
-			(std::vector<std::string>)
+			std::string plugin_dir = dir + CLIENT_DIR + filename;
+			DEBUG(plugin_dir);
+			_plugin = std::make_shared<Plugin>();
+			const char *error = _plugin->bind(plugin_dir);
+			if (error)
 			{
+				ERROR(error);
+				_plugin.reset();
+				return;
+			}
+			error = _plugin->bind_functions({
 				"init",
 				"api_version",
 				"get_price_history",
 				"get_account",
 				"get_position",
 				"market_order",
-				"close_all_positions",
 				"secs_till_market_close",
 				"set_leverage",
 				"to_interval",
 				"key_count",
 				"max_candles"
 			});
-
-			// if plugin has errors, log, delete and exit
-			if (!_plugin->bound() || _plugin->error())
+			if (error) 
 			{
-				ERROR(_plugin->error());
+				ERROR(error);
 				_plugin.reset();
 				return;
 			}
-
 			// cache plugin
 			_plugins[filename] = _plugin;
 		}
 
 		// point functions
-		_init = (decltype(_init))_plugin->get_func("init");
-		_market_order = (decltype(_market_order))_plugin->get_func("market_order");
-		_set_leverage = (decltype(_set_leverage))_plugin->get_func("set_leverage");
-		_get_account = (decltype(_get_account))_plugin->get_func("get_account");
-		_get_price_history = (decltype(_get_price_history))_plugin->get_func("get_price_history");
-		_get_position = (decltype(_get_position))_plugin->get_func("get_position");
-		_to_interval = (decltype(_to_interval))_plugin->get_func("to_interval");
-		_secs_till_market_close = (decltype(_secs_till_market_close))_plugin->get_func("secs_till_market_close");
+		_init = (decltype(_init))_plugin->get_function("init");
+		_market_order = (decltype(_market_order))_plugin->get_function("market_order");
+		_set_leverage = (decltype(_set_leverage))_plugin->get_function("set_leverage");
+		_get_account = (decltype(_get_account))_plugin->get_function("get_account");
+		_get_price_history = (decltype(_get_price_history))_plugin->get_function("get_price_history");
+		_get_position = (decltype(_get_position))_plugin->get_function("get_position");
+		_to_interval = (decltype(_to_interval))_plugin->get_function("to_interval");
+		_secs_till_market_close = (decltype(_secs_till_market_close))_plugin->get_function("secs_till_market_close");
 
-		_api_version = (decltype(_api_version))_plugin->get_func("api_version");
-		_key_count = (decltype(_key_count))_plugin->get_func("key_count");
-		_max_candles = (decltype(_max_candles))_plugin->get_func("max_candles");
+		_api_version = (decltype(_api_version))_plugin->get_function("api_version");
+		_key_count = (decltype(_key_count))_plugin->get_function("key_count");
+		_max_candles = (decltype(_max_candles))_plugin->get_function("max_candles");
 	}
 
 	const char *Client::init(const hirzel::Data& keys)

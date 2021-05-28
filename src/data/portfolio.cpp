@@ -209,7 +209,7 @@ namespace daytrender
 			if (!res)
 			{
 				// ERROR
-				ERROR("(%s) %s: %s", _label, asset.ticker(), res.error());
+				ERROR("(%s) $%s: %s", _label, asset.ticker(), res.error());
 				continue;
 			}
 
@@ -253,9 +253,12 @@ namespace daytrender
 					_label, asset.ticker(), action);
 				break;
 			}
+
+			// if an order was placed
 			if (update_portfolio) update();
 		}
 	}
+
 
 	double Portfolio::risk_sum() const
 	{
