@@ -33,14 +33,15 @@ namespace daytrender
 			std::string plugin_dir = dir + CLIENT_DIR + filename;
 			DEBUG(plugin_dir);
 			_plugin = std::make_shared<Plugin>();
-			const char *error = _plugin->bind(plugin_dir);
-			if (error)
+			
+			if (!_plugin->bind(plugin_dir))
 			{
-				ERROR(error);
+				ERROR(_plugin->error());
 				_plugin.reset();
 				return;
 			}
-			error = _plugin->bind_functions({
+
+			if (!_plugin->bind_functions({
 				"init",
 				"api_version",
 				"get_price_history",
@@ -52,10 +53,9 @@ namespace daytrender
 				"to_interval",
 				"key_count",
 				"max_candles"
-			});
-			if (error) 
+			}))
 			{
-				ERROR(error);
+				ERROR(_plugin->error());
 				_plugin.reset();
 				return;
 			}

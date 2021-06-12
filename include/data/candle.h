@@ -3,6 +3,7 @@
 
 // standard library
 #include <iostream>
+#include <string>
 
 namespace daytrender
 {

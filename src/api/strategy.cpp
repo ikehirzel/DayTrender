@@ -29,22 +29,23 @@ namespace daytrender
 		if (!_plugin)
 		{
 			_plugin = std::make_shared<Plugin>();
-			const char *error = _plugin->bind(dir + STRATEGY_DIR + filename);
-			if (error)
+			
+			
+			if (!_plugin->bind(dir + STRATEGY_DIR + filename))
 			{
-				ERROR(error);
+				ERROR(_plugin->error());
 				_plugin.reset();
 				return;
 			};
-			error = _plugin->bind_functions({
+			
+			if (!_plugin->bind_functions({
 				"indicator_count",
 				"data_length",
 				"execute",
 				"api_version"
-			});
-			if (error)
+			}))
 			{
-				ERROR(error);
+				ERROR(_plugin->error());
 				_plugin.reset();
 				return;
 			}

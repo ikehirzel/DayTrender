@@ -21,9 +21,33 @@ file(CREATE_LINK ../strategies strategies SYMBOLIC)
 file(CREATE_LINK ../clients clients SYMBOLIC)
 file(CREATE_LINK ../src/interface/webinterface.html webinterface.html SYMBOLIC)
 
+
+################################################################################
+#		SETTING DAYTRENDER PROPERTIES
+################################################################################
+
 # creating main executable of project
 add_executable(daytrender ${DAYTRENDER_SRCS})
+add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
+# setting properties
+set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)
+
+# finding required packages
+find_package(OpenSSL REQUIRED)
+find_package(Threads REQUIRED)
+
+# linking daytrender libraries
+target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} OpenSSL::SSL OpenSSL::Crypto)
+
+# setting include dirs
+target_include_directories(daytrender PRIVATE
+	"lib/cpp-httplib/include"
+	"lib/cxx-logger/include"
+	"lib/cxx-utils/include"
+	"lib/cxx-plugin/include"
+	"include"
+)
 
 ################################################################################
 #		COMPILING TESTS
@@ -82,27 +106,3 @@ endforeach()
 ################################################################################
 file(READ src/interface/webinterface.html WEBINTERFACE_HTML)
 file(WRITE src/interface/webinterface.inc "R\"=====(${WEBINTERFACE_HTML})=====\"")
-
-
-################################################################################
-#		SETTING DAYTRENDER PROPERTIES
-################################################################################
-
-# setting properties
-set_target_properties(daytrender PROPERTIES CXX_STANDARD 17)
-
-# finding required packages
-find_package(OpenSSL REQUIRED)
-find_package(Threads REQUIRED)
-
-# linking daytrender libraries
-target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS} OpenSSL::SSL OpenSSL::Crypto)
-
-# setting include dirs
-target_include_directories(daytrender PRIVATE
-	"lib/cpp-httplib/include"
-	"lib/cxx-logger/include"
-	"lib/cxx-utils/include"
-	"lib/cxx-plugin/include"
-	"include"
-)
