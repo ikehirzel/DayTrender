@@ -42,7 +42,7 @@ target_link_libraries(daytrender PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LI
 
 # setting include dirs
 target_include_directories(daytrender PRIVATE
-	"lib/cpp-httplib/include"
+	"lib/cpp-httplib"
 	"lib/cxx-logger/include"
 	"lib/cxx-utils/include"
 	"lib/cxx-plugin/include"
@@ -93,7 +93,7 @@ foreach(CLIENT ${CLIENT_SRCS})
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clients)
 	target_include_directories(${FILENAME} PRIVATE
 		"include"
-		"lib/cpp-httplib/include"
+		"lib/cpp-httplib"
 		"lib/cxx-logger/include"
 	)
 	target_link_libraries(${FILENAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)

@@ -1,0 +1,12 @@
+[submodule "lib/cxx-plugin"]
+	path = lib/cxx-plugin
+	url = https://github.com/ikehirzel/cxx-plugin
+[submodule "lib/cxx-utils"]
+	path = lib/cxx-utils
+	url = https://github.com/ikehirzel/cxx-utils
+[submodule "lib/cxx-logger"]
+	path = lib/cxx-logger
+	url = https://github.com/ikehirzel/cxx-logger
+[submodule "lib/cpp-httplib"]
+	path = lib/cpp-httplib
+	url = https://github.com/yhirose/cpp-httplib
