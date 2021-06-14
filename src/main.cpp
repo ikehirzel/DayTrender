@@ -3,6 +3,7 @@
 
 // standard library
 #include <cstring>
+#include <csignal>
 #include <filesystem>
 
 // external libraries
@@ -114,6 +115,14 @@ bool handle_input(TradeSystem& system, int argc, const char *args[], const char 
 	return false;
 }
 
+daytrender::TradeSystem *system_ref = nullptr;
+
+void interrupt(int signal)
+{
+	if (!system_ref) exit(signal);
+	system_ref->stop();
+}
+
 int main(int argc, const char *argv[])
 {
 	bool command_line = argc > 1;
@@ -127,6 +136,7 @@ int main(int argc, const char *argv[])
 
 	// initializing trade system
 	daytrender::TradeSystem system(dir);
+	system_ref = &system;
 
 	if (!system.is_initialized())
 	{
@@ -137,6 +147,9 @@ int main(int argc, const char *argv[])
 
 	// handling console input
 	if (command_line) return !handle_input(system, argc - 1, argv + 1, dir.c_str());
+
+	// setting up handler for keyboard interrupts
+	std::signal(SIGINT, interrupt);
 
 	// returns when program has ended
 	system.start();

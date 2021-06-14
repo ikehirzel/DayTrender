@@ -52,9 +52,13 @@ target_include_directories(daytrender PRIVATE
 ################################################################################
 #		COMPILING TESTS
 ################################################################################
+
+# getting test sources
 file(GLOB TEST_SRCS "src/test/*.cpp")
 
+# loop through tests
 foreach(TEST ${TEST_SRCS})
+	# making executable for test
 	get_filename_component(FILENAME ${TEST} NAME_WE)
 	add_executable(${FILENAME}_test ${TEST})
 	target_include_directories(${FILENAME}_test PRIVATE "include")
@@ -66,8 +70,11 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "")
 ################################################################################
 #		COMPILING STRATEGIES
 ################################################################################
+
+# getting strategy sources
 file(GLOB STRAT_SRCS "ext/strategies/*.cpp")
 
+# loop through tests
 foreach(STRAT ${STRAT_SRCS})
 	# get filename without folder or extension
 	get_filename_component(FILENAME ${STRAT} NAME_WE)
@@ -76,14 +83,16 @@ foreach(STRAT ${STRAT_SRCS})
 	# tell it to go to strategies folder
 	set_target_properties(${FILENAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/strategies)
 	target_include_directories(${FILENAME} PRIVATE "include")
-
 endforeach()
 
 ################################################################################
 #		COMPILING CLIENTS
 ################################################################################
+
+# getting client sources
 file(GLOB CLIENT_SRCS "ext/clients/*.cpp")
 
+# loop through clients
 foreach(CLIENT ${CLIENT_SRCS})
 	# get filename without folder or extension
 	get_filename_component(FILENAME ${CLIENT} NAME_WE)
@@ -97,12 +106,11 @@ foreach(CLIENT ${CLIENT_SRCS})
 		"lib/cxx-logger/include"
 	)
 	target_link_libraries(${FILENAME} PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-
 endforeach()
-
 
 ################################################################################
 #		HANDLING WEB INTERFACE
 ################################################################################
+
 file(READ src/interface/webinterface.html WEBINTERFACE_HTML)
 file(WRITE src/interface/webinterface.inc "R\"=====(${WEBINTERFACE_HTML})=====\"")
