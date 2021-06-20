@@ -14,6 +14,9 @@
 // local includes
 #include <api/versions.h>
 #include <api/interval.h>
+#include <data/account.h>
+#include <data/pricehistory.h>
+#include <data/position.h>
 
 // standard library
 #include <cstdint>
@@ -21,13 +24,9 @@
 // external libraries
 #define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
-#define HIRZEL_DATA_I
-#include <hirzel/data.h>
+#define HIRZEL_LOGGER_I
+#include <hirzel/logger.h>
 
-
-#include <data/account.h>
-#include <data/pricehistory.h>
-#include <data/position.h>
 
 using namespace daytrender;
 using namespace hirzel;

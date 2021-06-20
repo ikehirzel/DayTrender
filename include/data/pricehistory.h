@@ -27,17 +27,21 @@ namespace daytrender
 		~PriceHistory();
 
 		PriceHistory& operator=(const PriceHistory& other);
-		PriceHistory slice(unsigned offset, unsigned size)
+
+		PriceHistory slice(unsigned offset, unsigned size) const
 		{
 			if (!_data || offset + size > _size) return {};
 			return PriceHistory(_data, _size, _interval, offset, size);
 		}
+
 
 		const Candle& get(unsigned index) const 
 		{
 			if (index >= _size) return *_data;
 			return _data[index];
 		}
+
+
 		Candle& get(unsigned index)
 		{
 			// this account for shamt but allows for only one check
@@ -45,24 +49,30 @@ namespace daytrender
 			return _data[index];
 		}
 
+
 		inline Candle& operator[](int index)
 		{
 			return get(index);
 		}
+
+
 		inline const Candle& operator[] (unsigned index) const
 		{
 			return get(index);
 		}
+
 
 		inline const Candle& back(unsigned index = 0) const
 		{
 			return get((_size - 1) - index);
 		}
 
+
 		inline const Candle& front(unsigned index = 0) const
 		{
 			return get(index);
 		}
+
 
 		inline bool is_slice() const { return _slice; }
 		inline bool empty() const { return _size == 0; }

@@ -14,30 +14,25 @@ namespace daytrender
 {
 	Asset::Asset(const Data& config, const std::string& dir)
 	{
-		if (!config["ticker"].is_string())
-		{
-			ERROR("ticker is not a string");
-			return;
-		}
-
+		// getting ticker
+		if (!config["ticker"].is_string()) throw "ticker is not a string";
 		_ticker = config["ticker"].to_string();
 
-		if (!config["interval"].is_num())
-		{
-			ERROR("%s: interval is not a number", _ticker);
-			return;
-		}
-
+		// getting interval
+		if (!config["interval"].is_num()) throw "interval is not a number";
 		_interval = config["interval"].to_uint();
 
-		if (!config["strategy"].is_string())
+		// getting strategy
+		if (!config["strategy"].is_string()) throw "strategy is not a string";
+		try
 		{
-			ERROR("%s: strategy is not a string", _ticker);
-			return;
+			_strategy = Strategy(config["strategy"].to_string(), dir);
+			if (!_strategy.is_bound()) return;
 		}
-
-		_strategy = Strategy(config["strategy"].to_string(), dir);
-		if (!_strategy.is_bound()) return;
+		catch (std::string err)
+		{
+			
+		}
 		
 
 		const Data& ranges_json = config["ranges"];
@@ -59,17 +54,17 @@ namespace daytrender
 	
 	unsigned Asset::update(const PriceHistory& hist)
 	{
+		DEBUG("updating $%s", _ticker);
 		// processing the candlestick data gotten from client
-		Result<Chart> res = _strategy.execute(hist, _ranges);
-
-		if (!res)
+		try
 		{
-			ERROR("(%s) %s: %s", _ticker, _strategy.filename(), res.error());
+			Chart data = _strategy.execute(hist, _ranges);
+			return data.action();
+		}
+		catch (std::string err)
+		{
+			ERROR("(%s) %s: %s", _ticker, _strategy.filename(), err);
 			return ERROR;
 		}
-
-		_data = res.get();
-		
-		return _data.action();
 	}
 }

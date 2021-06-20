@@ -9,21 +9,33 @@
 // external libraries
 #include <hirzel/logger.h>
 #include <hirzel/util/str.h>
+#include <iostream>
 
 
 using namespace daytrender;
 
+#define COLOR_RED		"\033[31m"
+#define COLOR_RESET		"\033[0m"
+#define ERROR_PROMPT	COLOR_RED "error: " COLOR_RESET
+
+void command_error(const std::string& cmd)
+{
+	std::cerr << ERROR_PROMPT "command must be as follows: " << cmd << std::endl;
+}
+
+
 bool portfolio_error()
 {
-	PRINT("error: portfolio requested does not exist\n");
+	PRINT(ERROR_PROMPT "portfolio requested does not exist\n");
 	return false;
 }
+
 
 bool cli_account(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
 	if (argc != 1)
 	{
-		PRINT("error: account takes in portfolio label as argument");
+		command_error("<label>");
 		return false;
 	}
 
@@ -53,6 +65,20 @@ bool cli_account(TradeSystem& system, int argc, const char *args[], const char *
 
 bool cli_backtest(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
+	if (argc != 2)
+	{
+		command_error("backtest <portfolio> <ticker>");
+		return false;
+	}
+
+	// getting portfolio
+	const char *label = args[0];
+	Portfolio *portfolio = system.get_portfolio(label);
+	if (!portfolio) return portfolio_error();
+
+	// 
+
+
 	return false;
 }
 
@@ -60,7 +86,7 @@ bool cli_price(TradeSystem& system, int argc, const char *args[], const char *di
 {
 	if (argc != 4)
 	{
-		PRINT("error: args must be as follows:\n\tclient filename\n\tasset ticker\n\tcandle interval\n\tcandle count\n");
+		command_error("price <client> <ticker> <interval> <count>");
 		return false;
 	}
 	// need to get ticker, client, count

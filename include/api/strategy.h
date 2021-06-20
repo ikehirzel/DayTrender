@@ -33,8 +33,9 @@ namespace daytrender
 		Strategy() = default;
 		Strategy(const std::string& filename, const std::string& dir);
 
-		Result<Chart> execute(const PriceHistory& candles,
+		Chart execute(const PriceHistory& candles,
 			const std::vector<int>& ranges) const;
+			
 		inline const std::string& filename() const { return _filename; };
 		inline int indicator_count() const { return _indicator_count; }
 		inline bool is_bound() const { return (bool)_plugin; }
