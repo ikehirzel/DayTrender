@@ -76,7 +76,7 @@ namespace daytrender
 		const char *to_interval(int interval) const;
 
 		// derivative functions
-		inline Result<PriceHistory> get_price_history(const Asset& asset)
+		inline Result<PriceHistory> get_price_history(const Asset& asset) const
 		{
 			return get_price_history(asset.ticker(), asset.interval(), asset.candle_count());
 		}

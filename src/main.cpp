@@ -9,19 +9,20 @@
 // external libraries
 #include <hirzel/logger.h>
 #include <hirzel/util/str.h>
+#include <iostream>
+
+
+using namespace daytrender;
 
 #define COLOR_RED		"\033[31m"
 #define COLOR_RESET		"\033[0m"
 #define ERROR_PROMPT	COLOR_RED "error: " COLOR_RESET
 
-const char * const HELP_PROMPT = R"=====(available commands:
+void command_error(const std::string& cmd)
+{
+	std::cerr << ERROR_PROMPT "command must be as follows: " << cmd << std::endl;
+}
 
-    account
-    backtest
-    price
-)=====";
-
-using namespace daytrender;
 
 bool portfolio_error()
 {
@@ -29,11 +30,12 @@ bool portfolio_error()
 	return false;
 }
 
+
 bool cli_account(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
 	if (argc != 1)
 	{
-		PRINT(ERROR_PROMPT "account takes in portfolio label as argument\n");
+		command_error("<label>");
 		return false;
 	}
 
@@ -47,7 +49,7 @@ bool cli_account(TradeSystem& system, int argc, const char *args[], const char *
 	Result<Account> res = cli.get_account();
 	if (!res)
 	{
-		PRINT(ERROR_PROMPT "%s", res.error());
+		PRINT("error: %s", res.error());
 		return false;
 	}
 
@@ -63,6 +65,20 @@ bool cli_account(TradeSystem& system, int argc, const char *args[], const char *
 
 bool cli_backtest(TradeSystem& system, int argc, const char *args[], const char *dir)
 {
+	if (argc != 2)
+	{
+		command_error("backtest <portfolio> <ticker>");
+		return false;
+	}
+
+	// getting portfolio
+	const char *label = args[0];
+	Portfolio *portfolio = system.get_portfolio(label);
+	if (!portfolio) return portfolio_error();
+
+	// 
+
+
 	return false;
 }
 
@@ -70,7 +86,7 @@ bool cli_price(TradeSystem& system, int argc, const char *args[], const char *di
 {
 	if (argc != 4)
 	{
-		PRINT(ERROR_PROMPT "args must be as follows:\n\tportfolio label\n\tasset ticker\n\tcandle interval\n\tcandle count\n");
+		command_error("price <client> <ticker> <interval> <count>");
 		return false;
 	}
 	// need to get ticker, client, count
@@ -119,16 +135,9 @@ bool handle_input(TradeSystem& system, int argc, const char *args[], const char 
 		if (!std::strcmp(args[0], "price"))
 			return cli_price(system, argc - 1, args + 1, dir);
 		break;
-
-	case 'h':
-		if (!std::strcmp(args[0], "help"))
-		{
-			PRINT(HELP_PROMPT);
-			return true;
-		}
 	}
 
-	PRINT(ERROR_PROMPT "invalid command\n\n%s\n", HELP_PROMPT);
+	PRINT("daytrender: Invalid command\n");
 	return false;
 }
 

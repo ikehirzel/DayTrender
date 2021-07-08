@@ -48,34 +48,16 @@ namespace daytrender
 		typedef bool (PaperAccount::*PaperAction)();
 
 		std::vector<int> _ranges;
-		std::string _error;
-		
-		bool enter_long();
-		bool exit_long();
-		bool enter_short();
-		bool exit_short();
 
 	public:
 		PaperAccount() = default;
 		PaperAccount(double principal, int leverage, double fee, double order_minimum,
 			double initial_price, bool shorting_enabled, int interval, const std::vector<int>& ranges);
 
-		inline bool handle_action(int action)
-		{
-			switch(action)
-			{
-			case ENTER_LONG:
-				return enter_long();
-			case EXIT_LONG:
-				return exit_long();
-			case ENTER_SHORT:
-				return enter_short();
-			case EXIT_SHORT:
-				return exit_short();
-			default:
-				return true;
-			}
-		}
+		bool enter_long();
+		bool exit_long();
+		bool enter_short();
+		bool exit_short();
 
 		inline bool close_position()
 		{
@@ -156,7 +138,6 @@ namespace daytrender
 		double elapsed_hours() const;
 		
 		std::string to_string() const;
-		inline std::string error() const { return _error; }
 		friend std::ostream& operator<<(std::ostream& out, const PaperAccount& acc);
 	};
 }

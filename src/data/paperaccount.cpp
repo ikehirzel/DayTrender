@@ -1,6 +1,11 @@
+// header
 #include <data/paperaccount.h>
 
+// local includes
 #include <data/mathutil.h>
+
+// external libraries
+#include <hirzel/logger.h>
 
 namespace daytrender
 {
@@ -65,7 +70,7 @@ namespace daytrender
 
 		if (_balance < 0.0)
 		{
-			_error = "resolution of long exit caused balance to go negative: " + std::to_string(_balance);
+			ERROR("resolution of long exit caused balance to go negative: %f", _balance);
 			return false;
 		}
 
@@ -119,7 +124,7 @@ namespace daytrender
 
 		if (_balance < 0.0)
 		{
-			_error = "resolution of short exit caused balance to go negative: " + std::to_string(_balance);
+			ERROR("resolution of short exit caused balance to go negative: %f", _balance);
 			return false;
 		}
 

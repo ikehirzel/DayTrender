@@ -96,14 +96,19 @@ namespace daytrender
 	void TradeSystem::start()
 	{
 		_running = true;
-		INFO("Starting DayTrender");
+		SUCCESS("Trade system has started");
 
 		while (_running)
 		{
 			for (Portfolio& portfolio : _portfolios)
 			{
 				// do nothing if portfolio is not live
-				if (!portfolio.is_live()) continue;
+				if (!portfolio.is_live())
+				{
+					DEBUG("%s portfolio is not live and cannot be updated",
+						portfolio.label());
+					continue;
+				}
 				// update account/ pl info if hasn't been done recently
 				if (portfolio.should_update()) portfolio.update();
 				// update assets
@@ -125,7 +130,8 @@ namespace daytrender
 		}
 
 		_running = false;
-		INFO("Shutting down DayTrender...");
+		PRINT("\r"); // covering up ^C from interrupt
+		INFO("Shutting down trade system...");
 		_mtx.unlock();
 	}
 

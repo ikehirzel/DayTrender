@@ -5,6 +5,7 @@
 
 // standard library
 #include <unordered_map>
+#include <iostream>
 
 // external libararies
 #include <hirzel/plugin.h>
@@ -33,9 +34,7 @@ namespace daytrender
 			
 			if (!_plugin->bind(dir + STRATEGY_DIR + filename))
 			{
-				ERROR(_plugin->error());
-				_plugin.reset();
-				return;
+				throw _plugin->error();
 			};
 			
 			if (!_plugin->bind_functions({
@@ -45,9 +44,7 @@ namespace daytrender
 				"api_version"
 			}))
 			{
-				ERROR(_plugin->error());
-				_plugin.reset();
-				return;
+				throw _plugin->error();
 			}
 
 			_plugins[filename] = _plugin;
@@ -65,16 +62,25 @@ namespace daytrender
 		_execute = (decltype(_execute))_plugin->get_function("execute");
 	}
 
-	Result<Chart> Strategy::execute(const PriceHistory& candles,
+
+	void segfault_handler(int signal)
+	{
+		std::cerr << "\033[31merror:\033[0m Segmentation fault caused by strategy.\n";
+		std::abort();
+	}
+
+
+	Chart Strategy::execute(const PriceHistory& candles,
 		const std::vector<int>& ranges) const
 	{
-		if (!_execute) return "execute function is not bound";
-
+		if (!_execute) throw _filename + ": execute function is not bound";
+		// create chart data
 		Chart data(ranges, candles, _data_length);
 
+		// execute the strategy
 		const char *error = _execute(&data);
 
-		if (error) return error;
+		if (error) throw _filename + ": " + std::string(error);
 
 		return data;
 	}

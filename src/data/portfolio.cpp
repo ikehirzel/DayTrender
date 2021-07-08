@@ -140,8 +140,12 @@ namespace daytrender
 
 	void Portfolio::update()
 	{
-		if (!_ok) return;
-		INFO("Updating %s portfolio information", _label);
+		if (!_ok)
+		{
+			WARNING("%s portfolio is not okay and cannot be updated", _label);
+			return;
+		}
+		DEBUG("Updating %s portfolio information", _label);
 
 		long long curr_time = hirzel::sys::epoch_seconds();
 		_last_update = curr_time;
@@ -200,6 +204,7 @@ namespace daytrender
 
 	void Portfolio::update_assets()
 	{
+		DEBUG("Updating %s assets", _label);
 		for (Asset& asset : _assets)
 		{
 			// skip if it shouldn't update yet
