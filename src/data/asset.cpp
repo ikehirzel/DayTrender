@@ -60,6 +60,7 @@ namespace daytrender
 	unsigned Asset::update(const PriceHistory& hist)
 	{
 		// processing the candlestick data gotten from client
+		_last_update = hirzel::sys::epoch_seconds();
 		Result<Chart> res = _strategy.execute(hist, _ranges);
 
 		if (!res)
