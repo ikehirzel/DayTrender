@@ -42,6 +42,27 @@ namespace daytrender
 		}
 	}
 
+	PriceHistory PriceHistory::slice(unsigned offset, unsigned size) const
+	{
+		if (!_data)
+				throw std::runtime_error("data is nullptr");
+
+			if (offset > _size)
+				throw std::out_of_range("PriceHistory: lower bound of slice ("
+					+ std::to_string(offset)
+					+ ") is greater than size of parent ("
+					+ std::to_string(_size)
+					+ ")");
+			
+			if (offset + size > _size)
+				throw std::out_of_range("PriceHistory: upper bound of slice ("
+					+ std::to_string(offset + size)
+					+ " but size is "
+					+ std::to_string(_size));
+
+			return PriceHistory(_data, _size, _interval, offset, size);
+	}
+
 	PriceHistory& PriceHistory::operator=(const PriceHistory& other)
 	{
 		_interval = other.interval();

@@ -24,55 +24,47 @@ namespace daytrender
 		PriceHistory(unsigned size, unsigned interval);
 		PriceHistory(PriceHistory&& other);
 		PriceHistory(const PriceHistory& other);
+
 		~PriceHistory();
 
 		PriceHistory& operator=(const PriceHistory& other);
+		PriceHistory slice(unsigned offset, unsigned size) const;
 
-		PriceHistory slice(unsigned offset, unsigned size) const
+		inline Candle& get(unsigned index)
 		{
-			if (!_data || offset + size > _size) return {};
-			return PriceHistory(_data, _size, _interval, offset, size);
-		}
+			if (index >= _size)
+				throw std::out_of_range("PriceHistory::get(): index is "
+					+ std::to_string(index)
+					+ " but size is "
+					+ std::to_string(_size));
 
-
-		const Candle& get(unsigned index) const 
-		{
-			if (index >= _size) return *_data;
 			return _data[index];
 		}
 
-
-		Candle& get(unsigned index)
+		inline const Candle& get(unsigned index) const
 		{
-			// this account for shamt but allows for only one check
-			if (index >= _size) return *_data;
-			return _data[index];
+			return get(index);
 		}
-
 
 		inline Candle& operator[](int index)
 		{
 			return get(index);
 		}
 
-
 		inline const Candle& operator[] (unsigned index) const
 		{
 			return get(index);
 		}
-
 
 		inline const Candle& back(unsigned index = 0) const
 		{
 			return get((_size - 1) - index);
 		}
 
-
 		inline const Candle& front(unsigned index = 0) const
 		{
 			return get(index);
 		}
-
 
 		inline bool is_slice() const { return _slice; }
 		inline bool empty() const { return _size == 0; }

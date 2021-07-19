@@ -71,7 +71,7 @@ namespace daytrender
 
 
 	Chart Strategy::execute(const PriceHistory& candles,
-		const std::vector<int>& ranges) const
+		const std::vector<unsigned>& ranges) const
 	{
 		if (!_execute) throw _filename + ": execute function is not bound";
 		// create chart data

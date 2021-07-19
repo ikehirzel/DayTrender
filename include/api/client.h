@@ -25,10 +25,11 @@ namespace daytrender
 	class Client
 	{
 	private:
+
 		static std::unordered_map<std::string, std::shared_ptr<hirzel::Plugin>> _plugins;
 
-		std::shared_ptr<hirzel::Plugin> _plugin;
 		std::string _filename;
+		std::shared_ptr<hirzel::Plugin> _plugin;
 		
 		// init func
 
@@ -50,12 +51,14 @@ namespace daytrender
 		uint32_t (*_max_candles)() = nullptr;
 		uint32_t (*_api_version)() = nullptr;
 
+	private: // initializer functions
+
+		std::string get_filename(const hirzel::Data& config) const;
+		std::shared_ptr<hirzel::Plugin> get_plugin(const hirzel::Data& config,
+			const std::string& dir) const;
 
 	public:
-		Client() = default;
-		Client(const std::string& filename, const std::string& dir);
-
-		static void free_plugins();
+		Client(const hirzel::Data& config, const std::string& dir);
 
 		// api functions
 
@@ -114,6 +117,7 @@ namespace daytrender
 		// inline getter functions
 		inline bool is_bound() const { return (bool)_plugin; }
 		inline const std::string& filename() const { return _filename; }
+		inline const std::string& filepath() const { return _plugin->filepath(); }
 	};
 }
 

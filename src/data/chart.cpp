@@ -3,7 +3,7 @@
 
 namespace daytrender
 {
-	Chart::Chart(const std::vector<int>& ranges,
+	Chart::Chart(const std::vector<unsigned>& ranges,
 		const PriceHistory& candles, unsigned data_length)
 	{
 		_ranges = ranges;

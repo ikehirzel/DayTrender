@@ -14,9 +14,16 @@ using logger::print;
 
 namespace daytrender
 {
-	Portfolio::Portfolio(const Data& config, const std::string& label,
-		const std::string& dir) :
-	_label(label)
+	Portfolio::Portfolio(const Data& config, const std::string& dir) :
+		_shorting_enabled(get_shorting_enabled(config)),
+		_risk_sum(get_risk_sum(config)),
+		_pl(get_pl(config)),
+		_risk(get_risk(config)),
+		_max_loss(get_max_loss(config)),
+		_history_length(get_history_length(config)),
+		_closeout_buffer(get_closeout_buffer(config)),
+		_assets(get_assets(config, dir)),
+		_label(label)
 	{
 		double max_loss = config["max_loss"].to_double();
 		double risk = config["risk"].to_double();
@@ -137,6 +144,118 @@ namespace daytrender
 		_ok = true;
 	}
 
+	bool Portfolio::get_shorting_enabled(const Data& config) const
+	{
+		if (!config.contains("shorting_enabled"))
+			throw std::invalid_argument("Portfolio: shorting_enabled must be defined in config");
+		
+		const Data& shorting_enabled = config["shorting_enabled"];
+
+		if (!shorting_enabled.is_bool())
+			throw std::invalid_argument("Portfolio: shorting_enabled must be true or false");
+		
+		return shorting_enabled.to_bool();
+	}
+
+	double Portfolio::get_risk(const Data& config) const
+	{
+		if (!config.contains("risk"))
+			throw std::invalid_argument("'risk' must be defined in config'");
+
+		const Data& risk = config["risk"];
+
+		if (!risk.is_num())
+			throw std::invalid_argument("'risk' must be a number");
+
+		double out = risk.to_double();
+
+		if (out < 0.0 || out > 1.0)
+			throw std::out_of_range("'risk' must be in range: [0, 1]");
+
+		return out;
+	}
+
+	double Portfolio::get_max_loss(const Data& config) const
+	{
+		if (!config.contains("max_loss"))
+			throw std::invalid_argument("'max_loss' must be defined in config'");
+		
+		const Data& max_loss = config["max_loss"];
+
+		if (!max_loss.is_num())
+			throw std::invalid_argument("'max_loss' must be a number");
+
+		double out = max_loss.to_double();
+
+		if (out < 0.0 || out > 1.0)
+			throw std::out_of_range("'max_loss' must be in range: [0, 1]");
+
+		return out;
+	}
+
+	double Portfolio::get_history_length(const Data& config) const
+	{
+		if (!config.contains("history_length"))
+			throw std::invalid_argument("'history_length' must be defined in config'");
+		
+		const Data& history_length = config["history_length"];
+
+		if (!history_length.is_uint())
+			throw std::invalid_argument("'history_length' must be a non-negative number");
+
+		return history_length.to_uint();
+	}
+
+	unsigned Portfolio::get_closeout_buffer(const Data& config) const
+	{
+		if (!config.contains("closeout_buffer"))
+			throw std::invalid_argument("'closeout_buffer' must be defined in config'");
+		
+		const Data& closeout_buffer = config["closeout_buffer"];
+
+		if (!closeout_buffer.is_uint())
+			throw std::invalid_argument("'closeout_buffer' must be a non-negative number");
+
+		return closeout_buffer.to_uint();
+	}
+
+	Client Portfolio::get_client(const Data& config, const std::string& dir) const
+	{
+		if (!config.contains("client"))
+			throw std::invalid_argument("Portolio: 'client' must be defined in config");
+		
+		return Client(config["client"], dir);
+	}
+
+	std::vector<Asset> Portfolio::get_assets(const hirzel::Data& config,
+			const std::string& dir) const
+	{
+		if (config.contains("assets"))
+			throw std::invalid_argument("'assets' must be defined in config");
+		
+		const Data& assets = config["assets"];
+
+		if (!assets.is_array())
+			throw std::invalid_argument("'assets' must be an array");
+
+		std::vector<Asset> out;
+		out.reserve(assets.size());
+
+		for (const Data& asset : assets.to_array())
+		{
+			try
+			{
+				out.push_back({ asset, dir });
+			}
+			catch (const std::exception& e)
+			{
+				ERROR("failed to configure asset: %s", e.what());
+				throw;
+			}
+		}
+
+		return out;
+	}
 
 	void Portfolio::update()
 	{

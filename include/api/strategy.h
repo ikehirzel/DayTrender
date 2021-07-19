@@ -34,7 +34,7 @@ namespace daytrender
 		Strategy(const std::string& filename, const std::string& dir);
 
 		Chart execute(const PriceHistory& candles,
-			const std::vector<int>& ranges) const;
+			const std::vector<unsigned>& ranges) const;
 			
 		inline const std::string& filename() const { return _filename; };
 		inline int indicator_count() const { return _indicator_count; }

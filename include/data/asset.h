@@ -17,26 +17,29 @@ namespace daytrender
 {
 	class Asset
 	{
-	private:
-		// update timer
-		unsigned _interval = 0;
+	private: // data members
+
 		long long _last_update = 0;
-
+		unsigned _interval = 0;
+		std::vector<unsigned> _ranges;
 		unsigned _candle_count = 0;
-		double _risk = 0.0;
-
 		std::string _ticker;
-		Chart _data;
-		std::vector<int> _ranges;
-
 		Strategy _strategy;
+		double _risk = 0.0;
 		
-		// client wrappers
-		// client.get_price_history(_ticker, _interval, _candle_count);
+	private: // initializer getters
 
-	public:
+		unsigned get_interval(const hirzel::Data& config) const;
+		std::vector<unsigned> get_ranges(const hirzel::Data& config) const;
+		Strategy get_strategy(const hirzel::Data& config, const std::string& dir) const;
+		std::string get_ticker(const hirzel::Data& config) const;
+		unsigned get_candle_count() const;
+		double get_risk() const;
+
+	
+	public: // public functions
+
 		Asset(const hirzel::Data& config, const std::string& dir);
-		Asset() = default;
 
 		unsigned update(const PriceHistory& hist);
 		inline bool should_update() const
@@ -45,10 +48,9 @@ namespace daytrender
 		}
 
 		// inline getter functions
-		inline const Chart& data() const { return _data; }
 		inline const Strategy& strategy() const { return _strategy; }
 		inline const std::string& ticker() const { return _ticker; }
-		inline const std::vector<int>& ranges() const { return _ranges; }
+		inline const std::vector<unsigned>& ranges() const { return _ranges; }
 		inline unsigned interval() const { return _interval; }
 		inline unsigned candle_count() const { return _candle_count; }
 		inline double risk() const { return _risk; }

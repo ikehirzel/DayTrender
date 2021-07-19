@@ -22,8 +22,63 @@ namespace daytrender
 {
 	std::unordered_map<std::string, std::shared_ptr<Plugin>> Client::_plugins;
 
+	Client::Client(const hirzel::Data& config, const std::string& dir) :
+		_filename(get_filename(config)),
+		_plugin(get_plugin(config, dir))
+	{
+		if (!config.is_table())
+			throw std::invalid_argument("Portolio: 'client' must be an object");
+		
+		if (!config.contains("filename"))
+			throw std::invalid_argument("Porfolio: 'filename' must be defined in client");
+
+		const Data& filename = config["filename"];
+
+		if (!filename.is_string())
+			throw std::invalid_argument("Portfolio: 'filename' must be a string");
+		
+		if (!config.contains("keys"))
+			throw std::invalid_argument("Porfolio: 'keys' must be defined in client");
+
+		const Data& keys = config["keys"];
+
+		if (!keys.is_array())
+			throw std::invalid_argument("Portfolio: 'keys' must be an array");
+		
+		std::vector<std::string> keys_arr;
+
+		keys_arr.reserve(keys.size());
+
+		for (const Data& key : keys.to_array())
+		{
+			if (!key.is_string())
+				throw std::invalid_argument("Portolio: key element must be a string");
+			
+			keys_arr.push_back(key.to_string());
+		}
+	}
+
+	std::string Client::get_filename(const Data& config) const
+	{
+		if (!config.contains("filename"))
+			throw std::invalid_argument("'filename' must be defined in config");
+		
+		const Data& filename = config["filename"];
+
+		if (!filename.is_string())
+			throw std::invalid_argument("'filename' must be a string");
+		
+		return filename.to_string();
+	}
+
+	std::shared_ptr<hirzel::Plugin> Client::get_plugin(const Data& config,
+		const std::string& dir) const
+	{
+		
+	}
+
 	Client::Client(const std::string& filename, const std::string& dir) :
-	_filename(filename)
+		_filename(filename)
 	{
 		// get plugin
 		_plugin = _plugins[filename];
